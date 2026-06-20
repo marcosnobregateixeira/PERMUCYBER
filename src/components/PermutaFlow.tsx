@@ -562,23 +562,33 @@ export default function PermutaFlow({
             <div className="grid grid-cols-3 gap-2">
               <div className="space-y-1">
                 <label className="text-[8px] text-slate-400 block uppercase font-mono">Hora de Início</label>
-                <input
-                  type="text"
+                <select
                   value={customHoraInicio}
                   onChange={(e) => setCustomHoraInicio(e.target.value)}
                   className="w-full bg-[#020709] border border-hud-border hover:border-cyber-cyan/50 focus:border-cyber-blue focus:outline-none rounded-lg px-2 py-1 text-xs text-white font-mono font-bold"
-                  placeholder="08:00"
-                />
+                >
+                  {Array.from({ length: 48 }).map((_, i) => {
+                    const hour = Math.floor(i / 2).toString().padStart(2, '0');
+                    const minute = (i % 2 === 0) ? '00' : '30';
+                    const time = `${hour}:${minute}`;
+                    return <option key={time} value={time}>{time}</option>;
+                  })}
+                </select>
               </div>
               <div className="space-y-1">
                 <label className="text-[8px] text-slate-400 block uppercase font-mono">Hora de Fim</label>
-                <input
-                  type="text"
+                <select
                   value={customHoraFim}
                   onChange={(e) => setCustomHoraFim(e.target.value)}
                   className="w-full bg-[#020709] border border-hud-border hover:border-cyber-cyan/50 focus:border-cyber-blue focus:outline-none rounded-lg px-2 py-1 text-xs text-white font-mono font-bold"
-                  placeholder="16:00"
-                />
+                >
+                  {Array.from({ length: 48 }).map((_, i) => {
+                    const hour = Math.floor(i / 2).toString().padStart(2, '0');
+                    const minute = (i % 2 === 0) ? '00' : '30';
+                    const time = `${hour}:${minute}`;
+                    return <option key={time} value={time}>{time}</option>;
+                  })}
+                </select>
               </div>
               <div className="space-y-1">
                 <label className="text-[8px] text-slate-400 block uppercase font-mono">Regime de Turno</label>
@@ -589,8 +599,9 @@ export default function PermutaFlow({
                 >
                   <option value="MANHÃ">MANHÃ</option>
                   <option value="TARDE">TARDE</option>
-                  <option value="NOITE">NOITE</option>
-                  <option value="ESTENDIDO">ESTENDIDO</option>
+                  <option value="TURNO A">TURNO A</option>
+                  <option value="TURNO B">TURNO B</option>
+                  <option value="24H">24H</option>
                 </select>
               </div>
             </div>

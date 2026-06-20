@@ -24,7 +24,8 @@ import {
   Upload,
   RefreshCw,
   FileCode,
-  Key
+  Key,
+  Trash2
 } from 'lucide-react';
 import { Permuta, Militar, BlockchainLog, Escala } from '../types';
 import { generateSimpleHash, formatarDataBR } from '../data';
@@ -42,6 +43,9 @@ interface PainelGestorProps {
   onRefreshData?: () => void;
   onImportMilitaresJSON?: (militares: Militar[]) => void;
   onUpdateMilitarNomeGuerra?: (id: string, newNome: string) => void;
+  onAddMilitar?: (m: Militar) => void;
+  onDeleteMilitar?: (id: string) => void;
+  onToggleBiometria?: (id: string) => void;
   onUserSwitch?: (userId: string) => void;
 }
 
@@ -57,9 +61,13 @@ export default function PainelGestor({
   onRefreshData,
   onImportMilitaresJSON,
   onUpdateMilitarNomeGuerra,
+  onAddMilitar,
+  onDeleteMilitar,
+  onToggleBiometria,
   onUserSwitch
 }: PainelGestorProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'PEDIDOS' | 'AUDITORIA' | 'METRICAS' | 'SISTEMA'>('PEDIDOS');
+  const [activeSubTab, setActiveSubTab] = useState<'PEDIDOS' | 'AUDITORIA' | 'METRICAS' | 'SISTEMA' | 'EXCLUSAO'>('PEDIDOS');
+  const [newMilitarForm, setNewMilitarForm] = useState<Partial<Militar>>({ nome: '', nomeGuerra: '', patente: 'SD', funcao: 'ADM', quadro: 'QPPM', pinSegurança: '1234' });
   const [selectedPermutaDetailId, setSelectedPermutaDetailId] = useState<string | null>(null);
   const [justificativaAjuste, setJustificativaAjuste] = useState<string>('');
   const [showAjusteParaId, setShowAjusteParaId] = useState<string | null>(null);
@@ -97,7 +105,7 @@ export default function PainelGestor({
   return (
     <div className="flex-1 flex flex-col p-4 bg-[#03080a] text-slate-100 select-none pb-12" id="painel-gestor-container">
       {/* COMPACT SUB TABS CONTROLS */}
-      <div className="grid grid-cols-4 gap-1 bg-[#061217] p-1 rounded-lg border border-hud-border/70 mb-4 text-[10px] font-mono">
+      <div className="grid grid-cols-5 gap-1 bg-[#061217] p-1 rounded-lg border border-hud-border/70 mb-4 text-[10px] font-mono">
         <button
           onClick={() => setActiveSubTab('PEDIDOS')}
           className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
@@ -138,6 +146,16 @@ export default function PainelGestor({
           }`}
         >
           SISTEMA
+        </button>
+        <button
+          onClick={() => setActiveSubTab('EXCLUSAO')}
+          className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
+            activeSubTab === 'EXCLUSAO'
+              ? 'bg-cyber-red text-[#03080a]'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          EXCLUSÃO
         </button>
       </div>
 
@@ -549,6 +567,25 @@ export default function PainelGestor({
         </div>
       )}
 
+      {activeSubTab === 'EXCLUSAO' && (
+        <div className="space-y-3 animate-fade-in font-sans">
+          <h3 className="text-xs font-bold font-display text-white tracking-wider uppercase flex items-center">
+            <Trash2 className="w-4 h-4 text-cyber-red mr-1.5" />
+            GERENCIAMENTO DE EFETIVO (EXCLUSÃO)
+          </h3>
+          <div className="space-y-2">
+            {allMilitares.map(m => (
+                <div key={m.id} className="bg-hud-card border border-hud-border p-3 rounded-lg flex justify-between items-center text-xs">
+                    <span className="font-mono text-slate-300">{m.patente} {m.nomeGuerra} ({m.id})</span>
+                    <button onClick={() => onDeleteMilitar?.(m.id)} className="text-cyber-red/70 hover:text-red-500 p-1">
+                        <Trash2 size={16} />
+                    </button>
+                </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* SYSTEM ADMINISTRATIVE MANAGEMENT OPTIONS */}
       {activeSubTab === 'SISTEMA' && (
         <div className="space-y-4 animate-fade-in font-sans">
@@ -645,7 +682,42 @@ export default function PainelGestor({
           {/* User management list (Setor de Credenciais) */}
           <div className="bg-hud-card border border-hud-border/80 rounded-xl p-3.5 space-y-3">
             <span className="text-[9.5px] font-mono text-cyber-green uppercase tracking-wider block font-extrabold">
-              ✓ QUADRO ATIVO DE CREDENCIAIS DE OFICIAIS
+              ✓ REGISTRO DE POLICIAIS
+            </span>
+            <div className="grid grid-cols-2 gap-2 text-[10px]">
+                <input type="text" placeholder="Nome Completo" value={newMilitarForm.nome} onChange={e => setNewMilitarForm({...newMilitarForm, nome: e.target.value})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white col-span-2" />
+                <input type="text" placeholder="Nome de Guerra" value={newMilitarForm.nomeGuerra} onChange={e => setNewMilitarForm({...newMilitarForm, nomeGuerra: e.target.value})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white" />
+                <select value={newMilitarForm.patente} onChange={e => setNewMilitarForm({...newMilitarForm, patente: e.target.value as any})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white">
+                    {['CEL', 'TC', 'MAJ', 'CAP', '1ºTEN', '2ºTEN', 'ST', '1ºSGT', '2ºSGT', '3ºSGT', 'CB', 'SD'].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <select value={newMilitarForm.funcao} onChange={e => setNewMilitarForm({...newMilitarForm, funcao: e.target.value as any})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white">
+                    {['ADM', 'ASSISTENTE SOCIAL', 'DENTISTA', 'ENFERMEIRO', 'FISCAL', 'MÉDICO', 'MOTORISTA', 'PSICOLOGO', 'TEC. ENFERMAGEM'].map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+                <select value={newMilitarForm.quadro} onChange={e => setNewMilitarForm({...newMilitarForm, quadro: e.target.value as any})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white">
+                    {['QOPM', 'QOAPM', 'QOCPM', 'QPPM'].map(q => <option key={q} value={q}>{q}</option>)}
+                </select>
+                <button 
+                    onClick={() => {
+                        if (onAddMilitar && newMilitarForm.nome && newMilitarForm.nomeGuerra) {
+                            onAddMilitar({
+                                id: `M-${Date.now().toString().slice(-4)}`,
+                                ...newMilitarForm as Militar,
+                                companhia: 'Batalhão Operacional',
+                                especialidade: 'Patrulhamento',
+                                statusProntidao: 'PRONTO',
+                                chaveDigital: `KEY-${Date.now()}`,
+                                biometriaAtiva: false
+                            });
+                            setNewMilitarForm({ nome: '', nomeGuerra: '', patente: 'SD', funcao: 'ADM', pinSegurança: '1234' });
+                        }
+                    }}
+                    className="col-span-2 bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/30 py-2 rounded font-bold uppercase transition-all"
+                >
+                    Registrar Oficial no Sistema
+                </button>
+            </div>
+            <span className="text-[9.5px] font-mono text-cyber-green uppercase tracking-wider block font-extrabold border-t border-hud-border/30 pt-3">
+              ✓ QUADRO ATIVO DE CREDENCIAIS
             </span>
             
             <div className="space-y-2 max-h-[290px] overflow-y-auto pr-1">
@@ -665,13 +737,17 @@ export default function PainelGestor({
                         : 'bg-[#03090b] border-hud-border/50 hover:border-hud-border'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between">
                       <span className="text-[9px] font-mono text-slate-400 font-bold uppercase">
                         CÓDIGO: {u.id}
                       </span>
-                      <span className="text-[7.5px] font-mono bg-cyber-amber/10 text-cyber-amber border border-cyber-amber/35 px-1.5 py-0.2 rounded font-bold uppercase">
-                        {roleTag}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                         <span className="text-[7.5px] font-mono bg-cyber-amber/10 text-cyber-amber border border-cyber-amber/35 px-1.5 py-0.2 rounded font-bold uppercase">
+                           {roleTag}
+                         </span>
+                         <button onClick={() => onDeleteMilitar?.(u.id)} className="text-cyber-red/70 hover:text-red-500 font-bold text-[8px] uppercase"><Trash2 size={12} /></button>
+                         <button onClick={() => onToggleBiometria?.(u.id)} className={`${u.biometriaAtiva ? 'text-cyber-green' : 'text-cyber-amber'} hover:text-white font-bold text-[8px] uppercase`}>{u.biometriaAtiva ? 'BIO: ATIVA' : 'BIO: INATIVA'}</button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 font-sans">

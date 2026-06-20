@@ -3,13 +3,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type Patente = 'Soldado' | 'Cabo' | 'Sargento' | 'Subtenente' | 'Tenente' | 'Capitão';
+export type Patente = 'CEL' | 'TC' | 'MAJ' | 'CAP' | '1ºTEN' | '2ºTEN' | 'ST' | '1ºSGT' | '2ºSGT' | '3ºSGT' | 'CB' | 'SD';
+
+export type Funcao = 'ADM' | 'ASSISTENTE SOCIAL' | 'DENTISTA' | 'ENFERMEIRO' | 'FISCAL' | 'MÉDICO' | 'MOTORISTA' | 'PSICOLOGO' | 'TEC. ENFERMAGEM';
+
+export type Quadro = 'QOPM' | 'QOAPM' | 'QOCPM' | 'QPPM';
 
 export interface Militar {
   id: string;
   nome: string;
   nomeGuerra: string;
   patente: Patente;
+  funcao: Funcao;
+  quadro: Quadro;
   companhia: string;
   especialidade: string;
   statusProntidao: 'PRONTO' | 'EM_SERVICO' | 'FOLGA' | 'CONFLITO';
@@ -25,9 +31,8 @@ export interface Escala {
   data: string; // YYYY-MM-DD
   horaInicio: string; // HH:MM
   horaFim: string; // HH:MM
-  turno: 'MANHÃ' | 'TARDE' | 'NOITE' | 'ESTENDIDO';
+  turno: 'MANHÃ' | 'TARDE' | 'TURNO A' | 'TURNO B' | '24H';
 }
-
 export type PermutaStatus = 
   | 'PENDENTE_SUBSTITUTO' 
   | 'ALTERACAO_SOLICITADA' 
@@ -46,7 +51,7 @@ export interface Permuta {
   dataRealizacao: string; // YYYY-MM-DD
   horaInicio: string;
   horaFim: string;
-  turno: 'MANHÃ' | 'TARDE' | 'NOITE' | 'ESTENDIDO';
+  turno: 'MANHÃ' | 'TARDE' | 'TURNO A' | 'TURNO B' | '24H';
   postoServico: string;
   comentarioAlteracao?: string;
   status: PermutaStatus;

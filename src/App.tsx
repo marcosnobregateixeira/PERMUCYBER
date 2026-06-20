@@ -68,6 +68,16 @@ export default function App() {
 
     if (storedMilitares && storedEscalas && storedAlertas && storedPermutas && storedLogs && storedMessages) {
       const parsedMilitares: Militar[] = JSON.parse(storedMilitares);
+      
+      // Ensure M-ADMIN-1 exists
+      if (!parsedMilitares.some(m => m.id === 'M-ADMIN-1')) {
+        const adminUser = MILITARES.find(m => m.id === 'M-ADMIN-1');
+        if (adminUser) {
+          parsedMilitares.push(adminUser);
+          localStorage.setItem('pm_militares', JSON.stringify(parsedMilitares));
+        }
+      }
+
       const isOutdated = parsedMilitares.length < 10 || parsedMilitares.some(m => m.id === 'M-301' && m.nome === 'Rafael Fontes');
       if (isOutdated) {
         seedDatabase();
@@ -148,6 +158,41 @@ export default function App() {
     setLogs(updated);
     saveToLocalStorage('pm_logs', updated);
     return updated;
+  };
+
+  const handleAddMilitarIndividual = (militar: Militar) => {
+    const updated = [...militares, militar];
+    setMilitares(updated);
+    saveToLocalStorage('pm_militares', updated);
+    appendAuditLog(
+      'INTEGRALIZAÇÃO',
+      `Militar ${militar.nomeGuerra} adicionado à base de dados.`,
+      loggedUser?.nomeGuerra || 'SISTEMA',
+      logs
+    );
+  };
+
+  const handleDeleteMilitar = (id: string) => {
+    const updated = militares.filter(m => m.id !== id);
+    setMilitares(updated);
+    saveToLocalStorage('pm_militares', updated);
+    appendAuditLog(
+      'INTEGRALIZAÇÃO',
+      `Militar com ID ${id} removido da base de dados.`,
+      loggedUser?.nomeGuerra || 'SISTEMA',
+      logs
+    );
+  };
+
+  const handleToggleBiometria = (id: string) => {
+    const updated = militares.map(m => {
+      if (m.id === id) {
+        return { ...m, biometriaAtiva: !m.biometriaAtiva };
+      }
+      return m;
+    });
+    setMilitares(updated);
+    saveToLocalStorage('pm_militares', updated);
   };
 
   const handleUpdateMilitarNomeGuerra = (id: string, newNome: string) => {
@@ -640,7 +685,7 @@ export default function App() {
 
                 {currentTab === 'GESTAO' && (
                   <div>
-                    {loggedUser.id === 'M-202' ? (
+                    {loggedUser.id === 'M-ADMIN-1' ? (
                       /* Officer is authorized to access with their key */
                       <PainelGestor
                         permutas={permutas}
@@ -651,6 +696,9 @@ export default function App() {
                         onApprovePermuta={handleApprovePermutaGestor}
                         onRejectPermuta={handleRejectPermutaGestor}
                         onAdjustPermuta={handleAdjustPermutaGestor}
+                        onAddMilitar={handleAddMilitarIndividual}
+                        onDeleteMilitar={handleDeleteMilitar}
+                        onToggleBiometria={handleToggleBiometria}
                         onRefreshData={handleRefreshAll}
                         onImportMilitaresJSON={handleImportMilitaresJSON}
                         onUpdateMilitarNomeGuerra={handleUpdateMilitarNomeGuerra}
@@ -677,8 +725,8 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => {
-                            handleUserChange('M-202');
-                            alert('Acesso tático renegociado: Conectado como Tenente Bastos (Administrador do Comando).');
+                            handleUserChange('M-ADMIN-1');
+                            alert('Acesso tático renegociado: Conectado como 1ºSgt Nobrega (Administrador do Comando).');
                           }}
                           className="w-full max-w-xs bg-cyber-green/10 hover:bg-cyber-green/25 text-cyber-green hover:text-white border border-cyber-green/35 py-1.5 rounded text-[10px] font-mono font-bold uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1.5 cursor-pointer mt-2"
                         >
