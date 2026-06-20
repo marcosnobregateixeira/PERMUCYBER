@@ -35,7 +35,8 @@ import {
   FileCheck,
   RefreshCw,
   Clock,
-  Compass
+  Compass,
+  ShieldAlert
 } from 'lucide-react';
 
 export default function App() {
@@ -162,6 +163,26 @@ export default function App() {
     });
     setMilitares(updated);
     saveToLocalStorage('pm_militares', updated);
+  };
+
+  const handleUpdateMilitarPin = (id: string, newPin: string) => {
+    const updated = militares.map(m => {
+      if (m.id === id) {
+        return { 
+          ...m, 
+          pinSegurança: newPin 
+        };
+      }
+      return m;
+    });
+    setMilitares(updated);
+    saveToLocalStorage('pm_militares', updated);
+    appendAuditLog(
+      'INTEGRALIZAÇÃO',
+      `Militar ID ${id} atualizou seu token / PIN de segurança criptográfica pessoal com sucesso.`,
+      loggedUser?.nomeGuerra || 'SISTEMA',
+      logs
+    );
   };
 
   const handleImportMilitaresJSON = (imported: Militar[]) => {
@@ -446,6 +467,7 @@ export default function App() {
             allUsers={militares}
             onUserSelect={handleUserChange}
             onLoginSuccess={() => setIsLoggedIn(true)}
+            onUpdateMilitarPin={handleUpdateMilitarPin}
           />
         </div>
       ) : (
@@ -629,6 +651,10 @@ export default function App() {
                         onApprovePermuta={handleApprovePermutaGestor}
                         onRejectPermuta={handleRejectPermutaGestor}
                         onAdjustPermuta={handleAdjustPermutaGestor}
+                        onRefreshData={handleRefreshAll}
+                        onImportMilitaresJSON={handleImportMilitaresJSON}
+                        onUpdateMilitarNomeGuerra={handleUpdateMilitarNomeGuerra}
+                        onUserSwitch={handleUserChange}
                       />
                     ) : (
                       /* Immersion Security Lockout Screen */
@@ -639,15 +665,28 @@ export default function App() {
                         </div>
                         
                         <div className="space-y-1">
-                          <h3 className="text-md font-bold font-display text-white">ACESSO DENEGADO</h3>
-                          <p className="text-[10px] font-mono text-cyber-red uppercase tracking-widest">Nível de liberação insuficiente</p>
+                          <h3 className="text-md font-bold font-display text-white tracking-wide">ACESSO DENEGADO</h3>
+                          <p className="text-[9px] font-mono text-cyber-red uppercase tracking-widest font-extrabold">NÍVEL DE LIBERAÇÃO INSUFICIENTE</p>
                         </div>
                         
                         <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
-                          Este setor tático militar exige credenciais hierárquicas de Oficial (militar de patente superior). Por favor, alterne seu papel de usuário para o <strong className="text-cyber-green">Tenente Bastos</strong> no menu flutuante inferior para desbloquear a auditoria criptográfica e homologar permutas.
+                          Este setor tático exige credenciais de Oficial Superior para habilitar auditoria criptográfica de blockchain e homologação de permutas.
                         </p>
 
-                        <div className="text-[9px] font-mono text-slate-600 border border-hud-border/40 p-2 rounded max-w-xs">
+                        {/* Quick Switch Shortcut Link */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleUserChange('M-202');
+                            alert('Acesso tático renegociado: Conectado como Tenente Bastos (Administrador do Comando).');
+                          }}
+                          className="w-full max-w-xs bg-cyber-green/10 hover:bg-cyber-green/25 text-cyber-green hover:text-white border border-cyber-green/35 py-1.5 rounded text-[10px] font-mono font-bold uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1.5 cursor-pointer mt-2"
+                        >
+                          <ShieldAlert className="w-3.5 h-3.5 text-cyber-green" />
+                          <span>Simular Logon Comandante (Ten. Bastos)</span>
+                        </button>
+
+                        <div className="text-[9px] font-mono text-slate-600 border border-hud-border/40 p-2 rounded max-w-xs w-full mt-2">
                           DIRETRIZ DE SEGURANÇA NACIONAL: SYS-BLOCK CHANNELS ACTIVE
                         </div>
                       </div>

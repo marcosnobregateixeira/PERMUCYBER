@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   ShieldAlert, 
   CheckCircle2, 
@@ -19,7 +19,12 @@ import {
   CheckSquare,
   ShieldCheck,
   Award,
-  AlertTriangle
+  AlertTriangle,
+  Database,
+  Upload,
+  RefreshCw,
+  FileCode,
+  Key
 } from 'lucide-react';
 import { Permuta, Militar, BlockchainLog, Escala } from '../types';
 import { generateSimpleHash, formatarDataBR } from '../data';
@@ -34,6 +39,10 @@ interface PainelGestorProps {
   onApprovePermuta: (permutaId: string, gestorNome: string, gestorAssinatura: string) => void;
   onRejectPermuta: (permutaId: string) => void;
   onAdjustPermuta: (permutaId: string, justificativa: string) => void;
+  onRefreshData?: () => void;
+  onImportMilitaresJSON?: (militares: Militar[]) => void;
+  onUpdateMilitarNomeGuerra?: (id: string, newNome: string) => void;
+  onUserSwitch?: (userId: string) => void;
 }
 
 export default function PainelGestor({
@@ -44,13 +53,19 @@ export default function PainelGestor({
   escalas,
   onApprovePermuta,
   onRejectPermuta,
-  onAdjustPermuta
+  onAdjustPermuta,
+  onRefreshData,
+  onImportMilitaresJSON,
+  onUpdateMilitarNomeGuerra,
+  onUserSwitch
 }: PainelGestorProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'PEDIDOS' | 'AUDITORIA' | 'METRICAS'>('PEDIDOS');
+  const [activeSubTab, setActiveSubTab] = useState<'PEDIDOS' | 'AUDITORIA' | 'METRICAS' | 'SISTEMA'>('PEDIDOS');
   const [selectedPermutaDetailId, setSelectedPermutaDetailId] = useState<string | null>(null);
   const [justificativaAjuste, setJustificativaAjuste] = useState<string>('');
   const [showAjusteParaId, setShowAjusteParaId] = useState<string | null>(null);
   const [selectedHistoricId, setSelectedHistoricId] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const pendentesGestor = permutas.filter(p => p.status === 'PENDENTE_GESTOR');
   const historicoCompleto = permutas.filter(p => p.status !== 'PENDENTE_GESTOR' && p.status !== 'PENDENTE_SUBSTITUTO');
@@ -82,10 +97,10 @@ export default function PainelGestor({
   return (
     <div className="flex-1 flex flex-col p-4 bg-[#03080a] text-slate-100 select-none pb-12" id="painel-gestor-container">
       {/* COMPACT SUB TABS CONTROLS */}
-      <div className="grid grid-cols-3 gap-1 bg-[#061217] p-1 rounded-lg border border-hud-border/70 mb-4 text-xs font-mono">
+      <div className="grid grid-cols-4 gap-1 bg-[#061217] p-1 rounded-lg border border-hud-border/70 mb-4 text-[10px] font-mono">
         <button
           onClick={() => setActiveSubTab('PEDIDOS')}
-          className={`py-1.5 rounded uppercase font-bold transition-all ${
+          className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
             activeSubTab === 'PEDIDOS'
               ? 'bg-cyber-blue text-[#03080a]'
               : 'text-slate-400 hover:text-white'
@@ -95,7 +110,7 @@ export default function PainelGestor({
         </button>
         <button
           onClick={() => setActiveSubTab('AUDITORIA')}
-          className={`py-1.5 rounded uppercase font-bold transition-all ${
+          className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
             activeSubTab === 'AUDITORIA'
               ? 'bg-cyber-blue text-[#03080a]'
               : 'text-slate-400 hover:text-white'
@@ -106,13 +121,23 @@ export default function PainelGestor({
         </button>
         <button
           onClick={() => setActiveSubTab('METRICAS')}
-          className={`py-1.5 rounded uppercase font-bold transition-all ${
+          className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
             activeSubTab === 'METRICAS'
               ? 'bg-cyber-blue text-[#03080a]'
               : 'text-slate-400 hover:text-white'
           }`}
         >
           MÉTRICAS
+        </button>
+        <button
+          onClick={() => setActiveSubTab('SISTEMA')}
+          className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
+            activeSubTab === 'SISTEMA'
+              ? 'bg-cyber-blue text-[#03080a]'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          SISTEMA
         </button>
       </div>
 
@@ -519,6 +544,179 @@ export default function PainelGestor({
               <div className="flex-1 text-[11px] font-sans text-slate-300 leading-relaxed">
                 <strong>85% das propostas de permutas</strong> são integralizadas em primeiro ciclo de aceitação, reduzindo fricção administrativa em até 10 vezes.
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SYSTEM ADMINISTRATIVE MANAGEMENT OPTIONS */}
+      {activeSubTab === 'SISTEMA' && (
+        <div className="space-y-4 animate-fade-in font-sans">
+          
+          {/* Top Informative Banner with subtle styling */}
+          <div className="bg-[#051115] border border-cyber-cyan/35 p-3.5 rounded-xl flex flex-col space-y-1.5 shadow-md">
+            <span className="text-[10px] font-mono text-cyber-cyan uppercase tracking-wider font-extrabold flex items-center">
+              <Database className="w-3.5 h-3.5 mr-2 animate-pulse text-cyber-cyan" />
+              CONVÉS DE CONFIGURAÇÃO DE SEGURANÇA NACIONAL
+            </span>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Disponibilidade administrativa exclusiva para o Comando. Gerencie a importação de oficiais em lotes, reinicialize as definições táticas simuladas ou alterne o usuário ativo em teste.
+            </p>
+          </div>
+
+          {/* Quick Core Sync Utility buttons */}
+          <div className="grid grid-cols-2 gap-3.5">
+            {/* Import JSON Button Box */}
+            <div className="bg-hud-card border border-hud-border p-3 rounded-xl flex flex-col space-y-2.5 justify-between">
+              <div>
+                <span className="text-[8.5px] font-mono text-slate-400 block uppercase font-bold">Importação Estrutural</span>
+                <p className="text-[10px] text-slate-500 leading-snug">Insira um novo arquivo (.JSON) com policiais para atualizar a base ativa.</p>
+              </div>
+              
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    try {
+                      const parsed = JSON.parse(event.target?.result as string);
+                      if (!Array.isArray(parsed)) {
+                        alert('Erro: O arquivo JSON deve conter um array (lista) de policiais.');
+                        return;
+                      }
+
+                      const isValid = parsed.every(m => m.id && m.nome && m.nomeGuerra && m.patente);
+                      if (!isValid) {
+                        alert('Erro: Cada policial no JSON precisa dos campos obrigatórios: id, nome, nomeGuerra, patente.');
+                        return;
+                      }
+
+                      if (onImportMilitaresJSON) {
+                        onImportMilitaresJSON(parsed);
+                        alert(`Sucesso! ${parsed.length} policiais militares importados.`);
+                      }
+                    } catch (err) {
+                      alert('Erro: Arquivo JSON corrompido ou formato incompatível.');
+                    }
+                  };
+                  reader.readAsText(file);
+                }} 
+                className="hidden" 
+                accept=".json" 
+              />
+              
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full bg-cyber-cyan/15 hover:bg-cyber-cyan/30 text-cyber-blue hover:text-white border border-cyber-cyan/40 hover:border-cyber-cyan py-1.5 rounded text-[10px] font-mono font-extrabold uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1.5 cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>IMPORTAR JSON</span>
+              </button>
+            </div>
+
+            {/* Reset Database Button Box */}
+            <div className="bg-hud-card border border-hud-border p-3 rounded-xl flex flex-col space-y-2.5 justify-between">
+              <div>
+                <span className="text-[8.5px] font-mono text-slate-400 block uppercase font-bold">Reinicializar Conexão</span>
+                <p className="text-[10px] text-slate-500 leading-snug">Restaura todo o banco de dados simulador ao estado regimental padrão (default).</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (onRefreshData) {
+                    onRefreshData();
+                    alert('Banco de dados reordenado ao perfil de fábrica com sucesso!');
+                  }
+                }}
+                className="w-full bg-cyber-green/10 hover:bg-cyber-green/30 text-cyber-green hover:text-white border border-cyber-green/45 py-1.5 rounded text-[10px] font-mono font-extrabold uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1.5 cursor-pointer"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-cyber-green" />
+                <span>REINICIAR BANCO</span>
+              </button>
+            </div>
+          </div>
+
+          {/* User management list (Setor de Credenciais) */}
+          <div className="bg-hud-card border border-hud-border/80 rounded-xl p-3.5 space-y-3">
+            <span className="text-[9.5px] font-mono text-cyber-green uppercase tracking-wider block font-extrabold">
+              ✓ QUADRO ATIVO DE CREDENCIAIS DE OFICIAIS
+            </span>
+            
+            <div className="space-y-2 max-h-[290px] overflow-y-auto pr-1">
+              {allMilitares.map((u) => {
+                const isSelected = u.id === userLogged.id;
+                let roleTag = 'SUBSTITUÍDO';
+                if (u.id === 'M-102') roleTag = 'SUBSTITUTO';
+                if (u.id === 'M-202') roleTag = 'APROVADOR / COMANDO';
+                if (u.id === 'M-103' || u.id === 'M-104') roleTag = 'RESERVA';
+
+                return (
+                  <div
+                    key={u.id}
+                    className={`p-2.5 rounded-lg border text-left flex flex-col space-y-2 transition-all ${
+                      isSelected
+                        ? 'bg-cyber-cyan/10 border-cyber-cyan/40 shadow-[0_0_8px_rgba(0,229,255,0.1)]'
+                        : 'bg-[#03090b] border-hud-border/50 hover:border-hud-border'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-mono text-slate-400 font-bold uppercase">
+                        CÓDIGO: {u.id}
+                      </span>
+                      <span className="text-[7.5px] font-mono bg-cyber-amber/10 text-cyber-amber border border-cyber-amber/35 px-1.5 py-0.2 rounded font-bold uppercase">
+                        {roleTag}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 font-sans">
+                      <div>
+                        <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold">Oficial Registrado</span>
+                        <span className="text-[11px] font-bold text-white uppercase">{u.nome} ({u.patente})</span>
+                      </div>
+                      <div>
+                        <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold">Nome de Guerra (Editável)</span>
+                        <input
+                          type="text"
+                          value={u.nomeGuerra}
+                          onChange={(e) => onUpdateMilitarNomeGuerra?.(u.id, e.target.value)}
+                          className="bg-[#051319] border border-hud-border text-[11px] text-white p-1 rounded font-mono w-full focus:border-cyber-cyan outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-hud-border/30 pt-2 text-[9.5px] font-mono">
+                      <span className="text-slate-400">
+                        PIN / 2FA: <span className="font-bold text-cyber-green">{u.pinSegurança}</span>
+                      </span>
+                      
+                      {!isSelected && onUserSwitch && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onUserSwitch(u.id);
+                            alert(`Sessão simuladora alternada com sucesso: ${u.patente} ${u.nomeGuerra}`);
+                          }}
+                          className="text-cyber-green hover:text-white bg-cyber-green/10 hover:bg-cyber-green/30 px-2 py-0.5 rounded border border-cyber-green/30 text-[9px] uppercase font-bold transition-all cursor-pointer"
+                        >
+                          Simular Logon
+                        </button>
+                      )}
+                      {isSelected && (
+                        <span className="text-cyber-cyan font-bold flex items-center text-[8.5px] uppercase">
+                          <span className="w-1.5 h-1.5 bg-cyber-cyan rounded-full mr-1 animate-pulse" />
+                          CONECTADO AGORA
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
