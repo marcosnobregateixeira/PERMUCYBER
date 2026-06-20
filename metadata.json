@@ -1,0 +1,6 @@
+{
+  "name": "PERMUCYBER",
+  "description": "Sistema tático de gerenciamento de permutas de serviço militar com interface de comando futurista e inteligência operacional.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

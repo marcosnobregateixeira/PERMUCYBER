@@ -1,0 +1,150 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-display: "Orbitron", sans-serif;
+  --font-tech: "Rajdhani", sans-serif;
+
+  --color-cyber-blue: #00f2ff;
+  --color-cyber-green: #00ff41;
+  --color-cyber-cyan: #00f2ff;
+  --color-cyber-amber: #ffb300;
+  --color-cyber-red: #ff4444;
+  
+  --color-hud-bg: #05080a;
+  --color-hud-board: #0d1117;
+  --color-hud-card: #161b22;
+  --color-hud-border: rgba(0, 242, 255, 0.2);
+  --color-hud-border-active: #00f2ff;
+}
+
+/* Cyberpunk and Military HUD Special Classes */
+@layer utilities {
+  .neon-text-blue {
+    text-shadow: 0 0 5px rgba(0, 242, 255, 0.5), 0 0 10px rgba(0, 242, 255, 0.3);
+  }
+  .neon-text-green {
+    text-shadow: 0 0 5px rgba(0, 255, 65, 0.5), 0 0 10px rgba(0, 255, 65, 0.3);
+  }
+  .neon-text-red {
+    text-shadow: 0 0 5px rgba(255, 68, 68, 0.5), 0 0 10px rgba(255, 68, 68, 0.3);
+  }
+  .neon-border-blue {
+    box-shadow: 0 0 8px rgba(0, 242, 255, 0.4), inset 0 0 8px rgba(0, 242, 255, 0.2);
+  }
+  .neon-border-green {
+    box-shadow: 0 0 8px rgba(0, 255, 65, 0.4), inset 0 0 8px rgba(0, 255, 65, 0.2);
+  }
+  .neon-border-cyan {
+    box-shadow: 0 0 8px rgba(0, 242, 255, 0.4), inset 0 0 8px rgba(0, 242, 255, 0.2);
+  }
+  .hologram-grid {
+    background-image: 
+      linear-gradient(rgba(0, 242, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 242, 255, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  .scanlines {
+    background: linear-gradient(
+      rgba(22, 27, 34, 0) 50%, 
+      rgba(0, 0, 0, 0.45) 50%
+    ), linear-gradient(
+      90deg,
+      rgba(255, 0, 0, 0.06),
+      rgba(0, 255, 0, 0.02),
+      rgba(0, 0, 255, 0.06)
+    );
+    background-size: 100% 4px, 6px 100%;
+  }
+}
+
+/* Custom Tactical Animations */
+@keyframes radar-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes scanline-move {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes laser-glow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scaleY(0.98);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scaleY(1.02);
+  }
+}
+
+@keyframes glitch-flicker {
+  0%, 19.999%, 22%, 62.999%, 64%, 64.999%, 70%, 100% {
+    opacity: 0.99;
+    filter: hue-rotate(0deg);
+  }
+  20%, 21.999%, 63%, 63.999%, 65%, 69.999% {
+    opacity: 0.4;
+    filter: hue-rotate(90deg);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.animate-radar {
+  animation: radar-sweep 8s linear infinite;
+}
+
+.animate-scanline {
+  animation: scanline-move 6s linear infinite;
+}
+
+.animate-laser {
+  animation: laser-glow 2s ease-in-out infinite;
+}
+
+.animate-glitch {
+  animation: glitch-flicker 5s linear infinite;
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+/* Glow-scrollbars */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #05080a;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 242, 255, 0.2);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00f2ff;
+}
+
