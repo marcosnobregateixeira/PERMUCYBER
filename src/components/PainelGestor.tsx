@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useRef } from 'react';
-import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { 
   ShieldAlert, 
   CheckCircle2, 
@@ -85,29 +85,75 @@ export default function PainelGestor({
   const [justificativaAjuste, setJustificativaAjuste] = useState<string>('');
 
   const handleGerarPDF = async () => {
-    const element = document.getElementById('pdf-report-content');
-    if (!element) return;
-    
     try {
-      // Create a temporary un-hidden clone to capture cleanly without forcing rendering reflows
-      const clone = element.cloneNode(true) as HTMLElement;
-      clone.style.position = 'fixed';
-      clone.style.top = '-9999px';
-      clone.style.background = 'white';
-      clone.style.color = 'black';
-      document.body.appendChild(clone);
+      const doc = new jsPDF('p', 'pt', 'a4');
       
-      const dataUrl = await toPng(clone, { quality: 0.98, backgroundColor: '#ffffff', pixelRatio: 2 });
+      // Title
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text(`DIRETORIA DE SAÚDE - RELATÓRIO DE PERMUTAS (${reportTipo})`, doc.internal.pageSize.getWidth()/2, 40, { align: 'center' });
       
-      document.body.removeChild(clone);
+      // Subinfo
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(12);
+      doc.text(`Período: ${dataInicio ? formatarDataBR(dataInicio) : 'INÍCIO'} a ${dataFim ? formatarDataBR(dataFim) : 'ATUAL'}`, 40, 65);
       
-      const pdf = new jsPDF('p', 'pt', 'a4');
-      const imgProps = pdf.getImageProperties(dataUrl);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      if (reportTipo === 'INDIVIDUAL' && reportMilitarId) {
+        const policialNome = allMilitares.find(m => m.id === reportMilitarId)?.nome || '...';
+        doc.text(`Policial: ${policialNome}`, 40, 85);
+      }
       
-      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`relatorio-permutas-${reportTipo.toLowerCase()}.pdf`);
+      const startY = (reportTipo === 'INDIVIDUAL' && reportMilitarId) ? 105 : 90;
+
+      const tableData = filteredPermutas.map(p => {
+        const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
+        const substituido = allMilitares.find(m => m.id === p.militarSubstituidoId);
+        const dataHomologacao = p.dataAssinaturaGestor ? formatarDataBR(p.dataAssinaturaGestor.split('T')[0]) : 'Pendente';
+        const homolStr = p.gestorNome ? `${dataHomologacao} ${p.gestorNome}` : dataHomologacao;
+
+        return [
+          p.turno,
+          formatarDataBR(p.dataRealizacao),
+          substituto ? `${substituto.patente} ${substituto.nomeGuerra}` : 'N/A',
+          substituido ? `${substituido.patente} ${substituido.nomeGuerra}` : 'N/A',
+          homolStr
+        ];
+      });
+
+      autoTable(doc, {
+        startY: startY,
+        head: [['Turno', 'Data', 'Substituto', 'Substituído', 'Homologação']],
+        body: tableData,
+        theme: 'grid',
+        styles: {
+          font: 'helvetica',
+          fontSize: 12,
+          textColor: [0, 0, 0],
+        },
+        headStyles: {
+          fillColor: [200, 200, 200],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold'
+        }
+      });
+
+      const finalY = (doc as any).lastAutoTable.finalY || startY;
+      const comandante = userLogged.role === 'COMANDANTE' ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
+      
+      const sigY = finalY + 80;
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(1);
+      const pageWidth = doc.internal.pageSize.getWidth();
+      doc.line(pageWidth / 2 - 100, sigY, pageWidth / 2 + 100, sigY);
+      
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text(`${comandante.nome.toUpperCase()} - ${comandante.patente}`, pageWidth / 2, sigY + 15, { align: 'center' });
+      doc.setFont("helvetica", "normal");
+      doc.text(comandante.funcao, pageWidth / 2, sigY + 30, { align: 'center' });
+      doc.text(`M.F. ${comandante.matriculaFuncional || '___.___._-_'}`, pageWidth / 2, sigY + 45, { align: 'center' });
+
+      doc.save(`relatorio-permutas-${reportTipo.toLowerCase()}.pdf`);
     } catch (err) {
       console.error('Failed to generate PDF', err);
       // Fallback
@@ -574,16 +620,16 @@ export default function PainelGestor({
           </div>
 
           {/* REPORT VIEW */}
-          <div id="pdf-report-content" className="bg-white p-8 text-black rounded my-4 print:my-0 print:p-0">
-            <h2 className="text-center font-bold text-lg mb-6">DIRETORIA DE SAÚDE - RELATÓRIO DE PERMUTAS ({reportTipo})</h2>
-            <div className="text-sm space-y-1 mb-6">
+          <div id="pdf-report-content" className="bg-white p-8 text-black rounded my-4 print:my-0 print:p-0" style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '12px' }}>
+            <h2 className="text-center font-bold text-[14px] mb-6">DIRETORIA DE SAÚDE - RELATÓRIO DE PERMUTAS ({reportTipo})</h2>
+            <div className="text-[12px] space-y-1 mb-6">
                 <p><strong>Período:</strong> {dataInicio ? formatarDataBR(dataInicio) : 'INÍCIO'} a {dataFim ? formatarDataBR(dataFim) : 'ATUAL'}</p>
                 {reportTipo === 'INDIVIDUAL' && <p><strong>Policial:</strong> {allMilitares.find(m => m.id === reportMilitarId)?.nome || '...'}</p>}
             </div>
-            <table className="w-full text-xs text-left border-collapse">
+            <table className="w-full text-[12px] text-left border-collapse">
                 <thead>
                     <tr className="border-b-2 border-black">
-                        <th className="py-2 px-1">Protocolo</th>
+                        <th className="py-2 px-1">Turno</th>
                         <th className="py-2 px-1">Data</th>
                         <th className="py-2 px-1">Substituto</th>
                         <th className="py-2 px-1">Substituído</th>
@@ -594,28 +640,30 @@ export default function PainelGestor({
                     {filteredPermutas.map(p => {
                         const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
                         const substituido = allMilitares.find(m => m.id === p.militarSubstituidoId);
+                        const dataHomol = p.dataAssinaturaGestor ? formatarDataBR(p.dataAssinaturaGestor.split('T')[0]) : 'Pendente';
+                        const homolLabel = p.gestorNome ? `${dataHomol} ${p.gestorNome}` : dataHomol;
                         return (
                           <tr key={p.id} className="border-b border-gray-300">
-                             <td className="py-2 px-1">{p.protocoloId || p.id.split('-')[0].substring(0,8)}</td>
+                             <td className="py-2 px-1">{p.turno}</td>
                              <td className="py-2 px-1">{formatarDataBR(p.dataRealizacao)}</td>
-                             <td className="py-2 px-1">{substituto ? `${substituto.patente} ${substituto.nome}` : 'N/A'}</td>
-                             <td className="py-2 px-1">{substituido ? `${substituido.patente} ${substituido.nome}` : 'N/A'}</td>
-                             <td className="py-2 px-1">{p.dataAssinaturaGestor ? formatarDataBR(p.dataAssinaturaGestor.split('T')[0]) : 'Pendente'}</td>
+                             <td className="py-2 px-1">{substituto ? `${substituto.patente} ${substituto.nomeGuerra}` : 'N/A'}</td>
+                             <td className="py-2 px-1">{substituido ? `${substituido.patente} ${substituido.nomeGuerra}` : 'N/A'}</td>
+                             <td className="py-2 px-1">{homolLabel}</td>
                           </tr>
                         );
                     })}
                 </tbody>
             </table>
             
-            <div className="mt-16 pt-8 text-center flex flex-col items-center text-sm">
+            <div className="mt-16 pt-8 text-center flex flex-col items-center text-[12px]">
                 <div className="w-64 border-t border-black mb-2"></div>
                 {(() => {
                   const comandante = userLogged.role === 'COMANDANTE' ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
                   return (
                     <React.Fragment>
-                      <p className="font-bold uppercase">{comandante.nome} - {comandante.patente}</p>
-                      <p className="uppercase">{comandante.funcao}</p>
-                      <p>M.F {comandante.matriculaFuncional || '000.000-0-0'}</p>
+                      <p className="font-bold">{comandante.nome.toUpperCase()} - {comandante.patente}</p>
+                      <p>{comandante.funcao}</p>
+                      <p>M.F. {comandante.matriculaFuncional || '___.___._-_'}</p>
                     </React.Fragment>
                   );
                 })()}
