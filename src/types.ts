@@ -3,11 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type Patente = 'CEL' | 'TC' | 'MAJ' | 'CAP' | '1ºTEN' | '2ºTEN' | 'ST' | '1ºSGT' | '2ºSGT' | '3ºSGT' | 'CB' | 'SD';
+export type Patente = 'CEL' | 'TC' | 'MAJ' | 'CAP' | '1ºTEN' | '2ºTEN' | 'ASP. OF' | 'AL. OF' | 'ST' | '1ºSGT' | '2ºSGT' | '3ºSGT' | 'CB' | 'SD';
 
 export type Funcao = 'ADM' | 'ASSISTENTE SOCIAL' | 'DENTISTA' | 'ENFERMEIRO' | 'FISCAL' | 'MÉDICO' | 'MOTORISTA' | 'PSICOLOGO' | 'TEC. ENFERMAGEM';
 
 export type Quadro = 'QOPM' | 'QOAPM' | 'QOCPM' | 'QPPM';
+
+export type Role = 'USUARIO' | 'COMANDANTE' | 'ADMIN';
 
 export interface Militar {
   id: string;
@@ -16,12 +18,15 @@ export interface Militar {
   patente: Patente;
   funcao: Funcao;
   quadro: Quadro;
+  role: Role;
   companhia: string;
   especialidade: string;
   statusProntidao: 'PRONTO' | 'EM_SERVICO' | 'FOLGA' | 'CONFLITO';
   chaveDigital: string;
   biometriaAtiva: boolean;
   pinSegurança: string;
+  matriculaFuncional?: string;
+  numero?: string;
 }
 
 export interface Escala {

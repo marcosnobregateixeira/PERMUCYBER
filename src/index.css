@@ -148,3 +148,21 @@
   background: #00f2ff;
 }
 
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #pdf-report-content, #pdf-report-content * {
+    visibility: visible;
+  }
+  #pdf-report-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    background: white !important;
+    color: black !important;
+  }
+}

@@ -14,7 +14,7 @@ import {
   generateSimpleHash,
   formatarDataBR
 } from './data';
-import { Militar, Escala, Alerta, BlockchainLog, Permuta, ChatMessage } from './types';
+import { Militar, Escala, Alerta, BlockchainLog, Permuta, ChatMessage, Role } from './types';
 import MilitaryMobileFrame from './components/MilitaryMobileFrame';
 import BiometricLogin from './components/BiometricLogin';
 import Dashboard from './components/Dashboard';
@@ -210,6 +210,34 @@ export default function App() {
     saveToLocalStorage('pm_militares', updated);
   };
 
+  const handleUpdateMilitarMF = (id: string, newMF: string) => {
+    const updated = militares.map(m => {
+      if (m.id === id) {
+        return { 
+          ...m, 
+          matriculaFuncional: newMF 
+        };
+      }
+      return m;
+    });
+    setMilitares(updated);
+    saveToLocalStorage('pm_militares', updated);
+  };
+
+  const handleUpdateMilitarNumero = (id: string, numero: string) => {
+    const updated = militares.map(m => {
+      if (m.id === id) {
+        return { 
+          ...m, 
+          numero 
+        };
+      }
+      return m;
+    });
+    setMilitares(updated);
+    saveToLocalStorage('pm_militares', updated);
+  };
+
   const handleUpdateMilitarPin = (id: string, newPin: string) => {
     const updated = militares.map(m => {
       if (m.id === id) {
@@ -225,6 +253,23 @@ export default function App() {
     appendAuditLog(
       'INTEGRALIZAÇÃO',
       `Militar ID ${id} atualizou seu token / PIN de segurança criptográfica pessoal com sucesso.`,
+      loggedUser?.nomeGuerra || 'SISTEMA',
+      logs
+    );
+  };
+
+  const handleUpdateMilitarRole = (id: string, role: Role) => {
+    const updated = militares.map(m => {
+      if (m.id === id) {
+        return { ...m, role: role };
+      }
+      return m;
+    });
+    setMilitares(updated);
+    saveToLocalStorage('pm_militares', updated);
+    appendAuditLog(
+      'INTEGRALIZAÇÃO',
+      `Papel do militar ${id} alterado para ${role}.`,
       loggedUser?.nomeGuerra || 'SISTEMA',
       logs
     );
@@ -387,6 +432,10 @@ export default function App() {
 
   // OFFICERS HANDLES MAJOR VALIDATIONS (APROVADO / REJEITADO)
   const handleApprovePermutaGestor = (permutaId: string, gestorNome: string, gestorSignature: string) => {
+    if (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN') {
+      alert('Acesso negado: Apenas Comandantes podem homologar permutas.');
+      return;
+    }
     const targetPermuta = permutas.find(p => p.id === permutaId);
     if (!targetPermuta) return;
 
@@ -702,6 +751,9 @@ export default function App() {
                         onRefreshData={handleRefreshAll}
                         onImportMilitaresJSON={handleImportMilitaresJSON}
                         onUpdateMilitarNomeGuerra={handleUpdateMilitarNomeGuerra}
+                        onUpdateMilitarRole={handleUpdateMilitarRole}
+                        onUpdateMilitarMF={handleUpdateMilitarMF}
+                        onUpdateMilitarNumero={handleUpdateMilitarNumero}
                         onUserSwitch={handleUserChange}
                       />
                     ) : (

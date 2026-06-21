@@ -49,7 +49,7 @@ export default function PermutaFlow({
     return 'JUNHO';
   });
   const [selectedDate, setSelectedDate] = useState<string>(escala.data);
-  const [postoServico, setPostoServico] = useState<string>(escala.postoServico);
+  const [postoServico] = useState<string>('DIRETORIA DE SAÚDE');
 
   // Custom hours for shift trade
   const [customHoraInicio, setCustomHoraInicio] = useState<string>(escala.horaInicio);
@@ -102,7 +102,6 @@ export default function PermutaFlow({
   useEffect(() => {
     const activeScaleOnDay = escalas.find((e) => e.militarId === userLogged.id && e.data === selectedDate);
     if (activeScaleOnDay) {
-      setPostoServico(activeScaleOnDay.postoServico);
       setCustomHoraInicio(activeScaleOnDay.horaInicio);
       setCustomHoraFim(activeScaleOnDay.horaFim);
       setCustomTurno(activeScaleOnDay.turno);
@@ -406,14 +405,9 @@ export default function PermutaFlow({
 
           <div className="space-y-1">
             <span className="text-[8px] text-slate-400 block uppercase font-mono">Posto de Serviço</span>
-            <input
-              type="text"
-              value={postoServico}
-              onChange={(e) => setPostoServico(e.target.value)}
-              className="w-full bg-[#020709] border border-hud-border hover:border-cyber-cyan/50 focus:border-cyber-blue focus:outline-none rounded-lg px-2.5 py-1.5 text-xs text-white font-bold"
-              placeholder="Ex: GUARDA DOS PORTÕES, PATRULHA, etc."
-              required
-            />
+            <div className="w-full bg-[#020709] border border-hud-border rounded-lg px-2.5 py-1.5 text-xs text-white font-bold">
+              {postoServico}
+            </div>
           </div>
 
           <div className="text-[9.5px] leading-normal mt-1">

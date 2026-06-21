@@ -4,6 +4,8 @@
  */
 
 import React, { useState, useRef } from 'react';
+import { toPng } from 'html-to-image';
+import jsPDF from 'jspdf';
 import { 
   ShieldAlert, 
   CheckCircle2, 
@@ -25,9 +27,10 @@ import {
   RefreshCw,
   FileCode,
   Key,
-  Trash2
+  Trash2,
+  User
 } from 'lucide-react';
-import { Permuta, Militar, BlockchainLog, Escala } from '../types';
+import { Permuta, Militar, BlockchainLog, Escala, Role } from '../types';
 import { generateSimpleHash, formatarDataBR } from '../data';
 import DocumentoHomologacao from './DocumentoHomologacao';
 
@@ -43,6 +46,9 @@ interface PainelGestorProps {
   onRefreshData?: () => void;
   onImportMilitaresJSON?: (militares: Militar[]) => void;
   onUpdateMilitarNomeGuerra?: (id: string, newNome: string) => void;
+  onUpdateMilitarRole?: (id: string, role: Role) => void;
+  onUpdateMilitarMF?: (id: string, newMF: string) => void;
+  onUpdateMilitarNumero?: (id: string, numero: string) => void;
   onAddMilitar?: (m: Militar) => void;
   onDeleteMilitar?: (id: string) => void;
   onToggleBiometria?: (id: string) => void;
@@ -61,15 +67,65 @@ export default function PainelGestor({
   onRefreshData,
   onImportMilitaresJSON,
   onUpdateMilitarNomeGuerra,
+  onUpdateMilitarRole,
+  onUpdateMilitarMF,
+  onUpdateMilitarNumero,
   onAddMilitar,
   onDeleteMilitar,
   onToggleBiometria,
   onUserSwitch
 }: PainelGestorProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'PEDIDOS' | 'AUDITORIA' | 'METRICAS' | 'SISTEMA' | 'EXCLUSAO'>('PEDIDOS');
+  const [activeSubTab, setActiveSubTab] = useState<'PEDIDOS' | 'AUDITORIA' | 'RELATORIOS' | 'COMANDO' | 'SISTEMA' | 'EXCLUSAO' | 'ACESSOS'>('PEDIDOS');
   const [newMilitarForm, setNewMilitarForm] = useState<Partial<Militar>>({ nome: '', nomeGuerra: '', patente: 'SD', funcao: 'ADM', quadro: 'QPPM', pinSegurança: '1234' });
+  const [reportTipo, setReportTipo] = useState<'GERAL' | 'INDIVIDUAL'>('GERAL');
+  const [reportMilitarId, setReportMilitarId] = useState<string>('');
+  const [dataInicio, setDataInicio] = useState<string>('');
+  const [dataFim, setDataFim] = useState<string>('');
   const [selectedPermutaDetailId, setSelectedPermutaDetailId] = useState<string | null>(null);
   const [justificativaAjuste, setJustificativaAjuste] = useState<string>('');
+
+  const handleGerarPDF = async () => {
+    const element = document.getElementById('pdf-report-content');
+    if (!element) return;
+    
+    try {
+      // Create a temporary un-hidden clone to capture cleanly without forcing rendering reflows
+      const clone = element.cloneNode(true) as HTMLElement;
+      clone.style.position = 'fixed';
+      clone.style.top = '-9999px';
+      clone.style.background = 'white';
+      clone.style.color = 'black';
+      document.body.appendChild(clone);
+      
+      const dataUrl = await toPng(clone, { quality: 0.98, backgroundColor: '#ffffff', pixelRatio: 2 });
+      
+      document.body.removeChild(clone);
+      
+      const pdf = new jsPDF('p', 'pt', 'a4');
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`relatorio-permutas-${reportTipo.toLowerCase()}.pdf`);
+    } catch (err) {
+      console.error('Failed to generate PDF', err);
+      // Fallback
+      window.print();
+    }
+  };
+
+  const filteredPermutas = permutas.filter(p => {
+    let matches = true;
+    if (dataInicio && p.dataRealizacao < dataInicio) matches = false;
+    if (dataFim && p.dataRealizacao > dataFim) matches = false;
+    if (reportTipo === 'INDIVIDUAL' && reportMilitarId) {
+        if (p.militarSubstituidoId !== reportMilitarId && p.militarSubstitutoId !== reportMilitarId) matches = false;
+    }
+    return matches;
+  });
+
+  const lastGestor = filteredPermutas.find(p => p.gestorNome)?.gestorNome;
   const [showAjusteParaId, setShowAjusteParaId] = useState<string | null>(null);
   const [selectedHistoricId, setSelectedHistoricId] = useState<string | null>(null);
 
@@ -105,7 +161,7 @@ export default function PainelGestor({
   return (
     <div className="flex-1 flex flex-col p-4 bg-[#03080a] text-slate-100 select-none pb-12" id="painel-gestor-container">
       {/* COMPACT SUB TABS CONTROLS */}
-      <div className="grid grid-cols-5 gap-1 bg-[#061217] p-1 rounded-lg border border-hud-border/70 mb-4 text-[10px] font-mono">
+      <div className="grid grid-cols-7 gap-1 bg-[#061217] p-1 rounded-lg border border-hud-border/70 mb-4 text-[10px] font-mono">
         <button
           onClick={() => setActiveSubTab('PEDIDOS')}
           className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
@@ -128,14 +184,24 @@ export default function PainelGestor({
           AUDITORIA
         </button>
         <button
-          onClick={() => setActiveSubTab('METRICAS')}
+          onClick={() => setActiveSubTab('RELATORIOS')}
           className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
-            activeSubTab === 'METRICAS'
+            activeSubTab === 'RELATORIOS'
               ? 'bg-cyber-blue text-[#03080a]'
               : 'text-slate-400 hover:text-white'
           }`}
         >
-          MÉTRICAS
+          RELATÓRIOS
+        </button>
+        <button
+          onClick={() => setActiveSubTab('COMANDO')}
+          className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
+            activeSubTab === 'COMANDO'
+              ? 'bg-cyber-blue text-[#03080a]'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          COMANDO
         </button>
         <button
           onClick={() => setActiveSubTab('SISTEMA')}
@@ -156,6 +222,16 @@ export default function PainelGestor({
           }`}
         >
           EXCLUSÃO
+        </button>
+        <button
+          onClick={() => setActiveSubTab('ACESSOS')}
+          className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
+            activeSubTab === 'ACESSOS'
+              ? 'bg-cyber-green text-[#03080a]'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          ACESSOS
         </button>
       </div>
 
@@ -475,95 +551,80 @@ export default function PainelGestor({
       )}
 
       {/* STATISTICAL REPORT PERFORMANCE CHARTS */}
-      {activeSubTab === 'METRICAS' && (
-        <div className="space-y-4">
-          <div className="bg-hud-card border border-hud-border rounded-xl p-3.5 space-y-1">
-            <span className="text-[9px] font-mono text-cyber-cyan uppercase tracking-wider block">DENSIDADE COOPERAÇÃO MENSUAL</span>
-            <p className="text-slate-400 text-[10px]">Taxa volumétrica de permuta militar por setor de vigília.</p>
+      {activeSubTab === 'RELATORIOS' && (
+        <div className="space-y-4 animate-fade-in font-sans">
+          <h3 className="text-xs font-bold font-display text-white tracking-wider uppercase flex items-center">
+            <FileText className="w-4 h-4 text-cyber-blue mr-1.5" />
+            GERADOR DE RELATÓRIOS
+          </h3>
+          
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="bg-[#020507] border border-hud-border rounded px-2 py-1 text-white" />
+            <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="bg-[#020507] border border-hud-border rounded px-2 py-1 text-white" />
+            <select value={reportTipo} onChange={(e) => setReportTipo(e.target.value as 'GERAL' | 'INDIVIDUAL')} className="col-span-2 bg-[#020507] border border-hud-border rounded px-2 py-1 text-white">
+                <option value="GERAL">RELATÓRIO GERAL</option>
+                <option value="INDIVIDUAL">RELATÓRIO INDIVIDUAL</option>
+            </select>
+            {reportTipo === 'INDIVIDUAL' && (
+                <select value={reportMilitarId} onChange={(e) => setReportMilitarId(e.target.value)} className="col-span-2 bg-[#020507] border border-hud-border rounded px-2 py-1 text-white">
+                    <option value="">Selecione o Policial</option>
+                    {allMilitares.map(m => <option key={m.id} value={m.id}>{m.patente} {m.nomeGuerra}</option>)}
+                </select>
+            )}
+          </div>
+
+          {/* REPORT VIEW */}
+          <div id="pdf-report-content" className="bg-white p-8 text-black rounded my-4 print:my-0 print:p-0">
+            <h2 className="text-center font-bold text-lg mb-6">DIRETORIA DE SAÚDE - RELATÓRIO DE PERMUTAS ({reportTipo})</h2>
+            <div className="text-sm space-y-1 mb-6">
+                <p><strong>Período:</strong> {dataInicio ? formatarDataBR(dataInicio) : 'INÍCIO'} a {dataFim ? formatarDataBR(dataFim) : 'ATUAL'}</p>
+                {reportTipo === 'INDIVIDUAL' && <p><strong>Policial:</strong> {allMilitares.find(m => m.id === reportMilitarId)?.nome || '...'}</p>}
+            </div>
+            <table className="w-full text-xs text-left border-collapse">
+                <thead>
+                    <tr className="border-b-2 border-black">
+                        <th className="py-2 px-1">Protocolo</th>
+                        <th className="py-2 px-1">Data</th>
+                        <th className="py-2 px-1">Substituto</th>
+                        <th className="py-2 px-1">Substituído</th>
+                        <th className="py-2 px-1">Homologação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {filteredPermutas.map(p => {
+                        const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
+                        const substituido = allMilitares.find(m => m.id === p.militarSubstituidoId);
+                        return (
+                          <tr key={p.id} className="border-b border-gray-300">
+                             <td className="py-2 px-1">{p.protocoloId || p.id.split('-')[0].substring(0,8)}</td>
+                             <td className="py-2 px-1">{formatarDataBR(p.dataRealizacao)}</td>
+                             <td className="py-2 px-1">{substituto ? `${substituto.patente} ${substituto.nome}` : 'N/A'}</td>
+                             <td className="py-2 px-1">{substituido ? `${substituido.patente} ${substituido.nome}` : 'N/A'}</td>
+                             <td className="py-2 px-1">{p.dataAssinaturaGestor ? formatarDataBR(p.dataAssinaturaGestor.split('T')[0]) : 'Pendente'}</td>
+                          </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
             
-            {/* Custom high-fidelity military SVG chart of stats */}
-            <div className="h-28 w-full bg-[#020507] border border-hud-border/40 rounded-lg mt-3 relative flex items-center justify-center p-2">
-              <svg className="w-full h-full overflow-visible" viewBox="0 0 100 40">
-                {/* Horizontal reference grid lines */}
-                <line x1="0" y1="10" x2="100" y2="10" stroke="#142e36" strokeDasharray="2" strokeWidth="0.15" />
-                <line x1="0" y1="20" x2="100" y2="20" stroke="#142e36" strokeDasharray="2" strokeWidth="0.15" />
-                <line x1="0" y1="30" x2="100" y2="30" stroke="#142e36" strokeDasharray="2" strokeWidth="0.15" />
-                
-                {/* Tactical grid background scan */}
-                <line x1="20" y1="0" x2="20" y2="40" stroke="#142e36" strokeDasharray="1" strokeWidth="0.1" />
-                <line x1="40" y1="0" x2="40" y2="40" stroke="#142e36" strokeDasharray="1" strokeWidth="0.1" />
-                <line x1="60" y1="0" x2="60" y2="40" stroke="#142e36" strokeDasharray="1" strokeWidth="0.1" />
-                <line x1="80" y1="0" x2="80" y2="40" stroke="#142e36" strokeDasharray="1" strokeWidth="0.1" />
-
-                {/* Glowing neon green area chart */}
-                <path
-                  d="M 0 35 L 20 28 L 40 12 L 60 22 L 80 5 L 100 15 L 100 40 L 0 40 Z"
-                  fill="url(#laser-glow-blue)"
-                  opacity="0.25"
-                />
-
-                {/* Glowing line plot */}
-                <path
-                  d="M 0 35 L 20 28 L 40 12 L 60 22 L 80 5 L 100 15"
-                  fill="none"
-                  stroke="#00e5ff"
-                  strokeWidth="1"
-                  filter="url(#glow-filter)"
-                />
-
-                {/* Cyberpunk targeting dots over points */}
-                <circle cx="20" cy="28" r="1.5" fill="#00ff66" stroke="#03080a" strokeWidth="0.5" />
-                <circle cx="40" cy="12" r="1.5" fill="#00ff66" stroke="#03080a" strokeWidth="0.5" />
-                <circle cx="60" cy="22" r="1.5" fill="#00ff66" stroke="#03080a" strokeWidth="0.5" />
-                <circle cx="80" cy="5" r="1.5" fill="#00ff66" stroke="#03080a" strokeWidth="0.5" />
-
-                <defs>
-                  <linearGradient id="laser-glow-blue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#00e5ff" />
-                    <stop offset="100%" stopColor="#00e5ff" stopOpacity="0" />
-                  </linearGradient>
-                  <filter id="glow-filter">
-                    <feGaussianBlur stdDeviation="0.6" result="coloredBlur" />
-                    <feMerge>
-                      <feMergeNode in="coloredBlur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
-              </svg>
-              
-              <div className="absolute bottom-1 left-2 text-[7px] font-mono text-slate-500">SET_A</div>
-              <div className="absolute bottom-1 right-2 text-[7px] font-mono text-slate-500">SEC_ALPHA_9</div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mt-1 pt-1 text-[10px] font-mono text-slate-400">
-              <div className="flex justify-between border-b border-hud-border/30 pb-1">
-                <span>POSTO CENTRAL QG:</span>
-                <span className="text-cyber-blue font-bold">54%</span>
-              </div>
-              <div className="flex justify-between border-b border-hud-border/30 pb-1">
-                <span>COMISSARIA BATALHÃO:</span>
-                <span className="text-cyber-green font-bold">29%</span>
-              </div>
+            <div className="mt-16 pt-8 text-center flex flex-col items-center text-sm">
+                <div className="w-64 border-t border-black mb-2"></div>
+                {(() => {
+                  const comandante = userLogged.role === 'COMANDANTE' ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
+                  return (
+                    <React.Fragment>
+                      <p className="font-bold uppercase">{comandante.nome} - {comandante.patente}</p>
+                      <p className="uppercase">{comandante.funcao}</p>
+                      <p>M.F {comandante.matriculaFuncional || '000.000-0-0'}</p>
+                    </React.Fragment>
+                  );
+                })()}
             </div>
           </div>
 
-          <div className="bg-hud-card border border-hud-border rounded-xl p-3.5 space-y-1">
-            <span className="text-[9px] font-mono text-cyber-cyan uppercase tracking-wider block">TAXA DE REJEIÇÃO / ALTERAÇÃO</span>
-            <div className="flex items-center space-x-3.5">
-              <div className="w-12 h-12 shrink-0 relative flex items-center justify-center">
-                {/* SVG Radial Chart */}
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                  <circle cx="18" cy="18" r="15.915" fill="none" stroke="#142e36" strokeWidth="4" />
-                  <circle cx="18" cy="18" r="15.915" fill="none" stroke="#00ff66" strokeWidth="4" strokeDasharray="85 15" />
-                </svg>
-                <span className="absolute text-[9px] font-mono font-bold text-cyber-green">85%</span>
-              </div>
-              <div className="flex-1 text-[11px] font-sans text-slate-300 leading-relaxed">
-                <strong>85% das propostas de permutas</strong> são integralizadas em primeiro ciclo de aceitação, reduzindo fricção administrativa em até 10 vezes.
-              </div>
-            </div>
-          </div>
+          <button onClick={handleGerarPDF} className="w-full bg-slate-600 text-white py-2 rounded font-bold uppercase hover:bg-opacity-90 transition print:hidden">
+            GERAR ARQUIVO PDF
+          </button>
         </div>
       )}
 
@@ -582,6 +643,126 @@ export default function PainelGestor({
                     </button>
                 </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {activeSubTab === 'ACESSOS' && (
+        <div className="space-y-4 animate-fade-in font-sans">
+          <h3 className="text-xs font-bold font-display text-white tracking-wider uppercase flex items-center">
+            <User className="w-4 h-4 text-cyber-green mr-1.5" />
+            GERENCIAMENTO DE ACESSOS (AUTORIZAÇÃO)
+          </h3>
+          <div className="space-y-2">
+            {allMilitares.map(m => (
+              <div key={m.id} className="bg-hud-card border border-hud-border p-3 rounded-lg flex justify-between items-center text-xs">
+                <span className="font-mono text-slate-300">{m.patente} {m.nomeGuerra} ({m.id})</span>
+                <select 
+                  value={m.role || 'USUARIO'} 
+                  onChange={(e) => {
+                    onUpdateMilitarRole?.(m.id, e.target.value as Role)
+                  }}
+                  className="bg-[#03090b] p-1.5 rounded border border-hud-border text-white text-[10px]"
+                >
+                    <option value="USUARIO">USUARIO</option>
+                    <option value="COMANDANTE">COMANDANTE</option>
+                    <option value="ADMIN">ADMIN</option>
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* COMMANDER SETTINGS */}
+      {activeSubTab === 'COMANDO' && (
+        <div className="space-y-4 animate-fade-in font-sans">
+          <div className="bg-[#051115] border border-cyber-cyan/35 p-3.5 rounded-xl flex flex-col space-y-1.5 shadow-md">
+            <span className="text-[10px] font-mono text-cyber-cyan uppercase tracking-wider font-extrabold flex items-center">
+              <User className="w-3.5 h-3.5 mr-2 text-cyber-cyan" />
+              CONFIGURAÇÕES DO COMANDO REGIMENTAL
+            </span>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Defina a Matrícula Funcional (M.F) do Comandante para emissão nativa em relatórios e espelhos oficiais.
+            </p>
+          </div>
+
+          <div className="bg-hud-card border border-hud-border p-4 rounded-xl space-y-3">
+             <div className="space-y-4">
+              {allMilitares.filter(m => m.role === 'COMANDANTE').map(comandante => (
+                <div key={comandante.id} className="flex flex-col space-y-2 p-3 bg-[#03090b] rounded border border-hud-border/50">
+                  <span className="text-xs font-bold font-mono text-slate-300">{comandante.patente} {comandante.nome}</span>
+                  <div className="flex flex-col space-y-1">
+                    <label className="text-[10px] text-slate-500 uppercase">Matrícula Funcional (M.F)</label>
+                    <input 
+                      type="text" 
+                      placeholder="000.000-0-0"
+                      className="bg-[#020507] border border-hud-border rounded px-3 py-2 text-white text-xs font-mono"
+                      value={comandante.matriculaFuncional || ''}
+                      onChange={(e) => {
+                         let val = e.target.value.replace(/[^0-9-.]/g, '');
+                         if (onUpdateMilitarMF) onUpdateMilitarMF(comandante.id, val);
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+              {allMilitares.filter(m => m.role === 'COMANDANTE').length === 0 && (
+                <div className="text-xs text-cyber-red">Nenhum militar com permissão de 'COMANDANTE' encontrado no sistema. Vá em ACESSOS para promover um policial a Comandante.</div>
+              )}
+             </div>
+          </div>
+
+          <div className="bg-[#051115] border border-cyber-cyan/35 p-3.5 rounded-xl flex flex-col space-y-1.5 shadow-md mt-6">
+            <span className="text-[10px] font-mono text-cyber-cyan uppercase tracking-wider font-extrabold flex items-center">
+              <Users className="w-3.5 h-3.5 mr-2 text-cyber-cyan" />
+              REGISTRO DE POLICIAIS
+            </span>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Atualize a numeração (Nº) e a Matrícula Funcional (M.F) do efetivo. Oficiais não possuem número.
+            </p>
+          </div>
+
+          <div className="bg-hud-card border border-hud-border p-4 rounded-xl space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+             <div className="space-y-4">
+              {allMilitares.map(m => {
+                const isOficial = ['CEL', 'TC', 'MAJ', 'CAP', '1ºTEN', '2ºTEN', 'ASP. OF', 'AL. OF'].includes(m.patente);
+                return (
+                  <div key={m.id} className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-4 p-3 bg-[#03090b] rounded border border-hud-border/50">
+                    <span className="text-xs font-bold font-mono text-slate-300 min-w-[200px]">{m.patente} {m.nome}</span>
+                    <div className="grid grid-cols-2 gap-4 flex-1">
+                        <div className="flex flex-col space-y-1">
+                            <label className="text-[10px] text-slate-500 uppercase">Nº {isOficial && '(N/A)'}</label>
+                            <input 
+                            type="text" 
+                            placeholder={isOficial ? "" : "00.000"}
+                            disabled={isOficial}
+                            className="bg-[#020507] border border-hud-border rounded px-3 py-1.5 text-white text-xs font-mono disabled:opacity-50"
+                            value={m.numero || ''}
+                            onChange={(e) => {
+                                let val = e.target.value.replace(/[^0-9.]/g, '');
+                                if (onUpdateMilitarNumero) onUpdateMilitarNumero(m.id, val);
+                            }}
+                            />
+                        </div>
+                        <div className="flex flex-col space-y-1">
+                            <label className="text-[10px] text-slate-500 uppercase">M.F</label>
+                            <input 
+                            type="text" 
+                            placeholder="000.000-0-0"
+                            className="bg-[#020507] border border-hud-border rounded px-3 py-1.5 text-white text-xs font-mono"
+                            value={m.matriculaFuncional || ''}
+                            onChange={(e) => {
+                                let val = e.target.value.replace(/[^0-9-.]/g, '');
+                                if (onUpdateMilitarMF) onUpdateMilitarMF(m.id, val);
+                            }}
+                            />
+                        </div>
+                    </div>
+                  </div>
+                );
+              })}
+             </div>
           </div>
         </div>
       )}
@@ -706,7 +887,7 @@ export default function PainelGestor({
                                 especialidade: 'Patrulhamento',
                                 statusProntidao: 'PRONTO',
                                 chaveDigital: `KEY-${Date.now()}`,
-                                biometriaAtiva: false
+                                biometriaAtiva: true
                             });
                             setNewMilitarForm({ nome: '', nomeGuerra: '', patente: 'SD', funcao: 'ADM', pinSegurança: '1234' });
                         }
