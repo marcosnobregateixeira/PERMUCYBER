@@ -91,7 +91,12 @@ export default function MilitaryMobileFrame({
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-1">
               <Command className="w-3.5 h-3.5 text-cyber-blue" />
-              <span className="font-bold text-cyber-cyan">FUNÇÃO</span>
+              <input
+                type="text"
+                defaultValue="DIRETORIA DE SAÚDE/PMCE"
+                className="font-bold text-cyber-cyan text-[8px] md:text-xs bg-transparent border-none outline-none focus:ring-0 focus:bg-cyber-blue/10 p-0 m-0 w-44 uppercase transition-all rounded px-1"
+                title="Editar Nome do Comando"
+              />
             </div>
           </div>
           
@@ -101,8 +106,8 @@ export default function MilitaryMobileFrame({
           </div>
 
           <div className="flex items-center space-x-2">
-            <span className="text-[10px] text-cyber-cyan bg-cyber-cyan/10 px-1 border border-cyber-cyan/30 rounded uppercase font-bold tracking-tighter">
-              {userLogged.patente.slice(0, 3)}. {userLogged.nomeGuerra.split(' ')[1] || userLogged.nomeGuerra}
+            <span className="text-[10px] text-cyber-cyan bg-cyber-cyan/10 px-1 border border-cyber-cyan/30 rounded uppercase font-bold tracking-tighter" title={`Acesso: ${userLogged.role}`}>
+              [{userLogged.role}] {userLogged.patente.slice(0, 3)}. {userLogged.nomeGuerra.split(' ')[1] || userLogged.nomeGuerra}
             </span>
             <span className="w-2 h-2 rounded-full bg-cyber-green animate-ping" />
           </div>

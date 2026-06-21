@@ -15,7 +15,9 @@ import {
   AlertTriangle, 
   Edit3,
   HelpCircle,
-  Calendar
+  Calendar,
+  PlusCircle,
+  CheckCheck
 } from 'lucide-react';
 import { Escala, Militar, Permuta } from '../types';
 import { generateSimpleHash, formatarDataBR } from '../data';
@@ -26,7 +28,8 @@ interface PermutaFlowProps {
   userLogged: Militar;
   escalas: Escala[];
   onCancel: () => void;
-  onSubmitPermuta: (novaPermuta: Permuta) => void;
+  onSubmitPermuta: (novaPermuta: Permuta) => any;
+  onFinish: () => void;
 }
 
 export default function PermutaFlow({
@@ -35,12 +38,18 @@ export default function PermutaFlow({
   userLogged,
   escalas,
   onCancel,
-  onSubmitPermuta
+  onSubmitPermuta,
+  onFinish
 }: PermutaFlowProps) {
   const [selectedSubstituteId, setSelectedSubstituteId] = useState<string>('');
   const [useAIAdvice, setUseAIAdvice] = useState<boolean>(true);
   const [comentario, setComentario] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isSubmittedSuccessfully, setIsSubmittedSuccessfully] = useState<boolean>(false);
+  const [lastProtocolId, setLastProtocolId] = useState<string>('');
+  const [lastSubstituteName, setLastSubstituteName] = useState<string>('');
   
   // Custom date selection & monthly schedule
   const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO'>(() => {
@@ -265,42 +274,132 @@ export default function PermutaFlow({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSubstituteId || !isSigned) return;
 
-    // Create unique protocol id, QR string, and audit hashes
-    const protocolDateFormatted = selectedDate.replace(/-/g, '');
-    const protocoloId = `PEM-${protocolDateFormatted}-${Math.floor(Math.random() * 9000 + 1000)}`;
-    const signText = digitalSignatureHex || `DECADIGITAL::${userLogged.nomeGuerra.toUpperCase()}::${JSON.stringify(manualSignaturePoints).slice(0, 30)}`;
-    
-    // Find if user has actual scale on selected day to link properly
-    const matchedScaleOnDay = escalas.find((esc) => esc.militarId === userLogged.id && esc.data === selectedDate);
-    
-    // Generate simulated blockchain log
-    const hash = generateSimpleHash(`${userLogged.id}_requests_swap_${selectedSubstituteId}_scale_${matchedScaleOnDay?.id || escala.id}`, 'PREV_HASH_F88B');
+    setIsSubmitting(true);
+    try {
+      // Create unique protocol id, QR string, and audit hashes
+      const protocolDateFormatted = selectedDate.replace(/-/g, '');
+      const protocoloId = `PEM-${protocolDateFormatted}-${Math.floor(Math.random() * 9000 + 1000)}`;
+      const signText = digitalSignatureHex || `DECADIGITAL::${userLogged.nomeGuerra.toUpperCase()}::${JSON.stringify(manualSignaturePoints).slice(0, 30)}`;
+      
+      // Find if user has actual scale on selected day to link properly
+      const matchedScaleOnDay = escalas.find((esc) => esc.militarId === userLogged.id && esc.data === selectedDate);
+      
+      // Generate simulated blockchain log
+      const hash = generateSimpleHash(`${userLogged.id}_requests_swap_${selectedSubstituteId}_scale_${matchedScaleOnDay?.id || escala.id}`, 'PREV_HASH_F88B');
 
-    const novaPermuta: Permuta = {
-      id: `P-${Date.now().toString().slice(-4)}`,
-      escalaSubstituidaId: matchedScaleOnDay ? matchedScaleOnDay.id : escala.id,
-      militarSubstituidoId: userLogged.id,
-      militarSubstitutoId: selectedSubstituteId,
-      dataSolicitacao: new Date().toISOString().split('T')[0],
-      dataRealizacao: selectedDate,
-      horaInicio: customHoraInicio,
-      horaFim: customHoraFim,
-      turno: customTurno,
-      postoServico: postoServico,
-      status: 'PENDENTE_SUBSTITUTO',
-      comentarioAlteracao: comentario || undefined,
-      assinaturaSubstituida: signText,
-      protocoloId,
-      qrCode: `PERMUCYBER_SECURE::${protocoloId}::BLOCKHASH::${hash.slice(0, 16)}`,
-      auditoriaHash: hash
-    };
+      // Make ID fully unique when creating multiple permutas in sequence
+      const uniqueId = `P-${Date.now().toString().slice(-4)}-${Math.floor(Math.random() * 100)}`;
 
-    onSubmitPermuta(novaPermuta);
+      const substitute = allMilitares.find(m => m.id === selectedSubstituteId);
+      const subName = substitute ? `${substitute.patente} ${substitute.nomeGuerra}` : 'policial indicado';
+
+      const novaPermuta: Permuta = {
+        id: uniqueId,
+        escalaSubstituidaId: matchedScaleOnDay ? matchedScaleOnDay.id : escala.id,
+        militarSubstituidoId: userLogged.id,
+        militarSubstitutoId: selectedSubstituteId,
+        dataSolicitacao: new Date().toISOString().split('T')[0],
+        dataRealizacao: selectedDate,
+        horaInicio: customHoraInicio,
+        horaFim: customHoraFim,
+        turno: customTurno,
+        postoServico: postoServico,
+        status: 'PENDENTE_SUBSTITUTO',
+        comentarioAlteracao: comentario || undefined,
+        assinaturaSubstituida: signText,
+        protocoloId,
+        qrCode: `PERMUCYBER_SECURE::${protocoloId}::BLOCKHASH::${hash.slice(0, 16)}`,
+        auditoriaHash: hash
+      };
+
+      await onSubmitPermuta(novaPermuta);
+      
+      setLastProtocolId(protocoloId);
+      setLastSubstituteName(subName);
+      setIsSubmittedSuccessfully(true);
+    } catch (err) {
+      console.error(err);
+      alert("Houve uma falha ao processar solicitação nas nuvens.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (isSubmittedSuccessfully) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-[#03080a] text-slate-100 select-none pb-12 animate-fade-in" id="new-permuta-success-screen">
+        <div className="max-w-md w-full bg-hud-card border border-[#00f7ff]/30 rounded-2xl p-6 flex flex-col items-center text-center space-y-4 shadow-[0_0_25px_rgba(0,229,255,0.15)] relative overflow-hidden">
+          
+          {/* Cyber matrix grid glow decoration */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyber-cyan to-transparent"></div>
+          
+          {/* Large badge icon animated check */}
+          <div className="w-16 h-16 rounded-full bg-cyber-green/10 border-2 border-cyber-green flex items-center justify-center shadow-[0_0_20px_rgba(0,255,102,0.25)] animate-pulse mb-2">
+            <CheckCheck className="w-9 h-9 text-cyber-green" />
+          </div>
+
+          <h3 className="text-xs font-black text-white uppercase tracking-widest font-mono">
+            PERMUTA PROTOCOLADA COM SUCESSO!
+          </h3>
+          
+          <p className="text-[11px] text-slate-300 leading-relaxed font-sans px-2">
+            A proposta para <strong>{postoServico}</strong> no dia <strong>{formatarDataBR(selectedDate)}</strong> ({customTurno}) foi criptografada e enviada para aprovação do parceiro <strong>{lastSubstituteName}</strong>.
+          </p>
+
+          <div className="w-full bg-[#020709] border border-hud-border/70 rounded-xl p-3 text-left space-y-1.5 font-mono text-[10px]">
+            <div className="flex justify-between items-center text-[9.5px] text-slate-400">
+              <span>CÓDIGO PROTOCOLO:</span>
+              <span className="text-cyber-cyan font-bold">{lastProtocolId}</span>
+            </div>
+            <div className="flex justify-between items-center text-[9.5px] text-slate-400 border-t border-hud-border/30 pt-1.5">
+              <span>SISTEMA DE HASHING:</span>
+              <span className="text-slate-500 uppercase">SHA-256 SECURE</span>
+            </div>
+            <div className="text-[8.5px] text-cyber-green font-semibold uppercase tracking-wider flex items-center gap-1 mt-1 font-sans bg-cyber-green/10 px-2 py-1 rounded border border-cyber-green/35">
+              <span className="w-1.5 h-1.5 bg-cyber-green rounded-full animate-ping shrink-0" />
+              INTEGRIDADE DA ASSINATURA ELETRÔNICA CERTIFICADA
+            </div>
+          </div>
+
+          {/* DYNAMIC REDIRECT/CHAIN BUTTONS */}
+          <div className="w-full flex flex-col gap-2.5 pt-4">
+            {/* BUTTON TO ADD MORE PERMUTAS IN SEQUENCE */}
+            <button
+              onClick={() => {
+                // Reset flow so they can request another one easily
+                setSelectedSubstituteId('');
+                setComentario('');
+                setIsSigned(false);
+                setDigitalSignatureHex('');
+                setManualSignaturePoints([]);
+                setIsSubmittedSuccessfully(false);
+                setSearchTerm('');
+              }}
+              className="w-full bg-cyber-cyan text-black hover:bg-white hover:text-black transition-all text-xs font-bold py-3 px-4 rounded-xl font-mono uppercase flex items-center justify-center space-x-2 shadow-[0_0_15px_rgba(0,229,255,0.25)] select-none cursor-pointer"
+              id="success-btn-add-another"
+            >
+              <PlusCircle className="w-4 h-4 text-black shrink-0" />
+              <span>➕ ADICIONAR OUTRA PERMUTA</span>
+            </button>
+
+            {/* BUTTON TO FINISH AND GO VIEW THE LIST OF SWAPS */}
+            <button
+              onClick={onFinish}
+              className="w-full bg-[#12191c] hover:bg-hud-card border border-hud-border/80 transition-all text-slate-300 hover:text-white text-xs font-bold py-3 px-4 rounded-xl font-mono uppercase flex items-center justify-center space-x-2 cursor-pointer"
+              id="success-btn-finish"
+            >
+              <span>🗂️ CONCLUIR E IR PARA MINHAS TROCAS</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col p-4 bg-[#03080a] text-slate-100 select-none pb-12" id="new-permuta-container">

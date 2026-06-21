@@ -179,21 +179,27 @@ export const ALERTAS_INICIAIS: Alerta[] = [
     prioridade: 'CRÍTICA',
     titulo: 'ALERTA DE SEGURANÇA NIVEL 3',
     conteudo: 'Operação de Alinhamento Multidisciplinar Ativada. Escalas de Ambulância e Odontologia em atenção permanente.',
-    datahora: '2026-06-20 às 09:30'
+    datahora: '2026-06-20 às 09:30',
+    color: 'red',
+    icon: 'shield'
   },
   {
     id: 'A-02',
     prioridade: 'ALTA',
     titulo: 'AUDITORIA DE CRONOGRAMAS',
     conteudo: 'Auditoria geral de escalas de Serviço Social e Psicologia no Comando às 14:00. Todos devem estar aptos.',
-    datahora: '2026-06-20 às 11:15'
+    datahora: '2026-06-20 às 11:15',
+    color: 'amber',
+    icon: 'triangle'
   },
   {
     id: 'A-03',
     prioridade: 'OPERACIONAL',
     titulo: 'RODÍZIO DE AMBULÂNCIAS',
     conteudo: 'Viatura de Ambulância AMB-03 passará por limpeza asséptica. Substituição temporária autorizada.',
-    datahora: '2026-06-20 às 08:00'
+    datahora: '2026-06-20 às 08:00',
+    color: 'blue',
+    icon: 'info'
   }
 ];
 

@@ -14,7 +14,7 @@ import {
   generateSimpleHash,
   formatarDataBR
 } from './data';
-import { Militar, Escala, Alerta, BlockchainLog, Permuta, ChatMessage, Role } from './types';
+import { Militar, Escala, Alerta, BlockchainLog, Permuta, ChatMessage, Role, BackupSnapshot } from './types';
 import MilitaryMobileFrame from './components/MilitaryMobileFrame';
 import BiometricLogin from './components/BiometricLogin';
 import Dashboard from './components/Dashboard';
@@ -30,102 +30,94 @@ import {
   MessageSquare, 
   Lock, 
   ShieldCheck, 
-  AlertTriangle,
   History,
   FileCheck,
-  RefreshCw,
   Clock,
-  Compass,
-  ShieldAlert
+  ShieldAlert,
+  PlusCircle
 } from 'lucide-react';
 
+import { db, auth } from './firebase';
+import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { seedInitialData, sanitizeForFirestore } from './firebaseUtils';
+
+const PATENTE_ORDER: Record<string, number> = {
+  'CEL': 1, 'TC': 2, 'MAJ': 3, 'CAP': 4, '1ºTEN': 5, '2ºTEN': 6, 'ASP. OF': 7, 
+  'AL. OF': 8, 'ST': 9, '1ºSGT': 10, '2ºSGT': 11, '3ºSGT': 12, 'CB': 13, 'SD': 14
+};
+
+const sortMilitarByPatente = (a: Militar, b: Militar) => {
+  const diff = (PATENTE_ORDER[a.patente] || 99) - (PATENTE_ORDER[b.patente] || 99);
+  if (diff !== 0) return diff;
+  return a.nome.localeCompare(b.nome);
+};
+
 export default function App() {
-  // 1. Core database states synced with LocalStorage
   const [militares, setMilitares] = useState<Militar[]>([]);
-  const [selectedMilitarId, setSelectedMilitarId] = useState<string>('M-101'); // Defaults Sgto. Salles
+  const [selectedMilitarId, setSelectedMilitarId] = useState<string>('M-101');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   
   const [escalas, setEscalas] = useState<Escala[]>([]);
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [permutas, setPermutas] = useState<Permuta[]>([]);
   const [logs, setLogs] = useState<BlockchainLog[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [backups, setBackups] = useState<BackupSnapshot[]>([]);
+  const [backupStatusMsg, setBackupStatusMsg] = useState<string>('Sincronização em nuvem e backups estão ativos.');
 
-  // Local navigation states
   const [currentTab, setCurrentTab] = useState<'DASHBOARD' | 'PERMUTAS' | 'CHAT' | 'GESTAO'>('DASHBOARD');
   const [activeSwapScale, setActiveSwapScale] = useState<Escala | null>(null);
   const [activeReviewPermuta, setActiveReviewPermuta] = useState<Permuta | null>(null);
 
-  // Initialize data on mount
   useEffect(() => {
-    // Check local storage or seed
-    const storedMilitares = localStorage.getItem('pm_militares');
-    const storedEscalas = localStorage.getItem('pm_escalas');
-    const storedAlertas = localStorage.getItem('pm_alertas');
-    const storedPermutas = localStorage.getItem('pm_permutas');
-    const storedLogs = localStorage.getItem('pm_logs');
-    const storedMessages = localStorage.getItem('pm_messages');
+    // Seed data if missing
+    seedInitialData(MILITARES, ESCALAS_INICIAIS, PERMUTAS_INICIAIS, ALERTAS_INICIAIS, LOGS_INICIAIS, CHATS_INICIAIS)
+      .then(() => {
+        // Setup real-time listeners
+        const unsubMilitares = onSnapshot(collection(db, 'militares'), (snap) => setMilitares(snap.docs.map(d => d.data() as Militar).sort(sortMilitarByPatente)));
+        const unsubEscalas = onSnapshot(collection(db, 'escalas'), (snap) => setEscalas(snap.docs.map(d => d.data() as Escala)));
+        const unsubAlertas = onSnapshot(collection(db, 'alertas'), (snap) => setAlertas(snap.docs.map(d => d.data() as Alerta)));
+        const unsubPermutas = onSnapshot(collection(db, 'permutas'), (snap) => setPermutas(snap.docs.map(d => d.data() as Permuta)));
+        const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => setLogs(snap.docs.map(d => d.data() as BlockchainLog).sort((a,b) => a.timestamp.localeCompare(b.timestamp))));
+        const unsubMessages = onSnapshot(collection(db, 'messages'), (snap) => setMessages(snap.docs.map(d => d.data() as ChatMessage).sort((a,b) => a.timestamp.localeCompare(b.timestamp))));
+        const unsubBackups = onSnapshot(collection(db, 'backups'), (snap) => setBackups(snap.docs.map(d => d.data() as any as BackupSnapshot).sort((a,b) => b.timestamp.localeCompare(a.timestamp))));
+        
+        setIsLoading(false);
 
-    if (storedMilitares && storedEscalas && storedAlertas && storedPermutas && storedLogs && storedMessages) {
-      const parsedMilitares: Militar[] = JSON.parse(storedMilitares);
-      
-      // Ensure M-ADMIN-1 exists
-      if (!parsedMilitares.some(m => m.id === 'M-ADMIN-1')) {
-        const adminUser = MILITARES.find(m => m.id === 'M-ADMIN-1');
-        if (adminUser) {
-          parsedMilitares.push(adminUser);
-          localStorage.setItem('pm_militares', JSON.stringify(parsedMilitares));
-        }
-      }
-
-      const isOutdated = parsedMilitares.length < 10 || parsedMilitares.some(m => m.id === 'M-301' && m.nome === 'Rafael Fontes');
-      if (isOutdated) {
-        seedDatabase();
-      } else {
-        setMilitares(parsedMilitares);
-        setEscalas(JSON.parse(storedEscalas));
-        setAlertas(JSON.parse(storedAlertas));
-        setPermutas(JSON.parse(storedPermutas));
-        setLogs(JSON.parse(storedLogs));
-        setMessages(JSON.parse(storedMessages));
-      }
-    } else {
-      seedDatabase();
-    }
+        return () => {
+          unsubMilitares();
+          unsubEscalas();
+          unsubAlertas();
+          unsubPermutas();
+          unsubLogs();
+          unsubMessages();
+          unsubBackups();
+        };
+      })
+      .catch((error) => {
+        console.error("Firebase Sync Error:", error);
+        
+        // Fallback to local data to avoid breaking the UI during propagation
+        setMilitares([...MILITARES].sort(sortMilitarByPatente));
+        setEscalas(ESCALAS_INICIAIS);
+        setAlertas(ALERTAS_INICIAIS);
+        setPermutas(PERMUTAS_INICIAIS);
+        setLogs(LOGS_INICIAIS);
+        setMessages(CHATS_INICIAIS);
+        setIsLoading(false);
+      });
   }, []);
 
-  const seedDatabase = () => {
-    localStorage.setItem('pm_militares', JSON.stringify(MILITARES));
-    localStorage.setItem('pm_escalas', JSON.stringify(ESCALAS_INICIAIS));
-    localStorage.setItem('pm_alertas', JSON.stringify(ALERTAS_INICIAIS));
-    localStorage.setItem('pm_permutas', JSON.stringify(PERMUTAS_INICIAIS));
-    localStorage.setItem('pm_logs', JSON.stringify(LOGS_INICIAIS));
-    localStorage.setItem('pm_messages', JSON.stringify(CHATS_INICIAIS));
-
-    setMilitares(MILITARES);
-    setEscalas(ESCALAS_INICIAIS);
-    setAlertas(ALERTAS_INICIAIS);
-    setPermutas(PERMUTAS_INICIAIS);
-    setLogs(LOGS_INICIAIS);
-    setMessages(CHATS_INICIAIS);
-  };
-
   const handleRefreshAll = () => {
-    localStorage.clear();
-    seedDatabase();
     setIsLoggedIn(false);
     setCurrentTab('DASHBOARD');
     setActiveSwapScale(null);
     setActiveReviewPermuta(null);
   };
 
-  const saveToLocalStorage = (key: string, data: any) => {
-    localStorage.setItem(key, JSON.stringify(data));
-  };
-
   const handleUserChange = (userId: string) => {
     setSelectedMilitarId(userId);
-    // When switching accounts, log them out to trigger biometric login experience
     setIsLoggedIn(false);
     setActiveSwapScale(null);
     setActiveReviewPermuta(null);
@@ -134,13 +126,12 @@ export default function App() {
 
   const loggedUser = militares.find((m) => m.id === selectedMilitarId) || MILITARES[0];
 
-  // LOG GENERATOR HELPER
-  const appendAuditLog = (
+  const appendAuditLog = async (
     tipoEvento: BlockchainLog['tipoEvento'],
     evento: string,
     militarName: string,
     currentLogs: BlockchainLog[]
-  ): BlockchainLog[] => {
+  ) => {
     const prevLog = currentLogs[currentLogs.length - 1];
     const prevHash = prevLog ? prevLog.hashAtual : '0xSHA256_ROOT_99AA';
     
@@ -154,144 +145,165 @@ export default function App() {
       hashAtual: generateSimpleHash(evento, prevHash)
     };
 
-    const updated = [...currentLogs, nextLog];
-    setLogs(updated);
-    saveToLocalStorage('pm_logs', updated);
-    return updated;
+    await setDoc(doc(db, 'logs', nextLog.id), sanitizeForFirestore(nextLog));
   };
 
-  const handleAddMilitarIndividual = (militar: Militar) => {
+  const generateBackup = async (tipo: 'AUTO' | 'MANUAL', autor: string, forcedMilitares?: Militar[], forcedEscalas?: Escala[], forcedPermutas?: Permuta[]) => {
+    try {
+      const activeMilitares = forcedMilitares || militares;
+      const activeEscalas = forcedEscalas || escalas;
+      const activePermutas = forcedPermutas || permutas;
+
+      const bkId = `BK-${Date.now().toString().slice(-6)}`;
+      const newSnapshot: BackupSnapshot = {
+        id: bkId,
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        tipo,
+        autor,
+        quantidadeMilitares: activeMilitares.length,
+        quantidadeEscalas: activeEscalas.length,
+        quantidadePermutas: activePermutas.length,
+        militares: activeMilitares,
+        escalas: activeEscalas,
+        permutas: activePermutas,
+        alertas: alertas,
+        logs: logs
+      };
+
+      await setDoc(doc(db, 'backups', bkId), sanitizeForFirestore(newSnapshot));
+      localStorage.setItem(`BACKUP_${bkId}`, JSON.stringify(newSnapshot));
+      
+      const successMsg = `✓ Cópia de segurança ${tipo} [${bkId}] transmitida com sucesso para o Firestore Cloud.`;
+      setBackupStatusMsg(successMsg);
+
+      if (tipo === 'MANUAL') {
+        alert(
+          `✓ BACKUP GERADO E ARMAZENADO NAS NUVENS!\n\n` +
+          `• Identificador: ${bkId}\n` +
+          `• Policiais Ativos: ${activeMilitares.length}\n` +
+          `• Escalas de Serviço: ${activeEscalas.length}\n` +
+          `• Permutas de Plantão: ${activePermutas.length}\n` +
+          `• Status: Sincronizado e persistido com redundância no Firestore Cloud de forma segura.`
+        );
+      }
+    } catch (err) {
+      console.error("Backup failed:", err);
+      setBackupStatusMsg("⚠️ Falha crítica ao transcrever backup para a nuvem.");
+      alert("⚠️ Erro crítico: Não foi possível salvar o backup nas nuvens. Verifique sua conexão com a rede.");
+    }
+  };
+
+  const handleRestoreBackup = async (snapshot: BackupSnapshot) => {
+    try {
+      setBackupStatusMsg(`⌛ Reconciliando imagens... Revertendo para o backup ${snapshot.id}...`);
+      
+      for (const m of militares) {
+        if (!snapshot.militares.some(sm => sm.id === m.id)) {
+          await deleteDoc(doc(db, 'militares', m.id));
+        }
+      }
+      for (const e of escalas) {
+        if (!snapshot.escalas.some(se => se.id === e.id)) {
+          await deleteDoc(doc(db, 'escalas', e.id));
+        }
+      }
+      for (const p of permutas) {
+        if (!snapshot.permutas.some(sp => sp.id === p.id)) {
+          await deleteDoc(doc(db, 'permutas', p.id));
+        }
+      }
+
+      for (const m of snapshot.militares) {
+        await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
+      }
+      for (const e of snapshot.escalas) {
+        await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e));
+      }
+      for (const p of snapshot.permutas) {
+        await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore(p));
+      }
+
+      await appendAuditLog('INTEGRALIZAÇÃO', `Restauração pontual efetuada com sucesso: ${snapshot.id}.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+      alert(`SUCESSO! O banco de dados em nuvem foi totalmente restaurado para a imagem de segurança ${snapshot.id}.`);
+      setBackupStatusMsg(`✓ Restauro concluído com sucesso para o backup ${snapshot.id}.`);
+    } catch (err) {
+      console.error("Restore failed:", err);
+      alert("Falha crítica ao sincronizar restauro em nuvem.");
+      setBackupStatusMsg("⚠️ Erro de restauro e reconciliação.");
+    }
+  };
+
+  const handleAddMilitarIndividual = async (militar: Militar) => {
+    try {
+      await setDoc(doc(db, 'militares', militar.id), sanitizeForFirestore(militar));
+    } catch (e) { console.error("Error saving militar:", e); }
     const updated = [...militares, militar];
     setMilitares(updated);
-    saveToLocalStorage('pm_militares', updated);
-    appendAuditLog(
-      'INTEGRALIZAÇÃO',
-      `Militar ${militar.nomeGuerra} adicionado à base de dados.`,
-      loggedUser?.nomeGuerra || 'SISTEMA',
-      logs
-    );
+    await appendAuditLog('INTEGRALIZAÇÃO', `Militar ${militar.nomeGuerra} adicionado à base de dados.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+    await generateBackup('AUTO', loggedUser?.nomeGuerra || 'SISTEMA', updated);
   };
 
-  const handleDeleteMilitar = (id: string) => {
+  const handleDeleteMilitar = async (id: string) => {
+    try { await deleteDoc(doc(db, 'militares', id)); } catch(e){}
     const updated = militares.filter(m => m.id !== id);
     setMilitares(updated);
-    saveToLocalStorage('pm_militares', updated);
-    appendAuditLog(
-      'INTEGRALIZAÇÃO',
-      `Militar com ID ${id} removido da base de dados.`,
-      loggedUser?.nomeGuerra || 'SISTEMA',
-      logs
-    );
+    await appendAuditLog('INTEGRALIZAÇÃO', `Militar com ID ${id} removido da base de dados.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+    await generateBackup('AUTO', loggedUser?.nomeGuerra || 'SISTEMA', updated);
   };
 
-  const handleToggleBiometria = (id: string) => {
-    const updated = militares.map(m => {
-      if (m.id === id) {
-        return { ...m, biometriaAtiva: !m.biometriaAtiva };
-      }
-      return m;
-    });
-    setMilitares(updated);
-    saveToLocalStorage('pm_militares', updated);
+  const handleToggleBiometria = async (id: string) => {
+    const m = militares.find(x => x.id === id);
+    if(m) {
+      try { await updateDoc(doc(db, 'militares', id), { biometriaAtiva: !m.biometriaAtiva }); } catch(e){}
+      setMilitares(prev => prev.map(p => p.id === id ? { ...p, biometriaAtiva: !p.biometriaAtiva } : p));
+    }
   };
 
-  const handleUpdateMilitarNomeGuerra = (id: string, newNome: string) => {
-    const updated = militares.map(m => {
-      if (m.id === id) {
-        return { 
-          ...m, 
-          nomeGuerra: newNome, 
-          nome: newNome.replace(/^(Sgto\.|Ten\.|Cb\.|Sd\.)\s*/i, '') 
-        };
-      }
-      return m;
-    });
-    setMilitares(updated);
-    saveToLocalStorage('pm_militares', updated);
+  const handleUpdateMilitarNomeGuerra = async (id: string, newNome: string) => {
+    try {
+      await updateDoc(doc(db, 'militares', id), { 
+        nomeGuerra: newNome, 
+        nome: newNome.replace(/^(Sgto\.|Ten\.|Cb\.|Sd\.)\s*/i, '') 
+      });
+    } catch(e){}
+    setMilitares(prev => prev.map(p => p.id === id ? { ...p, nomeGuerra: newNome, nome: newNome.replace(/^(Sgto\.|Ten\.|Cb\.|Sd\.)\s*/i, '') } : p));
   };
 
-  const handleUpdateMilitarMF = (id: string, newMF: string) => {
-    const updated = militares.map(m => {
-      if (m.id === id) {
-        return { 
-          ...m, 
-          matriculaFuncional: newMF 
-        };
-      }
-      return m;
-    });
-    setMilitares(updated);
-    saveToLocalStorage('pm_militares', updated);
+  const handleUpdateMilitarMF = async (id: string, newMF: string) => {
+    try { await updateDoc(doc(db, 'militares', id), { matriculaFuncional: newMF }); } catch(e){}
+    setMilitares(prev => prev.map(p => p.id === id ? { ...p, matriculaFuncional: newMF } : p));
   };
 
-  const handleUpdateMilitarNumero = (id: string, numero: string) => {
-    const updated = militares.map(m => {
-      if (m.id === id) {
-        return { 
-          ...m, 
-          numero 
-        };
-      }
-      return m;
-    });
-    setMilitares(updated);
-    saveToLocalStorage('pm_militares', updated);
+  const handleUpdateMilitarNumero = async (id: string, numero: string) => {
+    try { await updateDoc(doc(db, 'militares', id), { numero }); } catch(e){}
+    setMilitares(prev => prev.map(p => p.id === id ? { ...p, numero } : p));
   };
 
-  const handleUpdateMilitarPin = (id: string, newPin: string) => {
-    const updated = militares.map(m => {
-      if (m.id === id) {
-        return { 
-          ...m, 
-          pinSegurança: newPin 
-        };
-      }
-      return m;
-    });
-    setMilitares(updated);
-    saveToLocalStorage('pm_militares', updated);
-    appendAuditLog(
-      'INTEGRALIZAÇÃO',
-      `Militar ID ${id} atualizou seu token / PIN de segurança criptográfica pessoal com sucesso.`,
-      loggedUser?.nomeGuerra || 'SISTEMA',
-      logs
-    );
+  const handleUpdateMilitarPin = async (id: string, newPin: string) => {
+    try { await updateDoc(doc(db, 'militares', id), { pinSegurança: newPin }); } catch(e){}
+    setMilitares(prev => prev.map(p => p.id === id ? { ...p, pinSegurança: newPin } : p));
+    await appendAuditLog('INTEGRALIZAÇÃO', `Militar ID ${id} atualizou seu token / PIN de segurança criptográfica pessoal com sucesso.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
   };
 
-  const handleUpdateMilitarRole = (id: string, role: Role) => {
-    const updated = militares.map(m => {
-      if (m.id === id) {
-        return { ...m, role: role };
-      }
-      return m;
-    });
-    setMilitares(updated);
-    saveToLocalStorage('pm_militares', updated);
-    appendAuditLog(
-      'INTEGRALIZAÇÃO',
-      `Papel do militar ${id} alterado para ${role}.`,
-      loggedUser?.nomeGuerra || 'SISTEMA',
-      logs
-    );
+  const handleUpdateMilitarRole = async (id: string, role: Role) => {
+    try { await updateDoc(doc(db, 'militares', id), { role }); } catch(e){}
+    setMilitares(prev => prev.map(p => p.id === id ? { ...p, role } : p));
+    await appendAuditLog('INTEGRALIZAÇÃO', `Papel do militar ${id} alterado para ${role}.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
   };
 
-  const handleImportMilitaresJSON = (imported: Militar[]) => {
-    setMilitares(imported);
-    saveToLocalStorage('pm_militares', imported);
+  const handleImportMilitaresJSON = async (imported: Militar[]) => {
+    for (const m of imported) {
+      await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
+    }
     if (imported.length > 0 && !imported.some(m => m.id === selectedMilitarId)) {
       setSelectedMilitarId(imported[0].id);
       setIsLoggedIn(false);
     }
-    appendAuditLog(
-      'INTEGRALIZAÇÃO',
-      `Base de dados de militares atualizada por importação (.JSON) com sucesso (${imported.length} militares carregados).`,
-      loggedUser?.nomeGuerra || 'SISTEMA',
-      logs
-    );
+    await appendAuditLog('INTEGRALIZAÇÃO', `Base de dados de militares atualizada por importação (.JSON) com sucesso (${imported.length} militares carregados).`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+    await generateBackup('AUTO', loggedUser?.nomeGuerra || 'SISTEMA', imported);
   };
 
-  // SEND MESSAGE PROCESS
-  const handleSendMessage = (paraMilitarId: string, conteudo: string) => {
+  const handleSendMessage = async (paraMilitarId: string, conteudo: string) => {
     const freshMessage: ChatMessage = {
       id: `C-${Date.now()}`,
       deMilitarId: loggedUser.id,
@@ -302,35 +314,15 @@ export default function App() {
       chaveCripto: `AES-GCM-AUTO-SIG-${loggedUser.nomeGuerra.toUpperCase()}`
     };
 
-    const updatedMsgs = [...messages, freshMessage];
-    setMessages(updatedMsgs);
-    saveToLocalStorage('pm_messages', updatedMsgs);
-
-    // Append security logging
+    await setDoc(doc(db, 'messages', freshMessage.id), sanitizeForFirestore(freshMessage));
     const recipient = militares.find((m) => m.id === paraMilitarId)?.nomeGuerra || 'Auxiliar';
-    appendAuditLog(
-      'INTEGRALIZAÇÃO',
-      `Transmissão de texto plano criptografada com sucesso de ${loggedUser.nomeGuerra} para ${recipient}. Protocolo seguro ativado.`,
-      loggedUser.nomeGuerra,
-      logs
-    );
+    await appendAuditLog('INTEGRALIZAÇÃO', `Transmissão de texto plano criptografada com sucesso de ${loggedUser.nomeGuerra} para ${recipient}. Protocolo seguro ativado.`, loggedUser.nomeGuerra, logs);
   };
 
-  // CREATE NEW SERVICE SWAP
-  const handleCreatePermuta = (novaPermuta: Permuta) => {
-    const updatedPermutas = [novaPermuta, ...permutas];
-    setPermutas(updatedPermutas);
-    saveToLocalStorage('pm_permutas', updatedPermutas);
+  const handleCreatePermuta = async (novaPermuta: Permuta) => {
+    await setDoc(doc(db, 'permutas', novaPermuta.id), sanitizeForFirestore(novaPermuta));
+    await appendAuditLog('PERMUTA_CRIADA', `Permuta criada para posto [${novaPermuta.postoServico}] de ${loggedUser.nomeGuerra}. Assinado digitalmente sob protocolo ${novaPermuta.protocoloId}.`, loggedUser.nomeGuerra, logs);
 
-    // Logging blockchain
-    const nextLogs = appendAuditLog(
-      'PERMUTA_CRIADA',
-      `Permuta criada para posto [${novaPermuta.postoServico}] de ${loggedUser.nomeGuerra}. Assinado digitalmente sob protocolo ${novaPermuta.protocoloId}.`,
-      loggedUser.nomeGuerra,
-      logs
-    );
-
-    // Send automated chat message to recipient to verify!
     const recipient = militares.find(m => m.id === novaPermuta.militarSubstitutoId);
     if (recipient) {
       const automatedMsg: ChatMessage = {
@@ -342,194 +334,102 @@ export default function App() {
         criptografada: true,
         chaveCripto: 'AES-AUTO-SYSTEM-TRANS'
       };
-      
-      const newChats = [...messages, automatedMsg];
-      setMessages(newChats);
-      saveToLocalStorage('pm_messages', newChats);
+      await setDoc(doc(db, 'messages', automatedMsg.id), sanitizeForFirestore(automatedMsg));
     }
-
-    setActiveSwapScale(null);
-    setCurrentTab('PERMUTAS');
   };
 
-  // PEER ACCEPTS OR REJECTS SWAP REQUEST
-  const handleAcceptPermuta = (permutaId: string, peerSignature: string) => {
-    const updated = permutas.map((p) => {
-      if (p.id === permutaId) {
-        return {
-          ...p,
-          status: 'PENDENTE_GESTOR' as const,
-          assinaturaSubstituta: peerSignature
-        };
-      }
-      return p;
-    });
-
-    setPermutas(updated);
-    saveToLocalStorage('pm_permutas', updated);
-
-    appendAuditLog(
-      'PERMUTA_ACEITA',
-      `Sgt. Mendes assinou digitalmente aceitando a permuta ref. protocolo ${permutas.find(p => p.id === permutaId)?.protocoloId}. Encaminhado ao conselho operacional.`,
-      loggedUser.nomeGuerra,
-      logs
-    );
-
+  const handleAcceptPermuta = async (permutaId: string, peerSignature: string) => {
+    await updateDoc(doc(db, 'permutas', permutaId), sanitizeForFirestore({
+      status: 'PENDENTE_GESTOR',
+      assinaturaSubstituta: peerSignature
+    }));
+    await appendAuditLog('PERMUTA_ACEITA', `Sgt. Mendes assinou digitalmente aceitando a permuta ref. protocolo ${permutas.find(p => p.id === permutaId)?.protocoloId}. Encaminhado ao conselho operacional.`, loggedUser.nomeGuerra, logs);
     setActiveReviewPermuta(null);
     setCurrentTab('PERMUTAS');
   };
 
-  const handleDeclinePermuta = (permutaId: string) => {
-    const updated = permutas.map((p) => {
-      if (p.id === permutaId) {
-        return {
-          ...p,
-          status: 'REJEITADO_SUBSTITUTO' as const
-        };
-      }
-      return p;
-    });
-
-    setPermutas(updated);
-    saveToLocalStorage('pm_permutas', updated);
-
-    appendAuditLog(
-      'INTEGRALIZAÇÃO',
-      `Solicitação de permuta cancelada/rejeitada pelo militar substituto. Protocolo suspenso.`,
-      loggedUser.nomeGuerra,
-      logs
-    );
-
+  const handleDeclinePermuta = async (permutaId: string) => {
+    await updateDoc(doc(db, 'permutas', permutaId), sanitizeForFirestore({ status: 'REJEITADO_SUBSTITUTO' }));
+    await appendAuditLog('INTEGRALIZAÇÃO', `Solicitação de permuta cancelada/rejeitada pelo militar substituto. Protocolo suspenso.`, loggedUser.nomeGuerra, logs);
     setActiveReviewPermuta(null);
     setCurrentTab('PERMUTAS');
   };
 
-  const handleRequestAlteration = (permutaId: string, comentario: string) => {
-    const updated = permutas.map((p) => {
-      if (p.id === permutaId) {
-        return {
-          ...p,
-          status: 'ALTERACAO_SOLICITADA' as const,
-          comentarioAlteracao: comentario
-        };
-      }
-      return p;
-    });
-
-    setPermutas(updated);
-    saveToLocalStorage('pm_permutas', updated);
-
-    appendAuditLog(
-      'INTEGRALIZAÇÃO',
-      `Proposta de alteração de escala retransmitida com considerações operacionais: "${comentario.slice(0, 45)}...".`,
-      loggedUser.nomeGuerra,
-      logs
-    );
-
+  const handleRequestAlteration = async (permutaId: string, comentario: string) => {
+    await updateDoc(doc(db, 'permutas', permutaId), sanitizeForFirestore({
+      status: 'ALTERACAO_SOLICITADA',
+      comentarioAlteracao: comentario
+    }));
+    await appendAuditLog('INTEGRALIZAÇÃO', `Proposta de alteração de escala retransmitida com considerações operacionais: "${comentario.slice(0, 45)}...".`, loggedUser.nomeGuerra, logs);
     setActiveReviewPermuta(null);
     setCurrentTab('PERMUTAS');
   };
 
-  // OFFICERS HANDLES MAJOR VALIDATIONS (APROVADO / REJEITADO)
-  const handleApprovePermutaGestor = (permutaId: string, gestorNome: string, gestorSignature: string) => {
-    if (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN') {
-      alert('Acesso negado: Apenas Comandantes podem homologar permutas.');
-      return;
-    }
+  const handleApprovePermutaGestor = async (permutaId: string, gestorNome: string, gestorSignature: string) => {
+    if (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN') return;
     const targetPermuta = permutas.find(p => p.id === permutaId);
     if (!targetPermuta) return;
 
-    // 1. Mark swap process as APROVADO
-    const updatedPermutas = permutas.map((p) => {
-      if (p.id === permutaId) {
-        return {
-          ...p,
-          status: 'APROVADO' as const,
-          assinaturaGestor: gestorSignature,
-          gestorNome,
-          dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
-        };
-      }
-      return p;
-    });
-    setPermutas(updatedPermutas);
-    saveToLocalStorage('pm_permutas', updatedPermutas);
-
-    // 2. SWAP THE SCALE DUTY OWNER!
-    // Scale must point to Substitute military instead of Substituted
-    const updatedEscalas = escalas.map((esc) => {
-      if (esc.id === targetPermuta.escalaSubstituidaId) {
-        return {
-          ...esc,
-          militarId: targetPermuta.militarSubstitutoId // Mendes assume the shift!
-        };
-      }
-      return esc;
-    });
-    setEscalas(updatedEscalas);
-    saveToLocalStorage('pm_escalas', updatedEscalas);
-
-    // 3. Log into blockchain ledger
-    appendAuditLog(
-      'PROCESSO_APROVADO',
-      `Homologação oficial ativada pelo Tenente Bastos para protocolo ${targetPermuta.protocoloId}. Escala atualizada. Vias digitais autenticadas.`,
+    await updateDoc(doc(db, 'permutas', permutaId), sanitizeForFirestore({
+      status: 'APROVADO',
+      assinaturaGestor: gestorSignature,
       gestorNome,
-      logs
-    );
+      dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
+    }));
+
+    await updateDoc(doc(db, 'escalas', targetPermuta.escalaSubstituidaId), sanitizeForFirestore({
+      militarId: targetPermuta.militarSubstitutoId
+    }));
+
+    await appendAuditLog('PROCESSO_APROVADO', `Homologação oficial ativada pelo Tenente Bastos para protocolo ${targetPermuta.protocoloId}. Escala atualizada. Vias digitais autenticadas.`, gestorNome, logs);
   };
 
-  const handleRejectPermutaGestor = (permutaId: string) => {
+  const handleRejectPermutaGestor = async (permutaId: string) => {
     const targetPermuta = permutas.find(p => p.id === permutaId);
     if (!targetPermuta) return;
 
-    const updatedPermutas = permutas.map((p) => {
-      if (p.id === permutaId) {
-        return {
-          ...p,
-          status: 'REJEITADO' as const,
-          gestorNome: loggedUser.nomeGuerra,
-          dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
-        };
-      }
-      return p;
-    });
-    setPermutas(updatedPermutas);
-    saveToLocalStorage('pm_permutas', updatedPermutas);
-
-    appendAuditLog(
-      'PROCESSO_REJEITADO',
-      `Permuta ID ${targetPermuta.protocoloId} rejeitada administrativamente pelo Comando de Batalhão.`,
-      loggedUser.nomeGuerra,
-      logs
-    );
+    await updateDoc(doc(db, 'permutas', permutaId), sanitizeForFirestore({
+      status: 'REJEITADO',
+      gestorNome: loggedUser.nomeGuerra,
+      dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
+    }));
+    await appendAuditLog('PROCESSO_REJEITADO', `Permuta ID ${targetPermuta.protocoloId} rejeitada administrativamente pelo Comando de Batalhão.`, loggedUser.nomeGuerra, logs);
   };
 
-  const handleAdjustPermutaGestor = (permutaId: string, justificativa: string) => {
+  const handleAdjustPermutaGestor = async (permutaId: string, justificativa: string) => {
     const targetPermuta = permutas.find(p => p.id === permutaId);
     if (!targetPermuta) return;
 
-    const updatedPermutas = permutas.map((p) => {
-      if (p.id === permutaId) {
-        return {
-          ...p,
-          status: 'AJUSTE_GESTOR' as const,
-          comentarioAlteracao: justificativa,
-          gestorNome: loggedUser.nomeGuerra,
-          dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
-        };
-      }
-      return p;
-    });
-    setPermutas(updatedPermutas);
-    saveToLocalStorage('pm_permutas', updatedPermutas);
-
-    appendAuditLog(
-      'INTEGRALIZAÇÃO',
-      `O Comando devolveu a escala ${targetPermuta.protocoloId} solicitando correções: "${justificativa.slice(0, 45)}...".`,
-      loggedUser.nomeGuerra,
-      logs
-    );
+    await updateDoc(doc(db, 'permutas', permutaId), sanitizeForFirestore({
+      status: 'AJUSTE_GESTOR',
+      comentarioAlteracao: justificativa,
+      gestorNome: loggedUser.nomeGuerra,
+      dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
+    }));
+    await appendAuditLog('INTEGRALIZAÇÃO', `O Comando devolveu a escala ${targetPermuta.protocoloId} solicitando correções: "${justificativa.slice(0, 45)}...".`, loggedUser.nomeGuerra, logs);
   };
+
+  const handleUpdateAlerta = async (alertaId: string, conteudo: string, color: string, icon: string) => {
+    try {
+      await setDoc(doc(db, 'alertas', alertaId), sanitizeForFirestore({
+        id: alertaId,
+        prioridade: 'CRÍTICA',
+        titulo: 'ALERTA DE SEGURANÇA',
+        conteudo,
+        color,
+        icon,
+        datahora: new Date().toISOString().replace('T', ' ').slice(0, 16)
+      }), { merge: true });
+      await appendAuditLog('INTEGRALIZAÇÃO', `Alerta operacional de comando atualizado: "${conteudo.slice(0, 45)}...".`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+    } catch (e) {
+      console.error("Error updating alert:", e);
+    }
+  };
+
+  if (isLoading) {
+    return <div className="flex h-screen items-center justify-center bg-hud-bg text-cyber-cyan font-mono text-sm animate-pulse">Sincronizando Sistema Firebase...</div>;
+  }
+
 
   return (
     <MilitaryMobileFrame
@@ -546,14 +446,26 @@ export default function App() {
         /* BIOMETRIC OR PASS LOGIN SCREEN */
         <div className="flex-1 flex flex-col h-full">
           {/* Debug Depass access corner */}
-          <div className="absolute top-8 right-4 z-40">
+          <div className="absolute top-8 right-4 z-40 flex space-x-1.5">
             <button
               onClick={() => setIsLoggedIn(true)}
-              className="text-[9px] font-mono text-cyber-green bg-cyber-green/10 border border-cyber-green/30 hover:bg-cyber-green/20 px-2 py-1 rounded transition-all flex items-center space-x-1"
+              className="text-[9px] font-mono text-cyber-green bg-cyber-green/10 border border-cyber-green/30 hover:bg-cyber-green/20 px-2 py-1 rounded transition-all flex items-center space-x-1 animate-pulse"
               id="bypass-login-btn"
             >
               <ShieldCheck className="w-3 h-3 text-cyber-green" />
               <span>ACESSO DIRETO</span>
+            </button>
+            <button
+              onClick={() => {
+                handleUserChange('M-ADMIN-1');
+                setIsLoggedIn(true);
+              }}
+              className="text-[9px] font-mono text-cyber-amber bg-cyber-amber/10 border border-cyber-amber/35 hover:bg-cyber-amber/30 px-2.5 py-1 rounded transition-all flex items-center space-x-1 border-dashed"
+              id="bypass-admin-btn"
+              title="Acesso Rápido para Marcos Nobrega (Admin)"
+            >
+              <ShieldAlert className="w-3.5 h-3.5 text-cyber-amber animate-bounce" />
+              <span className="text-white">ENTRAR COMO MARCOS (ADMIN)</span>
             </button>
           </div>
           <BiometricLogin
@@ -606,6 +518,10 @@ export default function App() {
                 escalas={escalas}
                 onCancel={() => setActiveSwapScale(null)}
                 onSubmitPermuta={handleCreatePermuta}
+                onFinish={() => {
+                  setActiveSwapScale(null);
+                  setCurrentTab('PERMUTAS');
+                }}
               />
             ) : activeReviewPermuta ? (
               <ValidadorPermuta
@@ -629,6 +545,10 @@ export default function App() {
                     onStartPermutaFlow={(esc) => setActiveSwapScale(esc)}
                     onSelectPermuta={(per) => setActiveReviewPermuta(per)}
                     onNavigateToTab={(tab) => setCurrentTab(tab)}
+                    onApprovePermuta={handleApprovePermutaGestor}
+                    onRejectPermuta={handleRejectPermutaGestor}
+                    onAdjustPermuta={handleAdjustPermutaGestor}
+                    onUpdateAlerta={handleUpdateAlerta}
                   />
                 )}
 
@@ -636,10 +556,31 @@ export default function App() {
                   <div className="p-4 space-y-4 pb-12">
                     {/* MY PERMUTAS ACTIVE TIMELINE */}
                     <div>
-                      <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-3 flex items-center font-sans">
-                        <History className="w-4 h-4 text-cyber-blue mr-1.5" />
-                        Minhas Solicitações de Troca
-                      </h3>
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center font-sans">
+                          <History className="w-4 h-4 text-cyber-blue mr-1.5" />
+                          Minhas Solicitações de Troca
+                        </h3>
+                        <button
+                          onClick={() => {
+                            setCurrentTab('DASHBOARD');
+                            // Create elegant ephemeral overlay notification
+                            const toastDiv = document.createElement('div');
+                            toastDiv.className = "fixed top-5 left-1/2 transform -translate-x-1/2 bg-[#021c22] text-[#00ff66] border border-[#00ff66]/40 px-5 py-3 rounded-xl text-center text-xs font-mono font-bold uppercase tracking-wider shadow-[0_0_20px_rgba(0,255,102,0.3)] z-50 cursor-pointer transition-all";
+                            toastDiv.innerHTML = "⚡ NOVA PROTOCOLIZAÇÃO:<br/><span className='text-white text-[11px] font-sans font-normal normal-case'>Selecione qualquer dia no painel tático para iniciar outra permuta.</span>";
+                            document.body.appendChild(toastDiv);
+                            setTimeout(() => {
+                              toastDiv.style.opacity = '0';
+                              setTimeout(() => toastDiv.remove(), 500);
+                            }, 4500);
+                          }}
+                          className="bg-cyber-blue/15 hover:bg-cyber-blue/35 text-cyber-cyan border border-cyber-cyan/35 hover:border-cyber-cyan/60 px-2.5 py-1 rounded text-[9.5px] font-mono font-bold transition-all uppercase flex items-center space-x-1 cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.1)] active:scale-95"
+                          id="btn-add-more-permuta"
+                        >
+                          <PlusCircle size={11} className="text-cyber-cyan animate-pulse shrink-0" />
+                          <span>SOLICITAR MAIS PERMUTA</span>
+                        </button>
+                      </div>
 
                       {permutas.filter(p => p.militarSubstituidoId === loggedUser.id || p.militarSubstitutoId === loggedUser.id).length === 0 ? (
                         <div className="bg-[#051115] border border-hud-border/40 p-6 rounded-xl text-center text-slate-500 font-sans text-xs">
@@ -734,7 +675,7 @@ export default function App() {
 
                 {currentTab === 'GESTAO' && (
                   <div>
-                    {loggedUser.id === 'M-ADMIN-1' ? (
+                    {loggedUser.role === 'COMANDANTE' || loggedUser.role === 'ADMIN' ? (
                       /* Officer is authorized to access with their key */
                       <PainelGestor
                         permutas={permutas}
@@ -755,6 +696,10 @@ export default function App() {
                         onUpdateMilitarMF={handleUpdateMilitarMF}
                         onUpdateMilitarNumero={handleUpdateMilitarNumero}
                         onUserSwitch={handleUserChange}
+                        backups={backups}
+                        backupStatusMsg={backupStatusMsg}
+                        onCreateBackup={(tipo) => generateBackup(tipo, loggedUser?.nomeGuerra || 'SISTEMA')}
+                        onRestoreBackup={handleRestoreBackup}
                       />
                     ) : (
                       /* Immersion Security Lockout Screen */
@@ -777,8 +722,8 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => {
-                            handleUserChange('M-ADMIN-1');
-                            alert('Acesso tático renegociado: Conectado como 1ºSgt Nobrega (Administrador do Comando).');
+                            handleUserChange('M-202');
+                            alert('Acesso tático renegociado: Conectado como Ten. Bastos (Comandante).');
                           }}
                           className="w-full max-w-xs bg-cyber-green/10 hover:bg-cyber-green/25 text-cyber-green hover:text-white border border-cyber-green/35 py-1.5 rounded text-[10px] font-mono font-bold uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1.5 cursor-pointer mt-2"
                         >

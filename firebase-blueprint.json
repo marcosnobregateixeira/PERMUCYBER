@@ -1,0 +1,136 @@
+{
+  "entities": {
+    "Militar": {
+      "title": "Militar",
+      "description": "User profile for a military member",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "nomeGuerra": { "type": "string" },
+        "matriculaFuncional": { "type": "string" },
+        "numero": { "type": "string" },
+        "patente": { "type": "string" },
+        "pinSegurança": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "COMANDANTE", "POLICIAL"] },
+        "foto": { "type": "string" },
+        "biometriaAtiva": { "type": "boolean" },
+        "firebaseUid": { "type": "string", "description": "Firebase user ID, mapped if the user logs in via Firebase Auth" }
+      },
+      "required": ["id", "nome", "nomeGuerra", "matriculaFuncional", "patente", "role"]
+    },
+    "Escala": {
+      "title": "Escala",
+      "description": "Duty shift assigned to a military member",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "militarId": { "type": "string" },
+        "postoServico": { "type": "string" },
+        "data": { "type": "string" },
+        "horaInicio": { "type": "string" },
+        "horaFim": { "type": "string" },
+        "turno": { "type": "string", "enum": ["A", "B", "C", "D", "E"] },
+        "bpm": { "type": "string" },
+        "cia": { "type": "string" },
+        "status": { "type": "string", "enum": ["FUTURA", "EM_ANDAMENTO", "CONCLUIDA", "PERMUTADA"] }
+      },
+      "required": ["id", "militarId", "postoServico", "data", "horaInicio", "horaFim", "status"]
+    },
+    "Permuta": {
+      "title": "Permuta",
+      "description": "Exchange request between two military members for a duty shift",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "escalaSubstituidaId": { "type": "string" },
+        "militarSubstituidoId": { "type": "string" },
+        "militarSubstitutoId": { "type": "string" },
+        "dataSolicitacao": { "type": "string" },
+        "dataRealizacao": { "type": "string" },
+        "horaInicio": { "type": "string" },
+        "horaFim": { "type": "string" },
+        "turno": { "type": "string" },
+        "postoServico": { "type": "string" },
+        "protocoloId": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDENTE_SUBSTITUTO", "PENDENTE_GESTOR", "ALTERACAO_SOLICITADA", "APROVADO", "REJEITADO", "REJEITADO_SUBSTITUTO", "AJUSTE_GESTOR"] },
+        "assinaturaSolicitante": { "type": "string" },
+        "assinaturaSubstituta": { "type": "string" },
+        "assinaturaGestor": { "type": "string" },
+        "gestorNome": { "type": "string" },
+        "dataAssinaturaGestor": { "type": "string" },
+        "comentarioAlteracao": { "type": "string" }
+      },
+      "required": ["id", "escalaSubstituidaId", "militarSubstituidoId", "militarSubstitutoId", "dataSolicitacao", "dataRealizacao", "horaInicio", "horaFim", "turno", "postoServico", "protocoloId", "status", "assinaturaSolicitante"]
+    },
+    "Alerta": {
+      "title": "Alerta",
+      "description": "Operational alert broadcasted to military members",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tipo": { "type": "string", "enum": ["INFO", "WARNING", "CRITICAL", "URGENT"] },
+        "conteudo": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "lidoPor": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "tipo", "conteudo", "timestamp", "lidoPor"]
+    },
+    "BlockchainLog": {
+      "title": "BlockchainLog",
+      "description": "Immutable ledger log for critical operations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "tipoEvento": { "type": "string", "enum": ["ACESSO", "PERMUTA_CRIADA", "PERMUTA_ACEITA", "PROCESSO_APROVADO", "PROCESSO_REJEITADO", "ASSINATURA", "INTEGRALIZAÇÃO", "ALERTA"] },
+        "evento": { "type": "string" },
+        "militarEnvolvido": { "type": "string" },
+        "hashAtual": { "type": "string" },
+        "hashAnterior": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "tipoEvento", "evento", "militarEnvolvido", "hashAtual", "hashAnterior"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Encrypted message sent between military personnel",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "deMilitarId": { "type": "string" },
+        "paraMilitarId": { "type": "string" },
+        "conteudo": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "criptografada": { "type": "boolean" },
+        "chaveCripto": { "type": "string" }
+      },
+      "required": ["id", "deMilitarId", "paraMilitarId", "conteudo", "timestamp"]
+    }
+  },
+  "firestore": {
+    "militares": {
+      "schema": { "$ref": "#/entities/Militar" },
+      "description": "Stores military personnel profiles."
+    },
+    "escalas": {
+      "schema": { "$ref": "#/entities/Escala" },
+      "description": "Stores all duty shifts."
+    },
+    "permutas": {
+      "schema": { "$ref": "#/entities/Permuta" },
+      "description": "Stores all substitute and exchange requests."
+    },
+    "alertas": {
+      "schema": { "$ref": "#/entities/Alerta" },
+      "description": "Stores system alerts."
+    },
+    "logs": {
+      "schema": { "$ref": "#/entities/BlockchainLog" },
+      "description": "Audit logs."
+    },
+    "messages": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Chat messages."
+    }
+  }
+}

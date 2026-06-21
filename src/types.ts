@@ -5,7 +5,7 @@
 
 export type Patente = 'CEL' | 'TC' | 'MAJ' | 'CAP' | '1ºTEN' | '2ºTEN' | 'ASP. OF' | 'AL. OF' | 'ST' | '1ºSGT' | '2ºSGT' | '3ºSGT' | 'CB' | 'SD';
 
-export type Funcao = 'ADM' | 'ASSISTENTE SOCIAL' | 'DENTISTA' | 'ENFERMEIRO' | 'FISCAL' | 'MÉDICO' | 'MOTORISTA' | 'PSICOLOGO' | 'TEC. ENFERMAGEM';
+export type Funcao = string;
 
 export type Quadro = 'QOPM' | 'QOAPM' | 'QOCPM' | 'QPPM';
 
@@ -76,6 +76,8 @@ export interface Alerta {
   titulo: string;
   conteudo: string;
   datahora: string;
+  color?: string;
+  icon?: string;
 }
 
 export interface BlockchainLog {
@@ -97,3 +99,19 @@ export interface ChatMessage {
   criptografada: boolean;
   chaveCripto: string;
 }
+
+export interface BackupSnapshot {
+  id: string;
+  timestamp: string;
+  tipo: 'AUTO' | 'MANUAL';
+  autor: string;
+  quantidadeMilitares: number;
+  quantidadeEscalas: number;
+  quantidadePermutas: number;
+  militares: Militar[];
+  escalas: Escala[];
+  permutas: Permuta[];
+  alertas: Alerta[];
+  logs: BlockchainLog[];
+}
+

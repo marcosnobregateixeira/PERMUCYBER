@@ -53,7 +53,22 @@ interface PainelGestorProps {
   onDeleteMilitar?: (id: string) => void;
   onToggleBiometria?: (id: string) => void;
   onUserSwitch?: (userId: string) => void;
+  backups?: any[];
+  backupStatusMsg?: string;
+  onCreateBackup?: (tipo: 'AUTO' | 'MANUAL') => void;
+  onRestoreBackup?: (bk: any) => void;
 }
+
+const PATENTE_ORDER_G: Record<string, number> = {
+  'CEL': 1, 'TC': 2, 'MAJ': 3, 'CAP': 4, '1ºTEN': 5, '2ºTEN': 6, 'ASP. OF': 7, 
+  'AL. OF': 8, 'ST': 9, '1ºSGT': 10, '2ºSGT': 11, '3ºSGT': 12, 'CB': 13, 'SD': 14
+};
+
+const sortMilitarByPatenteG = (a: Militar, b: Militar) => {
+  const diff = (PATENTE_ORDER_G[a.patente] || 99) - (PATENTE_ORDER_G[b.patente] || 99);
+  if (diff !== 0) return diff;
+  return a.nome.localeCompare(b.nome);
+};
 
 export default function PainelGestor({
   permutas,
@@ -73,10 +88,32 @@ export default function PainelGestor({
   onAddMilitar,
   onDeleteMilitar,
   onToggleBiometria,
-  onUserSwitch
+  onUserSwitch,
+  backups,
+  backupStatusMsg,
+  onCreateBackup,
+  onRestoreBackup
 }: PainelGestorProps) {
+  const sortedMilitares = [...allMilitares].sort(sortMilitarByPatenteG);
   const [activeSubTab, setActiveSubTab] = useState<'PEDIDOS' | 'AUDITORIA' | 'RELATORIOS' | 'COMANDO' | 'SISTEMA' | 'EXCLUSAO' | 'ACESSOS'>('PEDIDOS');
-  const [newMilitarForm, setNewMilitarForm] = useState<Partial<Militar>>({ nome: '', nomeGuerra: '', patente: 'SD', funcao: 'ADM', quadro: 'QPPM', pinSegurança: '1234' });
+  const [newMilitarForm, setNewMilitarForm] = useState<Partial<Militar>>({ nome: '', nomeGuerra: '', patente: 'SD', funcao: 'ADM', quadro: 'QPPM', pinSegurança: '1234', numero: '', matriculaFuncional: '' });
+  const [militarIdToDelete, setMilitarIdToDelete] = useState<string | null>(null);
+
+  const maskMF = (val: string) => {
+    let v = val.replace(/\D/g, '');
+    if (v.length > 8) v = v.substring(0, 8);
+    if (v.length > 3) v = v.replace(/^(\d{3})(\d)/, '$1.$2');
+    if (v.length > 7) v = v.replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2-$3');
+    if (v.length > 9) v = v.replace(/^(\d{3})\.(\d{3})-(\d)(\d)/, '$1.$2-$3-$4');
+    return v;
+  };
+
+  const maskNumeral = (val: string) => {
+    let v = val.replace(/\D/g, '');
+    if (v.length > 5) v = v.substring(0, 5);
+    if (v.length > 2) v = v.replace(/^(\d{2})(\d)/, '$1.$2');
+    return v;
+  };
   const [reportTipo, setReportTipo] = useState<'GERAL' | 'INDIVIDUAL'>('GERAL');
   const [reportMilitarId, setReportMilitarId] = useState<string>('');
   const [dataInicio, setDataInicio] = useState<string>('');
@@ -108,14 +145,19 @@ export default function PainelGestor({
       const tableData = filteredPermutas.map(p => {
         const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
         const substituido = allMilitares.find(m => m.id === p.militarSubstituidoId);
-        const dataHomologacao = p.dataAssinaturaGestor ? formatarDataBR(p.dataAssinaturaGestor.split('T')[0]) : 'Pendente';
-        const homolStr = p.gestorNome ? `${dataHomologacao} ${p.gestorNome}` : dataHomologacao;
+        const dataHomologacao = p.dataAssinaturaGestor ? formatarDataBR(p.dataAssinaturaGestor.split('T')[0]) : '00-00-0000';
+        const gestorObj = allMilitares.find(m => m.nomeGuerra === p.gestorNome);
+        const gestorClean = gestorObj ? `${gestorObj.patente} ${p.gestorNome.split(' ').slice(1).join(' ')}` : p.gestorNome;
+        const homolStr = p.gestorNome ? `${dataHomologacao} - ${gestorClean}` : dataHomologacao;
+
+        const subObj = substituto ? `${substituto.patente} ${substituto.nomeGuerra.split(' ').slice(1).join(' ')}` : 'N/A';
+        const subdoObj = substituido ? `${substituido.patente} ${substituido.nomeGuerra.split(' ').slice(1).join(' ')}` : 'N/A';
 
         return [
           p.turno,
           formatarDataBR(p.dataRealizacao),
-          substituto ? `${substituto.patente} ${substituto.nomeGuerra}` : 'N/A',
-          substituido ? `${substituido.patente} ${substituido.nomeGuerra}` : 'N/A',
+          subObj,
+          subdoObj,
           homolStr
         ];
       });
@@ -138,7 +180,7 @@ export default function PainelGestor({
       });
 
       const finalY = (doc as any).lastAutoTable.finalY || startY;
-      const comandante = userLogged.role === 'COMANDANTE' ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
+      const comandante = (userLogged.role === 'COMANDANTE' || userLogged.role === 'ADMIN') ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
       
       const sigY = finalY + 80;
       doc.setDrawColor(0, 0, 0);
@@ -207,7 +249,7 @@ export default function PainelGestor({
   return (
     <div className="flex-1 flex flex-col p-4 bg-[#03080a] text-slate-100 select-none pb-12" id="painel-gestor-container">
       {/* COMPACT SUB TABS CONTROLS */}
-      <div className="grid grid-cols-7 gap-1 bg-[#061217] p-1 rounded-lg border border-hud-border/70 mb-4 text-[10px] font-mono">
+      <div className="grid grid-cols-5 gap-1 bg-[#061217] p-1 rounded-lg border border-hud-border/70 mb-4 text-[10px] font-mono">
         <button
           onClick={() => setActiveSubTab('PEDIDOS')}
           className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
@@ -258,26 +300,6 @@ export default function PainelGestor({
           }`}
         >
           SISTEMA
-        </button>
-        <button
-          onClick={() => setActiveSubTab('EXCLUSAO')}
-          className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
-            activeSubTab === 'EXCLUSAO'
-              ? 'bg-cyber-red text-[#03080a]'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          EXCLUSÃO
-        </button>
-        <button
-          onClick={() => setActiveSubTab('ACESSOS')}
-          className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
-            activeSubTab === 'ACESSOS'
-              ? 'bg-cyber-green text-[#03080a]'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          ACESSOS
         </button>
       </div>
 
@@ -363,6 +385,78 @@ export default function PainelGestor({
                             <span>Descanso Legal: 24h regulamentares pós-escala validadas</span>
                           </div>
                         </div>
+
+                        {/* Fator de Repouso & Histórico do Substituído */}
+                        {(() => {
+                          const subByPermutas = permutas
+                            .filter(perm => perm.militarSubstituidoId === p.militarSubstituidoId || perm.militarSubstitutoId === p.militarSubstituidoId)
+                            .sort((a, b) => b.dataRealizacao.localeCompare(a.dataRealizacao));
+                          const historicoFiltro = subByPermutas.filter(perm => perm.id !== p.id);
+                          const ultimas4 = historicoFiltro.slice(0, 4);
+                          
+                          const currentMonthPF = new Date().toISOString().slice(0, 7); // YYYY-MM
+                          const countMesAtual = subByPermutas.filter(perm => perm.dataRealizacao.startsWith(currentMonthPF)).length;
+
+                          return (
+                            <div className="p-2.5 bg-[#020709] border border-hud-border/40 rounded-lg space-y-2">
+                              <div className="flex justify-between items-center border-b border-hud-border/30 pb-1.5">
+                                <span className="text-[9px] font-mono text-cyber-cyan uppercase font-bold flex items-center">
+                                  <Activity className="w-3.5 h-3.5 text-cyber-cyan mr-1 shrink-0 animate-pulse" />
+                                  FATOR REPOUSO & HISTÓRICO DO POLICIAL ({subBy?.nomeGuerra})
+                                </span>
+                                <span className={`text-[8.5px] font-mono px-1.5 py-0.5 rounded border ${
+                                  countMesAtual >= 3 
+                                    ? 'bg-cyber-red/15 text-cyber-red border-cyber-red/35' 
+                                    : countMesAtual >= 2 
+                                    ? 'bg-cyber-amber/15 text-cyber-amber border-cyber-amber/35' 
+                                    : 'bg-cyber-green/15 text-cyber-green border-cyber-green/35'
+                                } font-bold`}>
+                                  MÊS ATUAL: {countMesAtual} {countMesAtual === 1 ? 'PERMUTA' : 'PERMUTAS'}
+                                </span>
+                              </div>
+
+                              <span className="text-[8px] font-mono text-slate-500 block uppercase">ÚLTIMAS 4 PERMUTAS PROTOCOLADAS (SOLICITAÇÕES/HISTÓRICO):</span>
+                              {ultimas4.length === 0 ? (
+                                <div className="text-[9px] font-mono text-slate-500 py-1 italic bg-[#040e11] rounded px-2">
+                                  Nenhuma permuta anterior encontrada para este militar no banco de dados.
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-1 gap-1">
+                                  {ultimas4.map((hPerm) => {
+                                    const isSubstituido = hPerm.militarSubstituidoId === p.militarSubstituidoId;
+                                    const outroParticipanteId = isSubstituido ? hPerm.militarSubstitutoId : hPerm.militarSubstituidoId;
+                                    const outroMilitar = allMilitares.find(m => m.id === outroParticipanteId);
+                                    
+                                    let statusColor = 'text-cyber-green';
+                                    if (hPerm.status.startsWith('PENDENTE')) statusColor = 'text-cyber-amber';
+                                    if (hPerm.status.startsWith('REJEITADO')) statusColor = 'text-cyber-red line-through opacity-60';
+                                    
+                                    return (
+                                      <div key={hPerm.id} className="bg-[#040f12] border border-hud-border/30 p-1.5 rounded flex items-center justify-between text-[9px] font-mono text-slate-300">
+                                        <div className="flex items-center space-x-1.5 min-w-0">
+                                          <span className="text-cyber-cyan font-bold shrink-0">
+                                            [{formatarDataBR(hPerm.dataRealizacao)}]
+                                          </span>
+                                          <span className="truncate max-w-[150px] font-sans text-slate-300">
+                                            {isSubstituido ? 'SUBSTITUÍDO por' : 'SUBSTITUTO de'} <strong>{outroMilitar?.nomeGuerra || 'POLICIAL'}</strong>
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center space-x-1.5 shrink-0 ml-1">
+                                          <span className="text-[8px] text-slate-500 max-w-[80px] truncate uppercase font-sans">
+                                            {hPerm.postoServico}
+                                          </span>
+                                          <span className={`text-[7.5px] font-bold uppercase ${statusColor}`}>
+                                            {hPerm.status === 'APROVADO' ? 'APROVADA' : hPerm.status.replace('_', ' ')}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         {/* Signatures verify */}
                         <div className="grid grid-cols-2 gap-2 text-[9.5px] font-sans">
@@ -614,7 +708,7 @@ export default function PainelGestor({
             {reportTipo === 'INDIVIDUAL' && (
                 <select value={reportMilitarId} onChange={(e) => setReportMilitarId(e.target.value)} className="col-span-2 bg-[#020507] border border-hud-border rounded px-2 py-1 text-white">
                     <option value="">Selecione o Policial</option>
-                    {allMilitares.map(m => <option key={m.id} value={m.id}>{m.patente} {m.nomeGuerra}</option>)}
+                    {sortedMilitares.map(m => <option key={m.id} value={m.id}>{m.patente} {m.nomeGuerra}</option>)}
                 </select>
             )}
           </div>
@@ -640,14 +734,20 @@ export default function PainelGestor({
                     {filteredPermutas.map(p => {
                         const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
                         const substituido = allMilitares.find(m => m.id === p.militarSubstituidoId);
-                        const dataHomol = p.dataAssinaturaGestor ? formatarDataBR(p.dataAssinaturaGestor.split('T')[0]) : 'Pendente';
-                        const homolLabel = p.gestorNome ? `${dataHomol} ${p.gestorNome}` : dataHomol;
+                        const dataHomol = p.dataAssinaturaGestor ? formatarDataBR(p.dataAssinaturaGestor.split('T')[0]) : '00-00-0000';
+                        const gestorObj = allMilitares.find(m => m.nomeGuerra === p.gestorNome);
+                        const gestorClean = gestorObj ? `${gestorObj.patente} ${p.gestorNome.split(' ').slice(1).join(' ')}` : p.gestorNome;
+                        const homolLabel = p.gestorNome ? `${dataHomol} - ${gestorClean}` : dataHomol;
+                        
+                        const subObj = substituto ? `${substituto.patente} ${substituto.nomeGuerra.split(' ').slice(1).join(' ')}` : 'N/A';
+                        const subdoObj = substituido ? `${substituido.patente} ${substituido.nomeGuerra.split(' ').slice(1).join(' ')}` : 'N/A';
+                        
                         return (
                           <tr key={p.id} className="border-b border-gray-300">
                              <td className="py-2 px-1">{p.turno}</td>
                              <td className="py-2 px-1">{formatarDataBR(p.dataRealizacao)}</td>
-                             <td className="py-2 px-1">{substituto ? `${substituto.patente} ${substituto.nomeGuerra}` : 'N/A'}</td>
-                             <td className="py-2 px-1">{substituido ? `${substituido.patente} ${substituido.nomeGuerra}` : 'N/A'}</td>
+                             <td className="py-2 px-1">{subObj}</td>
+                             <td className="py-2 px-1">{subdoObj}</td>
                              <td className="py-2 px-1">{homolLabel}</td>
                           </tr>
                         );
@@ -658,7 +758,7 @@ export default function PainelGestor({
             <div className="mt-16 pt-8 text-center flex flex-col items-center text-[12px]">
                 <div className="w-64 border-t border-black mb-2"></div>
                 {(() => {
-                  const comandante = userLogged.role === 'COMANDANTE' ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
+                  const comandante = (userLogged.role === 'COMANDANTE' || userLogged.role === 'ADMIN') ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
                   return (
                     <React.Fragment>
                       <p className="font-bold">{comandante.nome.toUpperCase()} - {comandante.patente}</p>
@@ -676,51 +776,7 @@ export default function PainelGestor({
         </div>
       )}
 
-      {activeSubTab === 'EXCLUSAO' && (
-        <div className="space-y-3 animate-fade-in font-sans">
-          <h3 className="text-xs font-bold font-display text-white tracking-wider uppercase flex items-center">
-            <Trash2 className="w-4 h-4 text-cyber-red mr-1.5" />
-            GERENCIAMENTO DE EFETIVO (EXCLUSÃO)
-          </h3>
-          <div className="space-y-2">
-            {allMilitares.map(m => (
-                <div key={m.id} className="bg-hud-card border border-hud-border p-3 rounded-lg flex justify-between items-center text-xs">
-                    <span className="font-mono text-slate-300">{m.patente} {m.nomeGuerra} ({m.id})</span>
-                    <button onClick={() => onDeleteMilitar?.(m.id)} className="text-cyber-red/70 hover:text-red-500 p-1">
-                        <Trash2 size={16} />
-                    </button>
-                </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {activeSubTab === 'ACESSOS' && (
-        <div className="space-y-4 animate-fade-in font-sans">
-          <h3 className="text-xs font-bold font-display text-white tracking-wider uppercase flex items-center">
-            <User className="w-4 h-4 text-cyber-green mr-1.5" />
-            GERENCIAMENTO DE ACESSOS (AUTORIZAÇÃO)
-          </h3>
-          <div className="space-y-2">
-            {allMilitares.map(m => (
-              <div key={m.id} className="bg-hud-card border border-hud-border p-3 rounded-lg flex justify-between items-center text-xs">
-                <span className="font-mono text-slate-300">{m.patente} {m.nomeGuerra} ({m.id})</span>
-                <select 
-                  value={m.role || 'USUARIO'} 
-                  onChange={(e) => {
-                    onUpdateMilitarRole?.(m.id, e.target.value as Role)
-                  }}
-                  className="bg-[#03090b] p-1.5 rounded border border-hud-border text-white text-[10px]"
-                >
-                    <option value="USUARIO">USUARIO</option>
-                    <option value="COMANDANTE">COMANDANTE</option>
-                    <option value="ADMIN">ADMIN</option>
-                </select>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* COMMANDER SETTINGS */}
       {activeSubTab === 'COMANDO' && (
@@ -731,15 +787,15 @@ export default function PainelGestor({
               CONFIGURAÇÕES DO COMANDO REGIMENTAL
             </span>
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              Defina a Matrícula Funcional (M.F) do Comandante para emissão nativa em relatórios e espelhos oficiais.
+              Defina a Matrícula Funcional (M.F) do Comandante e Administradores para emissão nativa em relatórios e espelhos oficiais.
             </p>
           </div>
 
           <div className="bg-hud-card border border-hud-border p-4 rounded-xl space-y-3">
              <div className="space-y-4">
-              {allMilitares.filter(m => m.role === 'COMANDANTE').map(comandante => (
+              {sortedMilitares.filter(m => m.role === 'COMANDANTE' || m.role === 'ADMIN').map(comandante => (
                 <div key={comandante.id} className="flex flex-col space-y-2 p-3 bg-[#03090b] rounded border border-hud-border/50">
-                  <span className="text-xs font-bold font-mono text-slate-300">{comandante.patente} {comandante.nome}</span>
+                  <span className="text-xs font-bold font-mono text-slate-300">{comandante.patente} {comandante.nome} ({comandante.role})</span>
                   <div className="flex flex-col space-y-1">
                     <label className="text-[10px] text-slate-500 uppercase">Matrícula Funcional (M.F)</label>
                     <input 
@@ -748,15 +804,15 @@ export default function PainelGestor({
                       className="bg-[#020507] border border-hud-border rounded px-3 py-2 text-white text-xs font-mono"
                       value={comandante.matriculaFuncional || ''}
                       onChange={(e) => {
-                         let val = e.target.value.replace(/[^0-9-.]/g, '');
+                         let val = maskMF(e.target.value);
                          if (onUpdateMilitarMF) onUpdateMilitarMF(comandante.id, val);
                       }}
                     />
                   </div>
                 </div>
               ))}
-              {allMilitares.filter(m => m.role === 'COMANDANTE').length === 0 && (
-                <div className="text-xs text-cyber-red">Nenhum militar com permissão de 'COMANDANTE' encontrado no sistema. Vá em ACESSOS para promover um policial a Comandante.</div>
+              {sortedMilitares.filter(m => m.role === 'COMANDANTE' || m.role === 'ADMIN').length === 0 && (
+                <div className="text-xs text-cyber-red">Nenhum militar com permissão de 'COMANDANTE' ou 'ADMIN' encontrado no sistema. Vá em ACESSOS para promover um policial a Comandante.</div>
               )}
              </div>
           </div>
@@ -773,7 +829,7 @@ export default function PainelGestor({
 
           <div className="bg-hud-card border border-hud-border p-4 rounded-xl space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
              <div className="space-y-4">
-              {allMilitares.map(m => {
+              {sortedMilitares.map(m => {
                 const isOficial = ['CEL', 'TC', 'MAJ', 'CAP', '1ºTEN', '2ºTEN', 'ASP. OF', 'AL. OF'].includes(m.patente);
                 return (
                   <div key={m.id} className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-4 p-3 bg-[#03090b] rounded border border-hud-border/50">
@@ -788,7 +844,7 @@ export default function PainelGestor({
                             className="bg-[#020507] border border-hud-border rounded px-3 py-1.5 text-white text-xs font-mono disabled:opacity-50"
                             value={m.numero || ''}
                             onChange={(e) => {
-                                let val = e.target.value.replace(/[^0-9.]/g, '');
+                                let val = maskNumeral(e.target.value);
                                 if (onUpdateMilitarNumero) onUpdateMilitarNumero(m.id, val);
                             }}
                             />
@@ -801,7 +857,7 @@ export default function PainelGestor({
                             className="bg-[#020507] border border-hud-border rounded px-3 py-1.5 text-white text-xs font-mono"
                             value={m.matriculaFuncional || ''}
                             onChange={(e) => {
-                                let val = e.target.value.replace(/[^0-9-.]/g, '');
+                                let val = maskMF(e.target.value);
                                 if (onUpdateMilitarMF) onUpdateMilitarMF(m.id, val);
                             }}
                             />
@@ -828,6 +884,103 @@ export default function PainelGestor({
             <p className="text-[11px] text-slate-400 leading-relaxed">
               Disponibilidade administrativa exclusiva para o Comando. Gerencie a importação de oficiais em lotes, reinicialize as definições táticas simuladas ou alterne o usuário ativo em teste.
             </p>
+          </div>
+
+          {/* CLOUD CONNECTION STATUS BADGE */}
+          <div className="bg-hud-card border border-hud-border p-3.5 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-[#00ff66]/80" />
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#00ff66] animate-pulse" />
+                <span className="text-xs font-bold text-white uppercase font-display tracking-wide">CONEXÃO FIRESTORE CLOUD ACTIVE</span>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1 font-mono">
+                ID do Banco: <span className="text-cyber-cyan">ai-studio-04310fd5-eb17-4b14-bb8b-07b8d86368ad</span>
+              </p>
+              <p className="text-[9.5px] text-slate-500 font-sans leading-tight">
+                Todas as alterações (oficiais, permutas e escalas) estão sendo sincronizadas automaticamente na nuvem em tempo real (cloud-persistent backend).
+              </p>
+            </div>
+            <div className="bg-[#00ff66]/10 text-[#00ff66] border border-[#00ff66]/25 px-3 py-1.5 rounded font-mono text-[9px] font-bold text-center uppercase tracking-widest shrink-0">
+              ● NUVEM DE DADOS: OPERACIONAL
+            </div>
+          </div>
+
+          {/* BACKUPS AND CLOUD REDUNDANCY VIEW */}
+          <div className="bg-hud-card border border-hud-border/80 rounded-xl p-3.5 space-y-3 relative overflow-hidden" id="central-backups">
+            <span className="text-[9.5px] font-mono text-cyber-cyan uppercase tracking-wider block font-extrabold flex items-center">
+              <HardDrive className="w-4 h-4 mr-1.5 text-cyber-blue animate-pulse" />
+              CÓPIAS DE SEGURANÇA E BACKUPS NA NUVEM
+            </span>
+            
+            <p className="text-[10px] text-slate-400 leading-snug">
+              Este sistema gera cópias estruturadas completas automaticamente sempre que novos policiais, permutas ou escalas de serviço são cadastrados ou alterados, evitando qualquer perda acidental de dados.
+            </p>
+
+            <div className="flex items-center justify-between p-2 rounded bg-cyber-blue/15 border border-cyber-blue/25 text-white text-[10px] md:text-xs">
+              <span className="font-mono text-slate-300">Status de Duplicidade / Redundância:</span>
+              <span className="font-mono font-extrabold text-[#00ff66]">{backupStatusMsg || 'Cópia em nuvem estável.'}</span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onCreateBackup) {
+                    onCreateBackup('MANUAL');
+                  }
+                }}
+                className="flex-1 bg-cyber-blue/20 hover:bg-cyber-blue/35 text-cyber-cyan border border-cyber-blue/40 py-2 rounded text-[10px] font-mono font-black uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1 cursor-pointer"
+              >
+                <span>CRIAR BACKUP MANUAL AGORA</span>
+              </button>
+            </div>
+
+            {/* List of Backups available */}
+            <div className="space-y-2 pt-1 border-t border-hud-border/30">
+              <span className="text-[9.5px] font-mono text-slate-400 block uppercase font-bold tracking-wider">
+                ✓ HISTÓRICO DE AUDITORIA DE IMAGENS DO BANCO DE DADOS
+              </span>
+
+              {(!backups || backups.length === 0) ? (
+                <div className="text-[10px] text-slate-500 italic py-2.5 text-center bg-[#03090b]/50 rounded border border-hud-border/40">
+                  Nenhuma imagem ou snapshot de segurança gerado nesta sessão. Adicione algo ao sistema para salvar automaticamente.
+                </div>
+              ) : (
+                <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
+                  {backups.map((bk) => (
+                    <div key={bk.id} className="bg-[#03090b] hover:bg-[#051115] border border-hud-border/40 p-2 rounded flex items-center justify-between text-[10.5px] transition-all">
+                      <div className="min-w-0 flex-1 pr-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-cyber-green font-bold text-[10.5px]">{bk.id}</span>
+                          <span className={`text-[7.5px] px-1 rounded font-mono font-bold ${bk.tipo === 'AUTO' ? 'bg-[#00ff66]/10 text-[#00ff66] border border-[#00ff66]/20' : 'bg-cyber-blue/10 text-cyber-blue border border-cyber-blue/20'}`}>
+                            {bk.tipo}
+                          </span>
+                        </div>
+                        <div className="text-[9px] text-slate-400 mt-0.5">
+                          Backup em: {bk.timestamp} | Autor: {bk.autor}
+                        </div>
+                        <div className="text-[8px] font-mono text-slate-500">
+                          {bk.quantidadeMilitares} mil. | {bk.quantidadeEscalas} esc. | {bk.quantidadePermutas} per.
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm(`IMAGEM DE SEGURANÇA: Tem certeza de que quer retornar todo o sistema para o backup ${bk.id}? Todos os dados atuais do banco serão revertidos.`)) {
+                            onRestoreBackup?.(bk);
+                          }
+                        }}
+                        className="bg-cyber-amber/15 hover:bg-cyber-amber/35 text-cyber-amber hover:text-white border border-cyber-amber/30 px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase transition-all cursor-pointer shrink-0"
+                      >
+                        RESTAURAR
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Quick Core Sync Utility buttons */}
@@ -915,42 +1068,109 @@ export default function PainelGestor({
             </span>
             <div className="grid grid-cols-2 gap-2 text-[10px]">
                 <input type="text" placeholder="Nome Completo" value={newMilitarForm.nome} onChange={e => setNewMilitarForm({...newMilitarForm, nome: e.target.value})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white col-span-2" />
-                <input type="text" placeholder="Nome de Guerra" value={newMilitarForm.nomeGuerra} onChange={e => setNewMilitarForm({...newMilitarForm, nomeGuerra: e.target.value})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white" />
+                <input type="text" placeholder="Nome de Guerra" value={newMilitarForm.nomeGuerra} onChange={e => setNewMilitarForm({...newMilitarForm, nomeGuerra: e.target.value})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white col-span-2" />
+                
+                <input type="text" placeholder="Numeral (Ex: 00.000)" value={newMilitarForm.numero || ''} onChange={e => setNewMilitarForm({...newMilitarForm, numero: maskNumeral(e.target.value)})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white" />
+                <input type="text" placeholder="M.F. (Ex: 000.000-0-0)" value={newMilitarForm.matriculaFuncional || ''} onChange={e => setNewMilitarForm({...newMilitarForm, matriculaFuncional: maskMF(e.target.value)})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white" />
+
                 <select value={newMilitarForm.patente} onChange={e => setNewMilitarForm({...newMilitarForm, patente: e.target.value as any})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white">
-                    {['CEL', 'TC', 'MAJ', 'CAP', '1ºTEN', '2ºTEN', 'ST', '1ºSGT', '2ºSGT', '3ºSGT', 'CB', 'SD'].map(p => <option key={p} value={p}>{p}</option>)}
+                    {['CEL', 'TC', 'MAJ', 'CAP', '1ºTEN', '2ºTEN', 'ASP. OF', 'AL. OF', 'ST', '1ºSGT', '2ºSGT', '3ºSGT', 'CB', 'SD'].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
-                <select value={newMilitarForm.funcao} onChange={e => setNewMilitarForm({...newMilitarForm, funcao: e.target.value as any})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white">
-                    {['ADM', 'ASSISTENTE SOCIAL', 'DENTISTA', 'ENFERMEIRO', 'FISCAL', 'MÉDICO', 'MOTORISTA', 'PSICOLOGO', 'TEC. ENFERMAGEM'].map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
-                <select value={newMilitarForm.quadro} onChange={e => setNewMilitarForm({...newMilitarForm, quadro: e.target.value as any})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white">
+                <input 
+                  type="text" 
+                  list="funcoes-list"
+                  placeholder="Função (Ex: ADM, MÉDICO)" 
+                  value={newMilitarForm.funcao || ''} 
+                  onChange={e => setNewMilitarForm({...newMilitarForm, funcao: e.target.value.toUpperCase()})} 
+                  className="bg-[#03090b] p-2 rounded border border-hud-border text-white placeholder-slate-500 uppercase font-mono" 
+                />
+                <datalist id="funcoes-list">
+                    {['ADM', 'ASSISTENTE SOCIAL', 'DENTISTA', 'ENFERMEIRO', 'FISCAL', 'MÉDICO', 'MOTORISTA', 'PSICOLOGO', 'TEC. ENFERMAGEM', 'SOBREAVISO BIOPSICOSSOCIAL'].map(f => <option key={f} value={f}>{f}</option>)}
+                </datalist>
+                <select value={newMilitarForm.quadro} onChange={e => setNewMilitarForm({...newMilitarForm, quadro: e.target.value as any})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white col-span-2">
                     {['QOPM', 'QOAPM', 'QOCPM', 'QPPM'].map(q => <option key={q} value={q}>{q}</option>)}
                 </select>
-                <button 
-                    onClick={() => {
-                        if (onAddMilitar && newMilitarForm.nome && newMilitarForm.nomeGuerra) {
-                            onAddMilitar({
-                                id: `M-${Date.now().toString().slice(-4)}`,
-                                ...newMilitarForm as Militar,
-                                companhia: 'Batalhão Operacional',
-                                especialidade: 'Patrulhamento',
-                                statusProntidao: 'PRONTO',
-                                chaveDigital: `KEY-${Date.now()}`,
-                                biometriaAtiva: true
-                            });
-                            setNewMilitarForm({ nome: '', nomeGuerra: '', patente: 'SD', funcao: 'ADM', pinSegurança: '1234' });
-                        }
-                    }}
-                    className="col-span-2 bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/30 py-2 rounded font-bold uppercase transition-all"
-                >
-                    Registrar Oficial no Sistema
-                </button>
+
+                {/* DYNAMIC DIAGNOSTIC DUPLICITY SYSTEM */}
+                {(() => {
+                  const duplicateByNumero = newMilitarForm.numero && newMilitarForm.numero.trim() !== ''
+                    ? allMilitares.find(m => m.numero && m.numero.trim() === newMilitarForm.numero?.trim())
+                    : null;
+
+                  const duplicateByNome = newMilitarForm.nome && newMilitarForm.nome.trim() !== ''
+                    ? allMilitares.find(m => m.nome && m.nome.toLowerCase().trim() === newMilitarForm.nome?.toLowerCase().trim())
+                    : null;
+
+                  const isDuplicate = !!duplicateByNumero || !!duplicateByNome;
+
+                  return (
+                    <>
+                      <div className="col-span-2 mt-1">
+                        {!newMilitarForm.nome && !newMilitarForm.numero ? (
+                          <div className="bg-[#03090b] border border-hud-border/40 p-2 rounded flex items-center space-x-1.5 text-[9px] text-slate-500 font-mono">
+                            <Database className="w-3.5 h-3.5 text-slate-500" />
+                            <span>Insira o Nome e Numeral para verificação de duplicidades em tempo real.</span>
+                          </div>
+                        ) : isDuplicate ? (
+                          <div className="bg-cyber-red/10 border-2 border-cyber-red p-2.5 rounded-lg flex items-start space-x-2 animate-pulse shadow-[0_0_12px_rgba(255,61,0,0.15)]">
+                            <AlertTriangle className="w-4 h-4 text-cyber-red shrink-0 mt-0.5" />
+                            <div className="text-[10px] text-slate-300 leading-normal">
+                              <strong className="text-cyber-red uppercase block tracking-widest text-[9px] font-mono">⚠️ ERRO DE DUPLICIDADE DETECTADO</strong>
+                              {duplicateByNumero && (
+                                <span className="block mt-0.5">O numeral <strong className="text-white font-mono text-[10.5px]">"{newMilitarForm.numero}"</strong> já é utilizado por <strong>{duplicateByNumero.patente} {duplicateByNumero.nomeGuerra}</strong> (ID: {duplicateByNumero.id}).</span>
+                              )}
+                              {duplicateByNome && (
+                                <span className="block mt-0.5">O nome completo <strong className="text-white font-mono text-[10.5px]">"{newMilitarForm.nome}"</strong> já está cadastrado para <strong>{duplicateByNome.patente} {duplicateByNome.nomeGuerra}</strong> (ID: {duplicateByNome.id}).</span>
+                              )}
+                              <span className="block mt-1.5 font-mono text-[8px] text-slate-400">O sistema impede registros redundantes para garantir a integridade nacional.</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-cyber-green/10 border border-cyber-green/30 p-2 rounded flex items-center space-x-2 text-[10px] text-slate-300">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-cyber-green animate-pulse" />
+                            <span>Diagnóstico de Integridade: Livre de duplicidades de numeral ou nome completo.</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <button 
+                        onClick={() => {
+                            if (isDuplicate) {
+                              alert('Erro: Não é permitido adicionar policiais duplicados no sistema (Numeral ou Nome completo já existentes)!');
+                              return;
+                            }
+                            if (onAddMilitar && newMilitarForm.nome && newMilitarForm.nomeGuerra) {
+                                onAddMilitar({
+                                    id: `M-${Date.now().toString().slice(-4)}`,
+                                    ...newMilitarForm as Militar,
+                                    companhia: 'Batalhão Operacional',
+                                    especialidade: 'Patrulhamento',
+                                    statusProntidao: 'PRONTO',
+                                    chaveDigital: `KEY-${Date.now()}`,
+                                    biometriaAtiva: true
+                                });
+                                setNewMilitarForm({ nome: '', nomeGuerra: '', patente: 'SD', funcao: 'ADM', pinSegurança: '1234', numero: '', matriculaFuncional: '' });
+                            }
+                        }}
+                        disabled={isDuplicate || !newMilitarForm.nome || !newMilitarForm.nomeGuerra}
+                        className={`col-span-2 py-2 rounded font-bold uppercase transition-all ${
+                          isDuplicate 
+                            ? 'bg-cyber-red/10 text-cyber-red border border-cyber-red/35 cursor-not-allowed shadow-[0_0_10px_rgba(255,61,0,0.1)]' 
+                            : 'bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/30 hover:bg-cyber-blue/35 cursor-pointer'
+                        }`}
+                      >
+                        {isDuplicate ? 'REGISTRO BLOQUEADO POR DUPLICIDADE' : 'Registrar Oficial no Sistema'}
+                      </button>
+                    </>
+                  );
+                })()}
             </div>
             <span className="text-[9.5px] font-mono text-cyber-green uppercase tracking-wider block font-extrabold border-t border-hud-border/30 pt-3">
               ✓ QUADRO ATIVO DE CREDENCIAIS
             </span>
             
             <div className="space-y-2 max-h-[290px] overflow-y-auto pr-1">
-              {allMilitares.map((u) => {
+              {sortedMilitares.map((u) => {
                 const isSelected = u.id === userLogged.id;
                 let roleTag = 'SUBSTITUÍDO';
                 if (u.id === 'M-102') roleTag = 'SUBSTITUTO';
@@ -966,34 +1186,91 @@ export default function PainelGestor({
                         : 'bg-[#03090b] border-hud-border/50 hover:border-hud-border'
                     }`}
                   >
-                      <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-mono text-slate-400 font-bold uppercase">
-                        CÓDIGO: {u.id}
-                      </span>
-                      <div className="flex items-center space-x-2">
-                         <span className="text-[7.5px] font-mono bg-cyber-amber/10 text-cyber-amber border border-cyber-amber/35 px-1.5 py-0.2 rounded font-bold uppercase">
-                           {roleTag}
-                         </span>
-                         <button onClick={() => onDeleteMilitar?.(u.id)} className="text-cyber-red/70 hover:text-red-500 font-bold text-[8px] uppercase"><Trash2 size={12} /></button>
-                         <button onClick={() => onToggleBiometria?.(u.id)} className={`${u.biometriaAtiva ? 'text-cyber-green' : 'text-cyber-amber'} hover:text-white font-bold text-[8px] uppercase`}>{u.biometriaAtiva ? 'BIO: ATIVA' : 'BIO: INATIVA'}</button>
+                    {militarIdToDelete === u.id ? (
+                      <div className="bg-cyber-red/15 border border-cyber-red/40 p-2.5 rounded flex flex-col space-y-2.5 animate-fade-in font-mono text-[10px]">
+                        <div className="text-slate-300 leading-relaxed font-sans">
+                          <strong className="text-cyber-red block text-[10px] tracking-wider mb-1">⚠️ CONFIRMAR EXCLUSÃO DEFINITIVA</strong>
+                          Deseja excluir permanentemente o registro de <strong className="text-white">{u.patente} {u.nomeGuerra}</strong> do efetivo ativo?
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onDeleteMilitar?.(u.id);
+                              setMilitarIdToDelete(null);
+                            }}
+                            className="flex-1 bg-cyber-red text-[#03090b] hover:bg-red-500 hover:text-[#03090b] py-1.5 rounded font-bold uppercase transition-all tracking-wider text-[9px] text-center cursor-pointer"
+                          >
+                            CONFIRMAR EXCLUSÃO
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMilitarIdToDelete(null)}
+                            className="flex-1 bg-transparent hover:bg-slate-800 text-slate-300 border border-hud-border py-1.5 rounded font-semibold uppercase transition-all tracking-wider text-[9px] text-center cursor-pointer"
+                          >
+                            CANCELAR
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-mono text-slate-400 font-bold uppercase">
+                            CÓDIGO: {u.id}
+                          </span>
+                          <div className="flex items-center space-x-2">
+                             <span className="text-[7.5px] font-mono bg-cyber-amber/10 text-cyber-amber border border-cyber-amber/35 px-1.5 py-0.2 rounded font-bold uppercase">
+                               {roleTag}
+                             </span>
+                             <button onClick={() => setMilitarIdToDelete(u.id)} className="text-cyber-red/70 hover:text-red-500 font-bold text-[8px] uppercase"><Trash2 size={12} /></button>
+                             <button onClick={() => onToggleBiometria?.(u.id)} className={`${u.biometriaAtiva ? 'text-cyber-green' : 'text-cyber-amber'} hover:text-white font-bold text-[8px] uppercase`}>{u.biometriaAtiva ? 'BIO: ATIVA' : 'BIO: INATIVA'}</button>
+                          </div>
+                        </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 font-sans">
-                      <div>
-                        <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold">Oficial Registrado</span>
-                        <span className="text-[11px] font-bold text-white uppercase">{u.nome} ({u.patente})</span>
-                      </div>
-                      <div>
-                        <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold">Nome de Guerra (Editável)</span>
-                        <input
-                          type="text"
-                          value={u.nomeGuerra}
-                          onChange={(e) => onUpdateMilitarNomeGuerra?.(u.id, e.target.value)}
-                          className="bg-[#051319] border border-hud-border text-[11px] text-white p-1 rounded font-mono w-full focus:border-cyber-cyan outline-none"
-                        />
-                      </div>
-                    </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 font-sans">
+                          <div>
+                            <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold">Oficial Registrado</span>
+                            <span className="text-[11px] font-bold text-white uppercase">{u.nome} ({u.patente}) {u.funcao ? `- ${u.funcao}` : ''}</span>
+                          </div>
+                          <div>
+                            <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold">Nome de Guerra (Editável)</span>
+                            <input
+                              type="text"
+                              value={u.nomeGuerra}
+                              onChange={(e) => onUpdateMilitarNomeGuerra?.(u.id, e.target.value)}
+                              className="bg-[#051319] border border-hud-border text-[11px] text-white p-1 rounded font-mono w-full focus:border-cyber-cyan outline-none"
+                            />
+                          </div>
+                          <div>
+                            <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold">Nível de Acesso (Cargo)</span>
+                            <select 
+                              value={u.role || 'USUARIO'} 
+                              onChange={(e) => {
+                                if (onUpdateMilitarRole) {
+                                  onUpdateMilitarRole(u.id, e.target.value as any);
+                                }
+                              }}
+                              className="bg-[#051319] border border-hud-border text-[11px] text-white p-1.5 rounded font-mono w-full focus:border-cyber-cyan outline-none mt-0.5"
+                            >
+                                <option value="USUARIO">USUÁRIO (POLICIAL)</option>
+                                <option value="COMANDANTE">COMANDANTE</option>
+                                <option value="ADMIN">ADMINISTRADOR</option>
+                            </select>
+                          </div>
+                          <div className="flex flex-col justify-end">
+                            <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold mb-0.5">Ficha de Efetivo</span>
+                            <button
+                              type="button"
+                              onClick={() => setMilitarIdToDelete(u.id)}
+                              className="w-full bg-cyber-red/15 hover:bg-cyber-red/30 text-cyber-red border border-cyber-red/40 hover:border-cyber-red py-1.5 rounded text-[9px] font-mono font-bold uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1 cursor-pointer"
+                            >
+                              <Trash2 size={11} className="mr-1" />
+                              <span>EXCLUIR REGISTRO</span>
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
 
                     <div className="flex items-center justify-between border-t border-hud-border/30 pt-2 text-[9.5px] font-mono">
                       <span className="text-slate-400">

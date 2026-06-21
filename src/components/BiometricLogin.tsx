@@ -84,8 +84,8 @@ export default function BiometricLogin({
     setErrorText(null);
 
     // FIX: Allow admin to bypass biometric check if needed for trouble shooting or if biometrics is actially failing
-    if (userLogged.id === 'M-ADMIN-1') {
-      console.warn('Admin biometric override bypass.');
+    if (userLogged.role === 'ADMIN' || userLogged.role === 'COMANDANTE') {
+      console.warn('Admin/Comandante biometric override bypass.');
       setScanState('GRANTED');
       setStage('PIN_2FA');
       return;
