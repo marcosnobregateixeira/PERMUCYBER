@@ -647,7 +647,7 @@ export default function Dashboard({
                     data: `2026-${currentMonthConfig.monthCode}-${selectedCalendarDay.toString().padStart(2, '0')}`,
                     horaInicio: '08:00',
                     horaFim: '20:00',
-                    turno: 'MANHÃ'
+                    turno: 'TURNO A'
                   };
                   onStartPermutaFlow(simulatedScale);
                 }}

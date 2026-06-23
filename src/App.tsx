@@ -14,7 +14,7 @@ import {
   generateSimpleHash,
   formatarDataBR
 } from './data';
-import { Militar, Escala, Alerta, BlockchainLog, Permuta, ChatMessage, Role, BackupSnapshot } from './types';
+import { Militar, Escala, Alerta, BlockchainLog, Permuta, ChatMessage, Role, BackupSnapshot, AppConfig } from './types';
 import MilitaryMobileFrame from './components/MilitaryMobileFrame';
 import BiometricLogin from './components/BiometricLogin';
 import Dashboard from './components/Dashboard';
@@ -64,6 +64,7 @@ export default function App() {
   const [logs, setLogs] = useState<BlockchainLog[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [backups, setBackups] = useState<BackupSnapshot[]>([]);
+  const [config, setConfig] = useState<AppConfig>({ id: 'main', brasaoEsquerdoUrl: '', brasaoDireitoUrl: '' });
   const [backupStatusMsg, setBackupStatusMsg] = useState<string>('Sincronização em nuvem e backups estão ativos.');
 
   const [currentTab, setCurrentTab] = useState<'DASHBOARD' | 'PERMUTAS' | 'CHAT' | 'GESTAO'>('DASHBOARD');
@@ -82,6 +83,11 @@ export default function App() {
         const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => setLogs(snap.docs.map(d => d.data() as BlockchainLog).sort((a,b) => a.timestamp.localeCompare(b.timestamp))));
         const unsubMessages = onSnapshot(collection(db, 'messages'), (snap) => setMessages(snap.docs.map(d => d.data() as ChatMessage).sort((a,b) => a.timestamp.localeCompare(b.timestamp))));
         const unsubBackups = onSnapshot(collection(db, 'backups'), (snap) => setBackups(snap.docs.map(d => d.data() as any as BackupSnapshot).sort((a,b) => b.timestamp.localeCompare(a.timestamp))));
+        const unsubConfig = onSnapshot(doc(db, 'settings', 'config'), (snap) => {
+          if (snap.exists()) {
+            setConfig(snap.data() as AppConfig);
+          }
+        });
         
         setIsLoading(false);
 
@@ -93,6 +99,7 @@ export default function App() {
           unsubLogs();
           unsubMessages();
           unsubBackups();
+          unsubConfig();
         };
       })
       .catch((error) => {
@@ -269,6 +276,16 @@ export default function App() {
     setMilitares(prev => prev.map(p => p.id === id ? { ...p, nomeGuerra: newNome, nome: newNome.replace(/^(Sgto\.|Ten\.|Cb\.|Sd\.)\s*/i, '') } : p));
   };
 
+  const handleUpdateMilitar = async (id: string, updatedFields: Partial<Militar>) => {
+    try {
+      await updateDoc(doc(db, 'militares', id), sanitizeForFirestore(updatedFields));
+    } catch(e) {
+      console.error("Error updating militar:", e);
+    }
+    setMilitares(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
+    await appendAuditLog('INTEGRALIZAÇÃO', `Cadastro de ${updatedFields.patente || ''} ${updatedFields.nomeGuerra || ''} foi atualizado no sistema de banco de dados.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+  };
+
   const handleUpdateMilitarMF = async (id: string, newMF: string) => {
     try { await updateDoc(doc(db, 'militares', id), { matriculaFuncional: newMF }); } catch(e){}
     setMilitares(prev => prev.map(p => p.id === id ? { ...p, matriculaFuncional: newMF } : p));
@@ -289,6 +306,14 @@ export default function App() {
     try { await updateDoc(doc(db, 'militares', id), { role }); } catch(e){}
     setMilitares(prev => prev.map(p => p.id === id ? { ...p, role } : p));
     await appendAuditLog('INTEGRALIZAÇÃO', `Papel do militar ${id} alterado para ${role}.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+  };
+
+  const handleUpdateConfig = async (newConfig: Partial<AppConfig>) => {
+    try {
+      await setDoc(doc(db, 'settings', 'config'), sanitizeForFirestore({ ...config, ...newConfig }));
+    } catch (e) {
+      console.error("Error updating config:", e);
+    }
   };
 
   const handleImportMilitaresJSON = async (imported: Militar[]) => {
@@ -692,6 +717,7 @@ export default function App() {
                         onRefreshData={handleRefreshAll}
                         onImportMilitaresJSON={handleImportMilitaresJSON}
                         onUpdateMilitarNomeGuerra={handleUpdateMilitarNomeGuerra}
+                        onUpdateMilitar={handleUpdateMilitar}
                         onUpdateMilitarRole={handleUpdateMilitarRole}
                         onUpdateMilitarMF={handleUpdateMilitarMF}
                         onUpdateMilitarNumero={handleUpdateMilitarNumero}
@@ -700,6 +726,8 @@ export default function App() {
                         backupStatusMsg={backupStatusMsg}
                         onCreateBackup={(tipo) => generateBackup(tipo, loggedUser?.nomeGuerra || 'SISTEMA')}
                         onRestoreBackup={handleRestoreBackup}
+                        config={config}
+                        onUpdateConfig={handleUpdateConfig}
                       />
                     ) : (
                       /* Immersion Security Lockout Screen */

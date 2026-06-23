@@ -209,72 +209,72 @@ export const ESCALAS_INICIAIS: Escala[] = [
     militarId: 'M-101', // Sgto Salles
     postoServico: 'AMBULÂNCIA',
     data: '2026-06-21', // Amanhã
-    horaInicio: '08:00',
-    horaFim: '16:00',
-    turno: 'MANHÃ'
+    horaInicio: '06:00',
+    horaFim: '18:00',
+    turno: 'TURNO A'
   },
   {
     id: 'E-02',
     militarId: 'M-101', // Sgto Salles
     postoServico: 'PSICOLOGIA',
     data: '2026-06-24',
-    horaInicio: '16:00',
-    horaFim: '00:00',
-    turno: 'TARDE'
+    horaInicio: '18:00',
+    horaFim: '06:00',
+    turno: 'TURNO B'
   },
   {
     id: 'E-03',
     militarId: 'M-103', // Sgto Rodrigues
     postoServico: 'SERVIÇO SOCIAL',
     data: '2026-06-22',
-    horaInicio: '08:00',
-    horaFim: '16:00',
-    turno: 'MANHÃ'
+    horaInicio: '06:00',
+    horaFim: '18:00',
+    turno: 'TURNO A'
   },
   {
     id: 'E-04',
     militarId: 'M-104', // Sgto Toledo
     postoServico: 'ODONTOLOGIA',
     data: '2026-06-21',
-    horaInicio: '00:00',
-    horaFim: '08:00',
-    turno: 'TURNO A'
+    horaInicio: '18:00',
+    horaFim: '06:00',
+    turno: 'TURNO B'
   },
   {
     id: 'E-05',
     militarId: 'M-102', // Sgto Mendes
     postoServico: 'AMBULÂNCIA',
     data: '2026-06-21',
-    horaInicio: '08:00',
-    horaFim: '16:00',
-    turno: 'MANHÃ'
+    horaInicio: '06:00',
+    horaFim: '18:00',
+    turno: 'TURNO A'
   },
   {
     id: 'E-06',
     militarId: 'M-101', // Sgto Salles
     postoServico: 'SERVIÇO SOCIAL',
     data: '2026-05-15',
-    horaInicio: '08:00',
-    horaFim: '16:00',
-    turno: 'MANHÃ'
+    horaInicio: '06:00',
+    horaFim: '18:00',
+    turno: 'TURNO A'
   },
   {
     id: 'E-07',
     militarId: 'M-101', // Sgto Salles
     postoServico: 'ODONTOLOGIA',
     data: '2026-05-20',
-    horaInicio: '16:00',
-    horaFim: '00:00',
-    turno: 'TARDE'
+    horaInicio: '18:00',
+    horaFim: '06:00',
+    turno: 'TURNO B'
   },
   {
     id: 'E-08',
     militarId: 'M-101', // Sgto Salles
     postoServico: 'PSICOLOGIA',
     data: '2026-07-05',
-    horaInicio: '08:00',
-    horaFim: '16:00',
-    turno: 'MANHÃ'
+    horaInicio: '06:00',
+    horaFim: '18:00',
+    turno: 'TURNO A'
   },
   {
     id: 'E-09',
@@ -282,8 +282,8 @@ export const ESCALAS_INICIAIS: Escala[] = [
     postoServico: 'AMBULÂNCIA',
     data: '2026-07-22',
     horaInicio: '00:00',
-    horaFim: '08:00',
-    turno: 'TURNO A'
+    horaFim: '00:00',
+    turno: '24H'
   }
 ];
 
@@ -362,9 +362,9 @@ export const PERMUTAS_INICIAIS: Permuta[] = [
     militarSubstitutoId: 'M-102', // Mendes
     dataSolicitacao: '2026-06-20',
     dataRealizacao: '2026-06-21',
-    horaInicio: '08:00',
-    horaFim: '16:00',
-    turno: 'MANHÃ',
+    horaInicio: '06:00',
+    horaFim: '18:00',
+    turno: 'TURNO A',
     postoServico: 'AMBULÂNCIA',
     status: 'PENDENTE_SUBSTITUTO', // To serve as an immediate playground for Mendes!
     comentarioAlteracao: undefined,

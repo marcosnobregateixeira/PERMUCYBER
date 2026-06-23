@@ -63,7 +63,9 @@ export default function PermutaFlow({
   // Custom hours for shift trade
   const [customHoraInicio, setCustomHoraInicio] = useState<string>(escala.horaInicio);
   const [customHoraFim, setCustomHoraFim] = useState<string>(escala.horaFim);
-  const [customTurno, setCustomTurno] = useState<'MANHÃ' | 'TARDE' | 'NOITE' | 'ESTENDIDO'>(escala.turno);
+  const [customTurno, setCustomTurno] = useState<'TURNO A' | 'TURNO B' | '24H'>(
+    ['TURNO A', 'TURNO B', '24H'].includes(escala.turno) ? (escala.turno as any) : 'TURNO A'
+  );
   
   // Signature pad states
   const [isSigned, setIsSigned] = useState<boolean>(false);
@@ -690,8 +692,6 @@ export default function PermutaFlow({
                   onChange={(e) => setCustomTurno(e.target.value as any)}
                   className="w-full bg-[#020709] border border-hud-border hover:border-cyber-cyan/50 focus:border-cyber-blue focus:outline-none rounded-lg px-2 py-1 text-xs text-cyber-blue font-bold font-mono"
                 >
-                  <option value="MANHÃ">MANHÃ</option>
-                  <option value="TARDE">TARDE</option>
                   <option value="TURNO A">TURNO A</option>
                   <option value="TURNO B">TURNO B</option>
                   <option value="24H">24H</option>

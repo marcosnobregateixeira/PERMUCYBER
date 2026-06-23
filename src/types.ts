@@ -36,7 +36,7 @@ export interface Escala {
   data: string; // YYYY-MM-DD
   horaInicio: string; // HH:MM
   horaFim: string; // HH:MM
-  turno: 'MANHÃ' | 'TARDE' | 'TURNO A' | 'TURNO B' | '24H';
+  turno: 'TURNO A' | 'TURNO B' | '24H';
 }
 export type PermutaStatus = 
   | 'PENDENTE_SUBSTITUTO' 
@@ -56,7 +56,7 @@ export interface Permuta {
   dataRealizacao: string; // YYYY-MM-DD
   horaInicio: string;
   horaFim: string;
-  turno: 'MANHÃ' | 'TARDE' | 'TURNO A' | 'TURNO B' | '24H';
+  turno: 'TURNO A' | 'TURNO B' | '24H';
   postoServico: string;
   comentarioAlteracao?: string;
   status: PermutaStatus;
@@ -113,5 +113,11 @@ export interface BackupSnapshot {
   permutas: Permuta[];
   alertas: Alerta[];
   logs: BlockchainLog[];
+}
+
+export interface AppConfig {
+  id: string;
+  brasaoEsquerdoUrl: string;
+  brasaoDireitoUrl: string;
 }
 
