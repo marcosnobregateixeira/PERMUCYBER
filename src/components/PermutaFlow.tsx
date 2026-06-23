@@ -281,6 +281,17 @@ export default function PermutaFlow({
     e.preventDefault();
     if (!selectedSubstituteId || !isSigned) return;
 
+    // Hard validation for date: Cannot be today or past
+    const simulatedToday = new Date('2026-06-23');
+    const selectedDayDate = new Date(selectedDate);
+    const isToday = selectedDate === '2026-06-23';
+    const isPast = selectedDayDate < simulatedToday;
+
+    if (isToday || isPast) {
+      alert("PROIBIDO: Não é permitido solicitar permutas para o dia atual ou datas retroativas. Selecione uma data futura no calendário.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       if (!userLogged) throw new Error('Militar não identificado.');
@@ -467,10 +478,18 @@ export default function PermutaFlow({
               );
             }
 
-            const isTodaySimulated = day === 20 && selectedMonth === 'JUNHO';
+            const isTodaySimulated = day === 23 && selectedMonth === 'JUNHO';
             // Is this date selected?
             const monthCode = selectedMonth === 'MAIO' ? '05' : selectedMonth === 'JULHO' ? '07' : '06';
             const dateStr = `2026-${monthCode}-${day.toString().padStart(2, '0')}`;
+            
+            // Validation: Cannot select today or past dates
+            const simulatedToday = new Date('2026-06-23');
+            const selectedDayDate = new Date(dateStr);
+            const isToday = day === 23 && selectedMonth === 'JUNHO';
+            const isPast = selectedDayDate < simulatedToday;
+            const isDisabled = isPast || isToday;
+            
             const isSelected = selectedDate === dateStr;
             const hasScale = getDayScale(day);
 
@@ -478,21 +497,24 @@ export default function PermutaFlow({
               <button
                 key={`day-${day}`}
                 type="button"
+                disabled={isDisabled}
                 onClick={() => setSelectedDate(dateStr)}
-                className={`aspect-square rounded-md border flex flex-col items-center justify-center transition-all relative overflow-hidden text-xs cursor-pointer ${
-                  isSelected
-                    ? 'bg-cyber-blue/15 border-cyber-blue text-white shadow-[0_0_8px_rgba(0,229,255,0.25)] font-bold'
+                className={`aspect-square rounded-md border flex flex-col items-center justify-center transition-all relative overflow-hidden text-xs ${
+                  isDisabled
+                    ? 'bg-hud-bg/10 border-transparent text-slate-700 cursor-not-allowed grayscale'
+                    : isSelected
+                    ? 'bg-cyber-blue/15 border-cyber-blue text-white shadow-[0_0_8px_rgba(0,229,255,0.25)] font-bold cursor-pointer'
                     : hasScale
-                    ? 'bg-cyber-cyan/5 border-cyber-cyan/35 text-[#00e5ff] font-semibold hover:bg-cyber-cyan/15 hover:border-cyber-cyan'
-                    : 'bg-[#03090b]/40 border-hud-border/40 text-slate-500 hover:border-hud-border/70 hover:bg-hud-card/50'
+                    ? 'bg-cyber-cyan/5 border-cyber-cyan/35 text-[#00e5ff] font-semibold hover:bg-cyber-cyan/15 hover:border-cyber-cyan cursor-pointer'
+                    : 'bg-[#03090b]/40 border-hud-border/40 text-slate-500 hover:border-hud-border/70 hover:bg-hud-card/50 cursor-pointer'
                 }`}
               >
                 <span className="z-10">{day}</span>
-                {isTodaySimulated && (
+                {isToday && (
                   <div className="absolute top-0 left-0 w-1.5 h-1.5 bg-cyber-green rounded-br" />
                 )}
                 {hasScale && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyber-amber mt-0.5" />
+                  <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isDisabled ? 'bg-slate-600' : 'bg-cyber-amber'}`} />
                 )}
               </button>
             );

@@ -401,6 +401,16 @@ export default function App() {
     setCurrentTab('PERMUTAS');
   };
 
+  const handleDeletePermuta = async (id: string) => {
+    if (!loggedUser) return;
+    try {
+      await deleteDoc(doc(db, 'permutas', id));
+      await appendAuditLog('INTEGRALIZAÇÃO', `Protocolo de permuta excluído pelo militar solicitante.`, loggedUser.nomeGuerra, logs);
+    } catch (e) {
+      console.error("Erro ao deletar permuta:", e);
+    }
+  };
+
   const handleRequestAlteration = async (permutaId: string, comentario: string) => {
     if (!loggedUser) return;
     const permutaRef = doc(db, 'permutas', permutaId);
@@ -495,6 +505,18 @@ export default function App() {
       dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
     }), { merge: true });
     await appendAuditLog('INTEGRALIZAÇÃO', `O Comando devolveu a escala ${targetPermuta.protocoloId} solicitando correções: "${justificativa.slice(0, 45)}...".`, loggedUser.nomeGuerra, logs);
+
+    // Send automated message to the substituted military
+    const automatedMsg: ChatMessage = {
+      id: `C-AUTO-AJUSTE-${Date.now()}`,
+      deMilitarId: loggedUser.id,
+      paraMilitarId: targetPermuta.militarSubstituidoId,
+      conteudo: `Militar, sua permuta (${targetPermuta.protocoloId}) para o dia ${formatarDataBR(targetPermuta.dataRealizacao)} necessita de ajustes solicitados pelo Comando: "${justificativa}". Por favor, corrija ou exclua a solicitação em "Minhas Permutas".`,
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
+      criptografada: true,
+      chaveCripto: 'AES-AUTO-SYSTEM-TRANS'
+    };
+    await setDoc(doc(db, 'messages', automatedMsg.id), sanitizeForFirestore(automatedMsg));
   };
 
   const handleUpdateAlerta = async (alertaId: string, conteudo: string, color: string, icon: string) => {
@@ -660,9 +682,9 @@ export default function App() {
                               const priority: Record<string, number> = {
                                 'PENDENTE_SUBSTITUTO': 1,
                                 'PENDENTE_GESTOR': 2,
-                                'APROVADO': 3,
-                                'ALTERACAO_SOLICITADA': 4,
-                                'AJUSTE_GESTOR': 5,
+                                'AJUSTE_GESTOR': 3,
+                                'APROVADO': 4,
+                                'ALTERACAO_SOLICITADA': 5,
                                 'REJEITADO_SUBSTITUTO': 6,
                                 'REJEITADO': 7
                               };
@@ -772,6 +794,48 @@ export default function App() {
                                     AVALIAR CONVITE SEU DE TROCA
                                   </button>
                                 )}
+
+                                {p.militarSubstituidoId === loggedUser?.id && 
+                                 (p.status === 'PENDENTE_SUBSTITUTO' || p.status === 'PENDENTE_GESTOR' || p.status === 'AJUSTE_GESTOR') && (
+                                  <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-hud-border/30">
+                                    {p.status === 'AJUSTE_GESTOR' ? (
+                                      <button 
+                                        onClick={async () => {
+                                          let esc = escalas.find(e => e.id === p.escalaSubstituidaId);
+                                          if (!esc) {
+                                            esc = {
+                                              id: p.escalaSubstituidaId,
+                                              militarId: p.militarSubstituidoId,
+                                              postoServico: p.postoServico,
+                                              data: p.dataRealizacao,
+                                              horaInicio: p.horaInicio,
+                                              horaFim: p.horaFim,
+                                              turno: p.turno as any
+                                            };
+                                          }
+                                          await handleDeletePermuta(p.id);
+                                          setActiveSwapScale(esc);
+                                        }}
+                                        className="bg-cyber-blue/10 border border-cyber-blue/40 text-cyber-blue text-[10px] font-bold py-2 rounded uppercase hover:bg-cyber-blue/20 transition-all flex items-center justify-center cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.05)]"
+                                      >
+                                        Corrigir
+                                      </button>
+                                    ) : (
+                                      <div className="flex items-center justify-center text-[8px] text-slate-500 font-mono uppercase tracking-tighter border border-hud-border/30 rounded bg-hud-bg/20">
+                                        Solicitação Ativa
+                                      </div>
+                                    )}
+                                    <button 
+                                      onClick={async () => {
+                                        // Removed window.confirm for better iframe compatibility
+                                        await handleDeletePermuta(p.id);
+                                      }}
+                                      className="bg-cyber-red/10 border border-cyber-red/40 text-cyber-red text-[10px] font-bold py-2 rounded uppercase hover:bg-cyber-red/20 transition-all flex items-center justify-center cursor-pointer"
+                                    >
+                                      Excluir
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -803,6 +867,7 @@ export default function App() {
                         onApprovePermuta={handleApprovePermutaGestor}
                         onRejectPermuta={handleRejectPermutaGestor}
                         onAdjustPermuta={handleAdjustPermutaGestor}
+                        onDeletePermuta={handleDeletePermuta}
                         onAddMilitar={handleAddMilitarIndividual}
                         onDeleteMilitar={handleDeleteMilitar}
                         onToggleBiometria={handleToggleBiometria}

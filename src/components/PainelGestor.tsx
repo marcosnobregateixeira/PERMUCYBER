@@ -45,6 +45,7 @@ interface PainelGestorProps {
   onApprovePermuta: (permutaId: string, gestorNome: string, gestorAssinatura: string) => void;
   onRejectPermuta: (permutaId: string) => void;
   onAdjustPermuta: (permutaId: string, justificativa: string) => void;
+  onDeletePermuta?: (permutaId: string) => void;
   onRefreshData?: () => void;
   onImportMilitaresJSON?: (militares: Militar[]) => void;
   onUpdateMilitarNomeGuerra?: (id: string, newNome: string) => void;
@@ -84,6 +85,7 @@ export default function PainelGestor({
   onApprovePermuta,
   onRejectPermuta,
   onAdjustPermuta,
+  onDeletePermuta,
   onRefreshData,
   onImportMilitaresJSON,
   onUpdateMilitarNomeGuerra,
@@ -320,6 +322,13 @@ export default function PainelGestor({
     const gestorAssinatura = `COMAS-CENTRAL::${userLogged.nomeGuerra.toUpperCase()}::SECURE-CRYPTO-OK-${Math.floor(Math.random()*1000).toString(16).toUpperCase()}`;
     onApprovePermuta(pId, userLogged.nomeGuerra, gestorAssinatura);
     setSelectedPermutaDetailId(null);
+  };
+
+  const handleDelete = (pId: string) => {
+    if (onDeletePermuta) {
+      onDeletePermuta(pId);
+      setSelectedPermutaDetailId(null);
+    }
   };
 
   const handleReject = (pId: string) => {
@@ -560,10 +569,22 @@ export default function PainelGestor({
                         </div>
 
                         {/* Action buttons */}
-                        <div className="grid grid-cols-3 gap-1.5 pt-1">
+                        <div className="grid grid-cols-4 gap-1.5 pt-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(p.id);
+                            }}
+                            className="bg-cyber-red/20 border border-cyber-red/40 hover:bg-cyber-red/35 text-cyber-red transition-all py-2 rounded font-mono font-bold text-[9px] uppercase flex flex-col items-center justify-center"
+                            title="EXCLUIR REGISTRO"
+                          >
+                            <Trash2 className="w-4 h-4 mb-0.5" />
+                            <span>EXCLUIR</span>
+                          </button>
+
                           <button
                             onClick={() => handleReject(p.id)}
-                            className="bg-cyber-red/10 border border-cyber-red/30 hover:bg-cyber-red/25 text-cyber-red transition-all py-2 rounded font-mono font-bold text-[9px] uppercase flex flex-col items-center justify-center"
+                            className="bg-[#0f1d22] border border-hud-border/50 hover:bg-cyber-red/10 hover:border-cyber-red/30 text-slate-400 hover:text-cyber-red transition-all py-2 rounded font-mono font-bold text-[9px] uppercase flex flex-col items-center justify-center"
                             id={`commander-decline-${p.id}`}
                           >
                             <XCircle className="w-4 h-4 mb-0.5" />
@@ -667,36 +688,52 @@ export default function PainelGestor({
                           : 'bg-hud-bg/40 border-hud-border/60 hover:bg-[#020709] hover:border-hud-border'
                       }`}
                     >
-                      {/* Accordion trigger bar */}
-                      <div 
-                        onClick={() => setSelectedHistoricId(isExpanded ? null : h.id)}
-                        className="p-2.5 flex items-center justify-between text-xs cursor-pointer select-none"
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
-                            <span className="font-bold text-white text-[11px] uppercase tracking-wide">{h.postoServico}</span>
-                            <span className="text-[7px] bg-hud-card border border-hud-border text-slate-400 px-1 rounded font-mono">{h.protocoloId}</span>
+                      <div className="flex bg-[#0f1d22]/40">
+                        {/* Accordion trigger bar */}
+                        <div 
+                          onClick={() => setSelectedHistoricId(isExpanded ? null : h.id)}
+                          className="p-2.5 flex-1 flex items-center justify-between text-xs cursor-pointer select-none"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                              <span className="font-bold text-white text-[11px] uppercase tracking-wide">{h.postoServico}</span>
+                              <span className="text-[7px] bg-hud-card border border-hud-border text-slate-400 px-1 rounded font-mono">{h.protocoloId}</span>
+                            </div>
+                            <p className="text-[9.5px] text-slate-400 font-mono mt-0.5 truncate">
+                              {subBy?.nomeGuerra} ➔ {subRepl?.nomeGuerra} • {formatarDataBR(h.dataRealizacao)}
+                            </p>
                           </div>
-                          <p className="text-[9.5px] text-slate-400 font-mono mt-0.5 truncate">
-                            {subBy?.nomeGuerra} ➔ {subRepl?.nomeGuerra} • {formatarDataBR(h.dataRealizacao)}
-                          </p>
+
+                          <div className="text-right shrink-0 ml-1.5 flex flex-col items-end">
+                            <span className={`text-[8px] font-mono px-1 rounded border font-bold ${
+                              isApproved 
+                                ? 'bg-cyber-green/10 text-cyber-green border-cyber-green/20' 
+                                : 'bg-cyber-red/10 text-cyber-red border-cyber-red/20'
+                            }`}>
+                              {isApproved ? 'APROVADA' : h.status.replace(/_/g, ' ')}
+                            </span>
+                            <span className="text-[7.5px] font-mono text-slate-500 block mt-0.5 uppercase tracking-tighter">Detalhes</span>
+                          </div>
                         </div>
 
-                        <div className="text-right shrink-0 ml-1.5 flex flex-col items-end">
-                          <span className={`text-[8px] font-mono px-1 rounded border font-bold ${
-                            isApproved 
-                              ? 'bg-cyber-green/10 text-cyber-green border-cyber-green/20' 
-                              : 'bg-cyber-red/10 text-cyber-red border-cyber-red/20'
-                          }`}>
-                            {isApproved ? 'APROVADA' : h.status === 'AJUSTE_GESTOR' ? 'SOLIC. AJUSTE' : 'REJEITADA'}
-                          </span>
-                          <span className="text-[7.5px] font-mono text-slate-500 block mt-0.5 uppercase tracking-tighter">Clique p/ Detalhes</span>
-                        </div>
+                        {/* Direct Delete Button for Admin */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeletePermuta?.(h.id);
+                            setSelectedHistoricId(null);
+                          }}
+                          className="px-3 border-l border-hud-border/40 flex items-center justify-center bg-cyber-red/10 hover:bg-cyber-red/30 text-cyber-red/70 hover:text-cyber-red transition-all cursor-pointer"
+                          title="Excluir Permuta do Sistema"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
 
                       {/* Dropdown document details */}
                       {isExpanded && (
-                        <div className="px-3 pb-3 border-t border-hud-border/40 pt-2 background-[#03090b]/40">
+                        <div className="px-3 pb-3 border-t border-hud-border/40 pt-2 bg-[#03090b]/40">
+
                           {isApproved ? (
                             <div className="space-y-2">
                               <span className="text-[8px] font-mono text-cyber-cyan font-bold block uppercase tracking-wide">CERTIDÃO ARQUIVADA DE HOMOLOGAÇÃO:</span>
@@ -1163,9 +1200,7 @@ export default function PainelGestor({
                       <button
                         type="button"
                         onClick={() => {
-                          if (confirm(`IMAGEM DE SEGURANÇA: Tem certeza de que quer retornar todo o sistema para o backup ${bk.id}? Todos os dados atuais do banco serão revertidos.`)) {
-                            onRestoreBackup?.(bk);
-                          }
+                          onRestoreBackup?.(bk);
                         }}
                         className="bg-cyber-amber/15 hover:bg-cyber-amber/35 text-cyber-amber hover:text-white border border-cyber-amber/30 px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase transition-all cursor-pointer shrink-0"
                       >
