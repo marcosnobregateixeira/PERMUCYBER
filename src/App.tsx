@@ -54,7 +54,7 @@ const sortMilitarByPatente = (a: Militar, b: Militar) => {
 
 export default function App() {
   const [militares, setMilitares] = useState<Militar[]>([]);
-  const [selectedMilitarId, setSelectedMilitarId] = useState<string>('M-101');
+  const [selectedMilitarId, setSelectedMilitarId] = useState<string>('');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   
@@ -76,13 +76,19 @@ export default function App() {
     seedInitialData(MILITARES, ESCALAS_INICIAIS, PERMUTAS_INICIAIS, ALERTAS_INICIAIS, LOGS_INICIAIS, CHATS_INICIAIS)
       .then(() => {
         // Setup real-time listeners
-        const unsubMilitares = onSnapshot(collection(db, 'militares'), (snap) => setMilitares(snap.docs.map(d => d.data() as Militar).sort(sortMilitarByPatente)));
-        const unsubEscalas = onSnapshot(collection(db, 'escalas'), (snap) => setEscalas(snap.docs.map(d => d.data() as Escala)));
-        const unsubAlertas = onSnapshot(collection(db, 'alertas'), (snap) => setAlertas(snap.docs.map(d => d.data() as Alerta)));
-        const unsubPermutas = onSnapshot(collection(db, 'permutas'), (snap) => setPermutas(snap.docs.map(d => d.data() as Permuta)));
-        const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => setLogs(snap.docs.map(d => d.data() as BlockchainLog).sort((a,b) => a.timestamp.localeCompare(b.timestamp))));
-        const unsubMessages = onSnapshot(collection(db, 'messages'), (snap) => setMessages(snap.docs.map(d => d.data() as ChatMessage).sort((a,b) => a.timestamp.localeCompare(b.timestamp))));
-        const unsubBackups = onSnapshot(collection(db, 'backups'), (snap) => setBackups(snap.docs.map(d => d.data() as any as BackupSnapshot).sort((a,b) => b.timestamp.localeCompare(a.timestamp))));
+        const unsubMilitares = onSnapshot(collection(db, 'militares'), (snap) => {
+          const list = snap.docs.map(d => {
+            const data = d.data() as Militar;
+            return { ...data, id: d.id }; // Garantir que o ID do objeto seja o ID do documento Firestore
+          });
+          setMilitares(list.sort(sortMilitarByPatente));
+        });
+        const unsubEscalas = onSnapshot(collection(db, 'escalas'), (snap) => setEscalas(snap.docs.map(d => ({ ...d.data() as Escala, id: d.id }))));
+        const unsubAlertas = onSnapshot(collection(db, 'alertas'), (snap) => setAlertas(snap.docs.map(d => ({ ...d.data() as Alerta, id: d.id }))));
+        const unsubPermutas = onSnapshot(collection(db, 'permutas'), (snap) => setPermutas(snap.docs.map(d => ({ ...d.data() as Permuta, id: d.id }))));
+        const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => setLogs(snap.docs.map(d => ({ ...d.data() as BlockchainLog, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp))));
+        const unsubMessages = onSnapshot(collection(db, 'messages'), (snap) => setMessages(snap.docs.map(d => ({ ...d.data() as ChatMessage, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp))));
+        const unsubBackups = onSnapshot(collection(db, 'backups'), (snap) => setBackups(snap.docs.map(d => ({ ...d.data() as any as BackupSnapshot, id: d.id })).sort((a,b) => b.timestamp.localeCompare(a.timestamp))));
         const unsubConfig = onSnapshot(doc(db, 'settings', 'config'), (snap) => {
           if (snap.exists()) {
             setConfig(snap.data() as AppConfig);
@@ -131,7 +137,7 @@ export default function App() {
     setCurrentTab('DASHBOARD');
   };
 
-  const loggedUser = militares.find((m) => m.id === selectedMilitarId) || MILITARES[0];
+  const loggedUser = militares.find((m) => m.id === selectedMilitarId);
 
   const appendAuditLog = async (
     tipoEvento: BlockchainLog['tipoEvento'],
@@ -251,11 +257,20 @@ export default function App() {
   };
 
   const handleDeleteMilitar = async (id: string) => {
-    try { await deleteDoc(doc(db, 'militares', id)); } catch(e){}
-    const updated = militares.filter(m => m.id !== id);
-    setMilitares(updated);
-    await appendAuditLog('INTEGRALIZAÇÃO', `Militar com ID ${id} removido da base de dados.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
-    await generateBackup('AUTO', loggedUser?.nomeGuerra || 'SISTEMA', updated);
+    try {
+      console.log(`Iniciando exclusão do militar ID: ${id}`);
+      await deleteDoc(doc(db, 'militares', id));
+      
+      // Optimistic update
+      const updated = militares.filter(m => m.id !== id);
+      setMilitares(updated);
+      
+      await appendAuditLog('INTEGRALIZAÇÃO', `Militar com ID ${id} removido da base de dados.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+      await generateBackup('AUTO', loggedUser?.nomeGuerra || 'SISTEMA', updated);
+    } catch (e) {
+      console.error("Erro ao deletar militar:", e);
+      alert(`Erro crítico ao remover policial do banco de dados: ${e instanceof Error ? e.message : 'Verifique a conexão ou permissões.'}`);
+    }
   };
 
   const handleToggleBiometria = async (id: string) => {
@@ -329,6 +344,7 @@ export default function App() {
   };
 
   const handleSendMessage = async (paraMilitarId: string, conteudo: string) => {
+    if (!loggedUser) return;
     const freshMessage: ChatMessage = {
       id: `C-${Date.now()}`,
       deMilitarId: loggedUser.id,
@@ -341,10 +357,11 @@ export default function App() {
 
     await setDoc(doc(db, 'messages', freshMessage.id), sanitizeForFirestore(freshMessage));
     const recipient = militares.find((m) => m.id === paraMilitarId)?.nomeGuerra || 'Auxiliar';
-    await appendAuditLog('INTEGRALIZAÇÃO', `Transmissão de texto plano criptografada com sucesso de ${loggedUser.nomeGuerra} para ${recipient}. Protocolo seguro ativado.`, loggedUser.nomeGuerra, logs);
+    await appendAuditLog('INTEGRALIZAÇÃO', `Transmissão de texto plano criptografada with sucesso de ${loggedUser.nomeGuerra} para ${recipient}. Protocolo seguro ativado.`, loggedUser.nomeGuerra, logs);
   };
 
   const handleCreatePermuta = async (novaPermuta: Permuta) => {
+    if (!loggedUser) return;
     await setDoc(doc(db, 'permutas', novaPermuta.id), sanitizeForFirestore(novaPermuta));
     await appendAuditLog('PERMUTA_CRIADA', `Permuta criada para posto [${novaPermuta.postoServico}] de ${loggedUser.nomeGuerra}. Assinado digitalmente sob protocolo ${novaPermuta.protocoloId}.`, loggedUser.nomeGuerra, logs);
 
@@ -364,73 +381,119 @@ export default function App() {
   };
 
   const handleAcceptPermuta = async (permutaId: string, peerSignature: string) => {
-    await updateDoc(doc(db, 'permutas', permutaId), sanitizeForFirestore({
+    if (!loggedUser) return;
+    const permutaRef = doc(db, 'permutas', permutaId);
+    await setDoc(permutaRef, sanitizeForFirestore({
       status: 'PENDENTE_GESTOR',
       assinaturaSubstituta: peerSignature
-    }));
+    }), { merge: true });
     await appendAuditLog('PERMUTA_ACEITA', `Sgt. Mendes assinou digitalmente aceitando a permuta ref. protocolo ${permutas.find(p => p.id === permutaId)?.protocoloId}. Encaminhado ao conselho operacional.`, loggedUser.nomeGuerra, logs);
     setActiveReviewPermuta(null);
     setCurrentTab('PERMUTAS');
   };
 
   const handleDeclinePermuta = async (permutaId: string) => {
-    await updateDoc(doc(db, 'permutas', permutaId), sanitizeForFirestore({ status: 'REJEITADO_SUBSTITUTO' }));
+    if (!loggedUser) return;
+    const permutaRef = doc(db, 'permutas', permutaId);
+    await setDoc(permutaRef, sanitizeForFirestore({ status: 'REJEITADO_SUBSTITUTO' }), { merge: true });
     await appendAuditLog('INTEGRALIZAÇÃO', `Solicitação de permuta cancelada/rejeitada pelo militar substituto. Protocolo suspenso.`, loggedUser.nomeGuerra, logs);
     setActiveReviewPermuta(null);
     setCurrentTab('PERMUTAS');
   };
 
   const handleRequestAlteration = async (permutaId: string, comentario: string) => {
-    await updateDoc(doc(db, 'permutas', permutaId), sanitizeForFirestore({
+    if (!loggedUser) return;
+    const permutaRef = doc(db, 'permutas', permutaId);
+    await setDoc(permutaRef, sanitizeForFirestore({
       status: 'ALTERACAO_SOLICITADA',
       comentarioAlteracao: comentario
-    }));
+    }), { merge: true });
     await appendAuditLog('INTEGRALIZAÇÃO', `Proposta de alteração de escala retransmitida com considerações operacionais: "${comentario.slice(0, 45)}...".`, loggedUser.nomeGuerra, logs);
     setActiveReviewPermuta(null);
     setCurrentTab('PERMUTAS');
   };
 
   const handleApprovePermutaGestor = async (permutaId: string, gestorNome: string, gestorSignature: string) => {
-    if (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN') return;
+    if (!loggedUser || (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN')) return;
     const targetPermuta = permutas.find(p => p.id === permutaId);
     if (!targetPermuta) return;
 
-    await updateDoc(doc(db, 'permutas', permutaId), sanitizeForFirestore({
+    const permutaRef = doc(db, 'permutas', permutaId);
+    await setDoc(permutaRef, sanitizeForFirestore({
       status: 'APROVADO',
       assinaturaGestor: gestorSignature,
       gestorNome,
       dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
-    }));
+    }), { merge: true });
 
-    await updateDoc(doc(db, 'escalas', targetPermuta.escalaSubstituidaId), sanitizeForFirestore({
-      militarId: targetPermuta.militarSubstitutoId
-    }));
+    // Duplicity Prevention: Check if there's already a scale for this militar, data, and turno
+    const existingEscala = escalas.find(e => 
+      e.militarId === targetPermuta.militarSubstitutoId && 
+      e.data === targetPermuta.dataRealizacao && 
+      e.turno === targetPermuta.turno
+    );
+
+    if (existingEscala) {
+      // If a scale already exists for this person/day/shift, we just ensure it has the correct ID if needed
+      // but usually we just skip creating a new one to avoid duplicity.
+      // If it was another militar's scale being replaced, it will be updated below.
+    }
+
+    const originalEscalaId = targetPermuta.escalaSubstituidaId;
+    const escalaOriginal = escalas.find(e => e.id === originalEscalaId);
+
+    if (escalaOriginal && !originalEscalaId.startsWith('S-TEMP-')) {
+      // Update the existing official scale record
+      const escalaRef = doc(db, 'escalas', originalEscalaId);
+      await setDoc(escalaRef, sanitizeForFirestore({
+        militarId: targetPermuta.militarSubstitutoId
+      }), { merge: true });
+    } else {
+      // It's a temporary or missing scale. 
+      // Only create if we don't already have one for this person/day/shift
+      if (!existingEscala) {
+        const novaEscala: Escala = {
+          id: originalEscalaId.startsWith('S-TEMP-') ? originalEscalaId : `E-GEN-${Date.now()}`,
+          militarId: targetPermuta.militarSubstitutoId,
+          postoServico: targetPermuta.postoServico,
+          data: targetPermuta.dataRealizacao,
+          horaInicio: targetPermuta.horaInicio,
+          horaFim: targetPermuta.horaFim,
+          turno: targetPermuta.turno as any
+        };
+        await setDoc(doc(db, 'escalas', novaEscala.id), sanitizeForFirestore(novaEscala));
+      }
+    }
 
     await appendAuditLog('PROCESSO_APROVADO', `Homologação oficial ativada pelo Tenente Bastos para protocolo ${targetPermuta.protocoloId}. Escala atualizada. Vias digitais autenticadas.`, gestorNome, logs);
   };
 
   const handleRejectPermutaGestor = async (permutaId: string) => {
+    if (!loggedUser) return;
     const targetPermuta = permutas.find(p => p.id === permutaId);
     if (!targetPermuta) return;
 
-    await updateDoc(doc(db, 'permutas', permutaId), sanitizeForFirestore({
+    const permutaRef = doc(db, 'permutas', permutaId);
+    await setDoc(permutaRef, sanitizeForFirestore({
       status: 'REJEITADO',
       gestorNome: loggedUser.nomeGuerra,
       dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
-    }));
+    }), { merge: true });
     await appendAuditLog('PROCESSO_REJEITADO', `Permuta ID ${targetPermuta.protocoloId} rejeitada administrativamente pelo Comando de Batalhão.`, loggedUser.nomeGuerra, logs);
   };
 
   const handleAdjustPermutaGestor = async (permutaId: string, justificativa: string) => {
+    if (!loggedUser) return;
     const targetPermuta = permutas.find(p => p.id === permutaId);
     if (!targetPermuta) return;
 
-    await updateDoc(doc(db, 'permutas', permutaId), sanitizeForFirestore({
+    const permutaRef = doc(db, 'permutas', permutaId);
+    await setDoc(permutaRef, sanitizeForFirestore({
       status: 'AJUSTE_GESTOR',
       comentarioAlteracao: justificativa,
       gestorNome: loggedUser.nomeGuerra,
       dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
-    }));
+    }), { merge: true });
     await appendAuditLog('INTEGRALIZAÇÃO', `O Comando devolveu a escala ${targetPermuta.protocoloId} solicitando correções: "${justificativa.slice(0, 45)}...".`, loggedUser.nomeGuerra, logs);
   };
 
@@ -494,7 +557,7 @@ export default function App() {
             </span>
             <div className="flex items-center space-x-2">
               <span className="text-slate-500 text-[9px] font-mono uppercase font-bold text-shadow">
-                ID: {loggedUser.id}
+                ID: {loggedUser?.id || '---'}
               </span>
               <button
                 onClick={() => {
@@ -585,25 +648,50 @@ export default function App() {
                         </button>
                       </div>
 
-                      {permutas.filter(p => p.militarSubstituidoId === loggedUser.id || p.militarSubstitutoId === loggedUser.id).length === 0 ? (
+                      {permutas.filter(p => p.militarSubstituidoId === loggedUser?.id || p.militarSubstitutoId === loggedUser?.id).length === 0 ? (
                         <div className="bg-[#051115] border border-hud-border/40 p-6 rounded-xl text-center text-slate-500 font-sans text-xs">
                           Nenhuma solicitação de troca encontrada. Para iniciar nova proposta, selecione uma escala na tela inicial do Dashboard.
                         </div>
                       ) : (
                         <div className="space-y-3 font-sans">
-                          {permutas.filter(p => p.militarSubstituidoId === loggedUser.id || p.militarSubstitutoId === loggedUser.id).map((p) => {
+                          {permutas
+                            .filter(p => p.militarSubstituidoId === loggedUser?.id || p.militarSubstitutoId === loggedUser?.id)
+                            .sort((a, b) => {
+                              const priority: Record<string, number> = {
+                                'PENDENTE_SUBSTITUTO': 1,
+                                'PENDENTE_GESTOR': 2,
+                                'APROVADO': 3,
+                                'ALTERACAO_SOLICITADA': 4,
+                                'AJUSTE_GESTOR': 5,
+                                'REJEITADO_SUBSTITUTO': 6,
+                                'REJEITADO': 7
+                              };
+                              const pA = priority[a.status] || 99;
+                              const pB = priority[b.status] || 99;
+                              
+                              if (pA !== pB) return pA - pB;
+                              return new Date(a.dataRealizacao).getTime() - new Date(b.dataRealizacao).getTime();
+                            })
+                            .map((p) => {
                             const origin = militares.find(m => m.id === p.militarSubstituidoId);
                             const dest = militares.find(m => m.id === p.militarSubstitutoId);
                             
                             let badgeStyle = 'bg-cyber-blue/15 text-cyber-blue border-cyber-blue/30';
                             let stateLabel = 'Aguardando Colega';
+                            let isHighlighted = false;
                             
-                            if (p.status === 'PENDENTE_GESTOR') {
+                            if (p.status === 'PENDENTE_SUBSTITUTO') {
+                              badgeStyle = 'bg-cyber-blue/20 text-cyber-cyan border-cyber-cyan/50 shadow-[0_0_10px_rgba(0,229,255,0.2)]';
+                              stateLabel = 'Aguardando Colega';
+                              if (p.militarSubstituidoId === loggedUser?.id) {
+                                isHighlighted = true;
+                              }
+                            } else if (p.status === 'PENDENTE_GESTOR') {
                               badgeStyle = 'bg-cyber-amber/15 text-cyber-amber border-cyber-amber/30';
                               stateLabel = 'Aguardando Comando';
                             } else if (p.status === 'APROVADO') {
-                              badgeStyle = 'bg-cyber-green/20 text-cyber-green border-cyber-green/30';
-                              stateLabel = 'Autorizada';
+                              badgeStyle = 'bg-cyber-green/10 text-cyber-green border-cyber-green/20';
+                              stateLabel = 'Homologada';
                             } else if (p.status === 'REJEITADO_SUBSTITUTO' || p.status === 'REJEITADO') {
                               badgeStyle = 'bg-cyber-red/10 text-cyber-red border-cyber-red/20';
                               stateLabel = 'Recusada';
@@ -615,42 +703,68 @@ export default function App() {
                               stateLabel = 'Necessita Ajustes';
                             }
 
+                            const isHomologated = p.status === 'APROVADO';
+
                             return (
                               <div 
                                 key={p.id}
-                                className="bg-hud-card border border-hud-border rounded-xl p-3.5 space-y-3 relative hover:border-cyber-cyan/40 transition-all"
+                                className={`bg-hud-card border rounded-xl transition-all relative overflow-hidden ${
+                                  isHighlighted 
+                                    ? 'border-cyber-cyan shadow-[0_0_15px_rgba(0,229,255,0.15)] scale-[1.01] z-10' 
+                                    : isHomologated 
+                                    ? 'border-cyber-green/30 opacity-90'
+                                    : 'border-hud-border'
+                                } ${isHomologated ? 'p-3' : 'p-3.5 space-y-3'}`}
                                 id={`my-permuta-item-${p.id}`}
                               >
+                                {isHighlighted && (
+                                  <div className="absolute top-0 right-0 left-0 h-[2px] bg-gradient-to-r from-transparent via-cyber-cyan to-transparent animate-pulse" />
+                                )}
+
                                 <div className="flex justify-between items-start">
-                                  <div>
-                                    <span className="text-[9px] text-slate-400 font-mono">Protocolo: nº {p.protocoloId}</span>
-                                    <h4 className="text-xs font-bold text-white tracking-wide mt-0.5">{p.postoServico}</h4>
+                                  <div className="min-w-0">
+                                    <span className="text-[8px] text-slate-500 font-mono uppercase tracking-tighter">Protocolo: nº {p.protocoloId}</span>
+                                    <h4 className={`text-xs font-bold text-white tracking-wide mt-0.5 truncate ${isHomologated ? 'text-[11px]' : ''}`}>{p.postoServico}</h4>
                                   </div>
-                                  <span className={`text-[9px] px-1.5 py-0.5 border rounded uppercase font-bold ${badgeStyle}`}>
+                                  <span className={`text-[9px] px-1.5 py-0.5 border rounded uppercase font-bold shrink-0 ${badgeStyle}`}>
                                     {stateLabel}
                                   </span>
                                 </div>
 
-                                <div className="flex justify-between items-center text-[10.5px] text-slate-400 border-t border-hud-border/30 pt-2.5">
-                                  <span>
-                                    De: {origin?.nomeGuerra} ➔ Para: {dest?.nomeGuerra}
-                                  </span>
-                                  <div className="flex items-center text-cyber-blue font-mono">
-                                    <Clock className="w-3 h-3 mr-1" />
-                                    <span>{formatarDataBR(p.dataRealizacao)} ({p.turno})</span>
+                                {!isHomologated ? (
+                                  <div className="flex justify-between items-center text-[10.5px] text-slate-400 border-t border-hud-border/30 pt-2.5">
+                                    <span className="truncate mr-2">
+                                      De: {origin?.nomeGuerra} ➔ Para: {dest?.nomeGuerra}
+                                    </span>
+                                    <div className="flex items-center text-cyber-blue font-mono shrink-0">
+                                      <Clock className="w-3 h-3 mr-1" />
+                                      <span>{formatarDataBR(p.dataRealizacao)} ({p.turno})</span>
+                                    </div>
                                   </div>
-                                </div>
+                                ) : (
+                                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-cyber-green/10">
+                                     <div className="flex items-center text-[10px] text-slate-400">
+                                       <span className="text-cyber-green/70 mr-1.5 font-bold">✓</span>
+                                       <span>{formatarDataBR(p.dataRealizacao)} • {p.turno}</span>
+                                     </div>
+                                     <div className="text-[9px] text-slate-500 font-mono">
+                                        Substituto: {dest?.nomeGuerra}
+                                     </div>
+                                  </div>
+                                )}
 
                                 {/* Official Digital Homologation Document */}
                                 {p.status === 'APROVADO' && (
-                                  <DocumentoHomologacao
-                                    permuta={p}
-                                    allMilitares={militares}
-                                  />
+                                  <div className="mt-2.5">
+                                    <DocumentoHomologacao
+                                      permuta={p}
+                                      allMilitares={militares}
+                                    />
+                                  </div>
                                 )}
 
                                 {/* Clicking to evaluate if peer requested alteração or actions are pending */}
-                                {p.status === 'PENDENTE_SUBSTITUTO' && p.militarSubstitutoId === loggedUser.id && (
+                                {p.status === 'PENDENTE_SUBSTITUTO' && p.militarSubstitutoId === loggedUser?.id && (
                                   <button
                                     onClick={() => setActiveReviewPermuta(p)}
                                     className="w-full bg-[#051c22] border border-cyber-cyan/50 hover:bg-[#082e38] transition-all text-[10px] font-semibold font-mono text-cyber-cyan py-1.5 rounded-md mt-1.5 uppercase flex items-center justify-center"
@@ -678,7 +792,7 @@ export default function App() {
 
                 {currentTab === 'GESTAO' && (
                   <div>
-                    {loggedUser.role === 'COMANDANTE' || loggedUser.role === 'ADMIN' ? (
+                    {loggedUser && (loggedUser.role === 'COMANDANTE' || loggedUser.role === 'ADMIN') ? (
                       /* Officer is authorized to access with their key */
                       <PainelGestor
                         permutas={permutas}

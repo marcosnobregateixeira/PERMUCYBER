@@ -8,7 +8,7 @@ import { Send, Lock, ShieldAlert, Cpu, Terminal, RefreshCw, KeyRound } from 'luc
 import { ChatMessage, Militar } from '../types';
 
 interface EncryptedChatProps {
-  userLogged: Militar;
+  userLogged?: Militar;
   allMilitares: Militar[];
   messages: ChatMessage[];
   onSendMessage: (paraMilitarId: string, conteudo: string) => void;
@@ -24,27 +24,22 @@ export default function EncryptedChat({
   const [showKeyInfo, setShowKeyInfo] = useState<boolean>(true);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const isLeadership = userLogged.role === 'ADMIN' || userLogged.role === 'COMANDANTE';
+  const isLeadership = userLogged?.role === 'ADMIN' || userLogged?.role === 'COMANDANTE';
 
   // Calculate potential recipients based on role
   const potentialRecipients = allMilitares.filter(m => {
-    if (m.id === userLogged.id) return false;
-    if (userLogged.role === 'USUARIO') {
-      // Users only send to Command as a whole
-      return m.role === 'ADMIN' || m.role === 'COMANDANTE';
-    }
-    // Leadership can contact any regular user
-    return m.role === 'USUARIO';
+    if (m.id === userLogged?.id) return false;
+    // Everyone can see everyone for selection, but users conceptually send to 'COMANDO'
+    return true;
   });
 
-  // Identify active conversations for leadership
+  // Identify active conversations for leadership (anyone who sent to 'COMANDO' or to THEM)
   const incomingMessageSenders = Array.from(new Set(
     messages
-      .filter(m => m.paraMilitarId === 'COMANDO' || (isLeadership && m.paraMilitarId === userLogged.id))
+      .filter(m => m.paraMilitarId === 'COMANDO' || (isLeadership && m.paraMilitarId === userLogged?.id))
       .map(m => m.deMilitarId)
-  )).map(id => allMilitares.find(m => m.id === id)).filter(m => m && m.id !== userLogged.id) as Militar[];
+  )).map(id => allMilitares.find(m => m.id === id)).filter(m => m && m.id !== userLogged?.id) as Militar[];
 
-  // For users, they always send to 'COMANDO' conceptually, but we pick one to show in UI
   const [selectedRecipientId, setSelectedRecipientId] = useState<string>('');
 
   useEffect(() => {
@@ -52,15 +47,17 @@ export default function EncryptedChat({
       if (isLeadership && incomingMessageSenders.length > 0) {
         setSelectedRecipientId(incomingMessageSenders[0].id);
       } else {
-        setSelectedRecipientId(potentialRecipients[0].id);
+        // Find first admin if user
+        const firstAdmin = potentialRecipients.find(r => r.role === 'ADMIN' || r.role === 'COMANDANTE');
+        setSelectedRecipientId(firstAdmin?.id || potentialRecipients[0].id);
       }
     }
   }, [potentialRecipients, selectedRecipientId, incomingMessageSenders, isLeadership]);
 
   // Sort potential recipients: those with messages to the top
   const sortedRecipients = [...potentialRecipients].sort((a, b) => {
-    const aHasMsg = messages.some(m => (m.deMilitarId === a.id && (m.paraMilitarId === userLogged.id || m.paraMilitarId === 'COMANDO')) || (m.deMilitarId === userLogged.id && m.paraMilitarId === a.id));
-    const bHasMsg = messages.some(m => (m.deMilitarId === b.id && (m.paraMilitarId === userLogged.id || m.paraMilitarId === 'COMANDO')) || (m.deMilitarId === userLogged.id && m.paraMilitarId === b.id));
+    const aHasMsg = messages.some(m => (m.deMilitarId === a.id && (m.paraMilitarId === userLogged?.id || m.paraMilitarId === 'COMANDO')) || (m.deMilitarId === userLogged?.id && (m.paraMilitarId === a.id || m.paraMilitarId === 'COMANDO')));
+    const bHasMsg = messages.some(m => (m.deMilitarId === b.id && (m.paraMilitarId === userLogged?.id || m.paraMilitarId === 'COMANDO')) || (m.deMilitarId === userLogged?.id && (m.paraMilitarId === b.id || m.paraMilitarId === 'COMANDO')));
     if (aHasMsg && !bHasMsg) return -1;
     if (!aHasMsg && bHasMsg) return 1;
     return 0;
@@ -71,23 +68,23 @@ export default function EncryptedChat({
     if (isLeadership) {
       // Leadership sees their own messages to this user, 
       // AND messages from this user to 'COMANDO' or to THEM specifically
-      return (m.deMilitarId === userLogged.id && m.paraMilitarId === selectedRecipientId) ||
-             (m.deMilitarId === selectedRecipientId && (m.paraMilitarId === 'COMANDO' || m.paraMilitarId === userLogged.id));
+      return (m.deMilitarId === userLogged?.id && (m.paraMilitarId === selectedRecipientId || m.paraMilitarId === 'COMANDO')) ||
+             (m.deMilitarId === selectedRecipientId && (m.paraMilitarId === 'COMANDO' || m.paraMilitarId === userLogged?.id));
     } else {
-      // User sees their own messages to 'COMANDO' or specific Admins,
-      // AND any messages sent directly to THEM from any leadership
-      const recipientMilitar = allMilitares.find(mil => mil.id === m.paraMilitarId);
-      const senderMilitar = allMilitares.find(mil => mil.id === m.deMilitarId);
+      // User sees their conversation with the selected recipient
+      // which might be an admin they sent 'COMANDO' messages to
+      const isRecipientMe = m.paraMilitarId === userLogged?.id;
+      const isSenderMe = m.deMilitarId === userLogged?.id;
       
-      const involvedMe = m.deMilitarId === userLogged.id || m.paraMilitarId === userLogged.id;
-      if (!involvedMe) return false;
-
-      // If I'm the sender, I only see it if I sent it to leadership or 'COMANDO'
-      if (m.deMilitarId === userLogged.id) {
-        return m.paraMilitarId === 'COMANDO' || (recipientMilitar?.role === 'ADMIN' || recipientMilitar?.role === 'COMANDANTE');
+      if (isSenderMe) {
+        // I sent to this recipient (or to 'COMANDO' while they are selected)
+        return m.paraMilitarId === selectedRecipientId || m.paraMilitarId === 'COMANDO';
       }
-      // If I'm the recipient, I only see it if it came from leadership
-      return senderMilitar?.role === 'ADMIN' || senderMilitar?.role === 'COMANDANTE';
+      if (isRecipientMe) {
+        // They sent to me
+        return m.deMilitarId === selectedRecipientId;
+      }
+      return false;
     }
   });
 
@@ -105,7 +102,7 @@ export default function EncryptedChat({
     if (!typingText.trim()) return;
 
     // Users send to 'COMANDO' (virtual ID for shared inbox), Admins send to specific users
-    const targetId = userLogged.role === 'USUARIO' ? 'COMANDO' : selectedRecipientId;
+    const targetId = userLogged?.role === 'USUARIO' ? 'COMANDO' : selectedRecipientId;
     onSendMessage(targetId, typingText.trim());
     setTypingText('');
   };
@@ -127,7 +124,7 @@ export default function EncryptedChat({
         {/* Recipient Dropdown Selector */}
         <div className="flex items-center space-x-2">
           <span className="text-xs font-mono text-slate-500 uppercase shrink-0">
-            {userLogged.role === 'USUARIO' ? 'CONTATO COMANDO:' : 'ENV PERFIL:'}
+            {userLogged?.role === 'USUARIO' ? 'CONTATO COMANDO:' : 'ENV PERFIL:'}
           </span>
           <select
             value={selectedRecipientId}
@@ -136,10 +133,10 @@ export default function EncryptedChat({
             id="chat-recipient-select"
           >
             {sortedRecipients.map((rec) => {
-              const hasUnread = messages.some(m => m.deMilitarId === rec.id && m.paraMilitarId === userLogged.id);
+              const hasUnread = messages.some(m => m.deMilitarId === rec.id && m.paraMilitarId === userLogged?.id);
               return (
                 <option key={rec.id} value={rec.id} className="bg-hud-bg text-white">
-                  {hasUnread ? '📩 ' : ''}{rec.patente.slice(0, 3)}. {rec.nomeGuerra.split(' ')[1] || rec.nomeGuerra} {userLogged.role !== 'USUARIO' ? `(${rec.especialidade.slice(0, 15)}...)` : ''}
+                  {hasUnread ? '📩 ' : ''}{rec.patente.slice(0, 3)}. {rec.nomeGuerra.split(' ')[1] || rec.nomeGuerra} {userLogged?.role !== 'USUARIO' ? `(${rec.especialidade.slice(0, 15)}...)` : ''}
                 </option>
               );
             })}
@@ -148,7 +145,7 @@ export default function EncryptedChat({
       </div>
 
       {/* SPECIAL NOTICE FOR USERS */}
-      {userLogged.role === 'USUARIO' && (
+      {userLogged?.role === 'USUARIO' && (
         <div className="mx-3 mt-3 bg-cyber-blue/5 border border-cyber-blue/20 p-2 rounded flex items-center space-x-2">
           <ShieldAlert className="w-4 h-4 text-cyber-blue shrink-0 animate-pulse" />
           <span className="text-[9px] font-mono text-slate-400 uppercase tracking-tighter">
@@ -158,7 +155,7 @@ export default function EncryptedChat({
       )}
 
       {/* ACTIVE CONVERSATIONS FOR LEADERSHIP */}
-      {(userLogged.role === 'ADMIN' || userLogged.role === 'COMANDANTE') && incomingMessageSenders.length > 0 && (
+      {(userLogged?.role === 'ADMIN' || userLogged?.role === 'COMANDANTE') && incomingMessageSenders.length > 0 && (
         <div className="px-3 py-2 bg-[#051115] border-b border-hud-border/30 overflow-x-auto whitespace-nowrap scrollbar-hide flex items-center space-x-2">
           <span className="text-[8px] font-mono text-cyber-blue uppercase font-bold shrink-0">Conversas:</span>
           {incomingMessageSenders.map(sender => (
@@ -185,7 +182,7 @@ export default function EncryptedChat({
             <span className="text-cyber-cyan font-bold block uppercase mb-0.5">ALGORITMO GRADIENTE COMPILADO</span>
             Canal cifrado fim-a-fim. Handshake simétrico ativo com chave do nó:<br />
             <span className="text-cyber-blue font-semibold max-w-[200px] block truncate text-[8.5px]">
-              {userLogged.chaveDigital} ↔ {recipientMilitar?.chaveDigital || 'SAT-DECRYPT-NODE'}
+              {userLogged?.chaveDigital || '----'} ↔ {recipientMilitar?.chaveDigital || 'SAT-DECRYPT-NODE'}
             </span>
           </div>
           <button 
@@ -210,7 +207,7 @@ export default function EncryptedChat({
           </div>
         ) : (
           activeChatMessages.map((msg) => {
-            const isMe = msg.deMilitarId === userLogged.id;
+            const isMe = msg.deMilitarId === userLogged?.id;
             const sender = isMe ? userLogged : allMilitares.find(m => m.id === msg.deMilitarId);
             const senderName = sender?.nomeGuerra || (msg.deMilitarId === 'COMANDO' ? 'COMANDO' : 'Militar');
 
@@ -252,7 +249,7 @@ export default function EncryptedChat({
           type="text"
           value={typingText}
           onChange={(e) => setTypingText(e.target.value)}
-          placeholder={userLogged.role === 'USUARIO' 
+          placeholder={userLogged?.role === 'USUARIO' 
             ? "Transmitir pergunta ou sugestão criptografada para o Comando..." 
             : `Responder para ${recipientMilitar?.nomeGuerra || 'militar'}...`}
           className="flex-1 bg-[#020709] border border-hud-border text-xs rounded-lg px-3 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-cyber-blue focus:ring-1 focus:ring-cyber-blue font-sans"

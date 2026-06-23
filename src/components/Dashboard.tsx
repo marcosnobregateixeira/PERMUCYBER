@@ -31,7 +31,7 @@ import { formatarDataBR } from '../data';
 import DocumentoHomologacao from './DocumentoHomologacao';
 
 interface DashboardProps {
-  userLogged: Militar;
+  userLogged?: Militar;
   allMilitares: Militar[];
   escalas: Escala[];
   alertas: Alerta[];
@@ -91,11 +91,11 @@ export default function Dashboard({
   }, [alertas, isEditingAlert]);
   
   // Custom filter scales for LOGGED user
-  const userEscalas = escalas.filter((e) => e.militarId === userLogged.id);
+  const userEscalas = escalas.filter((e) => e.militarId === userLogged?.id);
   
   // Pending swaps related to this user
   const pendentesSubstituto = permutas.filter(
-    (p) => p.militarSubstitutoId === userLogged.id && p.status === 'PENDENTE_SUBSTITUTO'
+    (p) => p.militarSubstitutoId === userLogged?.id && p.status === 'PENDENTE_SUBSTITUTO'
   );
   
   const pendentesGestor = permutas
@@ -103,7 +103,7 @@ export default function Dashboard({
     .sort((a, b) => new Date(a.dataSolicitacao).getTime() - new Date(b.dataSolicitacao).getTime());
 
   const minhasPermutasAtivas = permutas.filter(
-    (p) => (p.militarSubstituidoId === userLogged.id || p.militarSubstitutoId === userLogged.id)
+    (p) => (p.militarSubstituidoId === userLogged?.id || p.militarSubstitutoId === userLogged?.id)
   );
 
   const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO'>(realMonth as any);
@@ -139,7 +139,7 @@ export default function Dashboard({
   const getDayScale = (day: number | null) => {
     if (!day) return null;
     const dateStr = `2026-${currentMonthConfig.monthCode}-${day.toString().padStart(2, '0')}`;
-    return escalas.find((e) => e.militarId === userLogged.id && e.data === dateStr);
+    return escalas.find((e) => e.militarId === userLogged?.id && e.data === dateStr);
   };
 
   const handleMonthChange = (month: 'MAIO' | 'JUNHO' | 'JULHO') => {
@@ -151,7 +151,7 @@ export default function Dashboard({
   };
 
   const handleApprove = (pId: string) => {
-    if (!onApprovePermuta) return;
+    if (!onApprovePermuta || !userLogged) return;
     const gestorAssinatura = `COMAS-CENTRAL::${userLogged.nomeGuerra.toUpperCase()}::SECURE-CRYPTO-OK-${Math.floor(Math.random()*1000).toString(16).toUpperCase()}`;
     onApprovePermuta(pId, userLogged.nomeGuerra, gestorAssinatura);
   };
@@ -187,7 +187,7 @@ export default function Dashboard({
               <div className="flex items-center space-x-1.5">
                 <span className={`text-[9px] font-bold font-mono px-1 bg-cyber-${alertColor}/20 text-cyber-${alertColor} rounded`}>ALERTA OPERACIONAL DE COMANDO</span>
               </div>
-              {(userLogged.role === 'COMANDANTE' || userLogged.role === 'ADMIN') && (
+              {(userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') && (
                 <button 
                   onClick={() => {
                     if (isEditingAlert) {
@@ -255,11 +255,11 @@ export default function Dashboard({
           <div className="min-w-0">
             <div className="text-[7.5px] font-mono tracking-widest text-slate-400 uppercase">IDENTIDADE OPERACIONAL ATIVA</div>
             <div className="text-xs font-extrabold text-white uppercase flex items-center gap-1.5 truncate">
-              <span>{userLogged.patente} {userLogged.nomeGuerra}</span>
-              <span className="text-[9px] text-[#00ff66]/70 font-normal">({userLogged.id})</span>
+              <span>{userLogged?.patente} {userLogged?.nomeGuerra}</span>
+              <span className="text-[9px] text-[#00ff66]/70 font-normal">({userLogged?.id})</span>
             </div>
             <div className="text-[9.5px] font-sans text-slate-400 truncate">
-              {userLogged.nome}
+              {userLogged?.nome}
             </div>
           </div>
         </div>
@@ -267,19 +267,19 @@ export default function Dashboard({
         <div className="text-right shrink-0 flex flex-col items-end justify-center">
           <span className="text-[7.5px] font-mono tracking-widest text-slate-400 uppercase block mb-0.5">TIPO DE ACESSO</span>
           <div className={`px-2.5 py-1 rounded text-[10px] font-mono font-black tracking-wider uppercase border ${
-            userLogged.role === 'ADMIN'
+            userLogged?.role === 'ADMIN'
               ? 'bg-cyber-red/10 border-cyber-red text-cyber-red shadow-[0_0_8px_rgba(255,61,0,0.2)]'
-              : userLogged.role === 'COMANDANTE'
+              : userLogged?.role === 'COMANDANTE'
               ? 'bg-cyber-amber/10 border-cyber-amber text-cyber-amber shadow-[0_0_8px_rgba(255,179,0,0.2)]'
               : 'bg-cyber-blue/10 border-cyber-blue text-cyber-blue'
           }`}>
-            {userLogged.role}
+            {userLogged?.role}
           </div>
         </div>
       </div>
 
       {/* QUICK STATUS HUD WIDGETS */}
-      {(userLogged.role === 'ADMIN' || userLogged.role === 'COMANDANTE') && (
+      {(userLogged?.role === 'ADMIN' || userLogged?.role === 'COMANDANTE') ? (
         <div className="grid grid-cols-2 gap-3" id="admin-exclusive-cards">
           {/* Radar scope representation */}
           <div className="bg-hud-card border border-hud-border rounded-xl p-3 flex flex-col relative overflow-hidden">
@@ -307,7 +307,7 @@ export default function Dashboard({
           >
             <span className="text-[9px] font-mono text-cyber-cyan tracking-wider uppercase group-hover:text-white transition-colors">PERMUTAS PROTOCOLADAS</span>
             <div className="flex items-baseline space-x-2 mt-1 text-cyber-blue text-2xl font-bold font-display neon-text-blue group-hover:brightness-110 transition-all font-mono">
-              <span>{myInasCount(permutas, userLogged.id)}</span>
+              <span>{myInasCount(permutas, userLogged?.id || '')}</span>
               <span className="text-xs text-slate-400 font-mono">REGISTROS</span>
             </div>
             <div className="flex items-center space-x-1 text-[8px] text-slate-500 font-mono mt-2">
@@ -316,7 +316,7 @@ export default function Dashboard({
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* ACTION ALERTS: SWAPS REQUIRING ATTENTION */}
       {pendentesSubstituto.length > 0 && (
@@ -376,7 +376,7 @@ export default function Dashboard({
       )}
 
       {/* GESTOR ALERTS: TO APPROVE QUEUE IF OFFICER LOGGED */}
-      {(userLogged.role === 'COMANDANTE' || userLogged.role === 'ADMIN') && pendentesGestor.length > 0 && (
+      {(userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') && pendentesGestor.length > 0 && (
         <div className="bg-gradient-to-r from-cyber-amber/20 to-cyber-amber/5 border-2 border-cyber-amber p-4 rounded-xl flex flex-col relative overflow-hidden shadow-[0_0_20px_rgba(255,179,0,0.4)] animate-pulse shadow-cyber-amber/30 backdrop-blur-sm">
           <div className="flex items-center space-x-3 mb-3">
             <div className="bg-cyber-amber text-black p-2 rounded-full animate-bounce">
@@ -657,6 +657,7 @@ export default function Dashboard({
               {/* Action button to trigger swap */}
               <button
                 onClick={() => {
+                  if (!userLogged) return;
                   const simulatedScale: Escala = {
                     id: `S-TEMP-${Date.now()}`,
                     militarId: userLogged.id,
@@ -751,10 +752,12 @@ export default function Dashboard({
             {/* Content Area */}
             <div className="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-3 bg-[#020709]/55" id="modal-content">
               {(() => {
-                const homologated = permutas.filter(p => p.status === 'APROVADO');
+                const homologated = permutas
+                  .filter(p => p.status === 'APROVADO')
+                  .sort((a, b) => new Date(a.dataRealizacao).getTime() - new Date(b.dataRealizacao).getTime());
                 const filtered = homologated.filter(p => {
                   if (modalFilter === 'MINHAS') {
-                    return p.militarSubstituidoId === userLogged.id || p.militarSubstitutoId === userLogged.id;
+                    return p.militarSubstituidoId === userLogged?.id || p.militarSubstitutoId === userLogged?.id;
                   }
                   return true;
                 });

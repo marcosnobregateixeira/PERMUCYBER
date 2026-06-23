@@ -7,21 +7,6 @@ import { Militar, Escala, Alerta, BlockchainLog, ChatMessage, Permuta } from './
 
 export const MILITARES: Militar[] = [
   {
-    id: 'M-101',
-    nome: 'Victor Salles',
-    nomeGuerra: 'Sgto. Salles',
-    patente: '3ºSGT',
-    quadro: 'QPPM',
-    role: 'USUARIO',
-    funcao: 'MÉDICO',
-    companhia: 'Diretoria de Saúde Militar',
-    especialidade: 'MÉDICO',
-    statusProntidao: 'EM_SERVICO',
-    chaveDigital: 'SECURE-NODE-SALLES-88XBF7',
-    biometriaAtiva: true,
-    pinSegurança: '1975'
-  },
-  {
     id: 'M-102',
     nome: 'Thiago Mendes',
     nomeGuerra: 'Sgto. Mendes',
@@ -205,24 +190,6 @@ export const ALERTAS_INICIAIS: Alerta[] = [
 
 export const ESCALAS_INICIAIS: Escala[] = [
   {
-    id: 'E-01',
-    militarId: 'M-101', // Sgto Salles
-    postoServico: 'AMBULÂNCIA',
-    data: '2026-06-21', // Amanhã
-    horaInicio: '06:00',
-    horaFim: '18:00',
-    turno: 'TURNO A'
-  },
-  {
-    id: 'E-02',
-    militarId: 'M-101', // Sgto Salles
-    postoServico: 'PSICOLOGIA',
-    data: '2026-06-24',
-    horaInicio: '18:00',
-    horaFim: '06:00',
-    turno: 'TURNO B'
-  },
-  {
     id: 'E-03',
     militarId: 'M-103', // Sgto Rodrigues
     postoServico: 'SERVIÇO SOCIAL',
@@ -248,42 +215,6 @@ export const ESCALAS_INICIAIS: Escala[] = [
     horaInicio: '06:00',
     horaFim: '18:00',
     turno: 'TURNO A'
-  },
-  {
-    id: 'E-06',
-    militarId: 'M-101', // Sgto Salles
-    postoServico: 'SERVIÇO SOCIAL',
-    data: '2026-05-15',
-    horaInicio: '06:00',
-    horaFim: '18:00',
-    turno: 'TURNO A'
-  },
-  {
-    id: 'E-07',
-    militarId: 'M-101', // Sgto Salles
-    postoServico: 'ODONTOLOGIA',
-    data: '2026-05-20',
-    horaInicio: '18:00',
-    horaFim: '06:00',
-    turno: 'TURNO B'
-  },
-  {
-    id: 'E-08',
-    militarId: 'M-101', // Sgto Salles
-    postoServico: 'PSICOLOGIA',
-    data: '2026-07-05',
-    horaInicio: '06:00',
-    horaFim: '18:00',
-    turno: 'TURNO A'
-  },
-  {
-    id: 'E-09',
-    militarId: 'M-101', // Sgto Salles
-    postoServico: 'AMBULÂNCIA',
-    data: '2026-07-22',
-    horaInicio: '00:00',
-    horaFim: '00:00',
-    turno: '24H'
   }
 ];
 
@@ -321,7 +252,7 @@ export function generateSimpleHash(content: string, previousHash: string = ''): 
 
 // Block 0, Block 1, Block 2 for simulation
 const genesisHash = '0xSHA256_GENESIS_BLOCK_ROOT_99AA88EE';
-const b1Hash = generateSimpleHash('Sgto Salles logado com sucesso de Terminal Bioterra', genesisHash);
+const b1Hash = generateSimpleHash('Sgto Mendes logado com sucesso de Terminal Bioterra', genesisHash);
 const b2Hash = generateSimpleHash('Criação do Protocolo Inicial PERMUCYBER', b1Hash);
 
 export const LOGS_INICIAIS: BlockchainLog[] = [
@@ -338,60 +269,13 @@ export const LOGS_INICIAIS: BlockchainLog[] = [
     id: 'L-02',
     timestamp: '2026-06-20 09:15:01',
     tipoEvento: 'LOGIN',
-    evento: 'Sgto. Salles autenticado com Biometria Multimodal e 2FA Ativo.',
-    militarEnvolvido: 'Sgto. Salles',
+    evento: 'Sgto. Mendes autenticado com Biometria Multimodal e 2FA Ativo.',
+    militarEnvolvido: 'Sgto. Mendes',
     hashAnterior: genesisHash,
     hashAtual: b1Hash
-  },
-  {
-    id: 'L-03',
-    timestamp: '2026-06-20 09:20:45',
-    tipoEvento: 'PERMUTA_CRIADA',
-    evento: 'Iniciado protocolo de permuta para escala ID [E-01] em 2026-06-21.',
-    militarEnvolvido: 'Sgto. Salles',
-    hashAnterior: b1Hash,
-    hashAtual: b2Hash
   }
 ];
 
-export const PERMUTAS_INICIAIS: Permuta[] = [
-  {
-    id: 'P-1001',
-    escalaSubstituidaId: 'E-01',
-    militarSubstituidoId: 'M-101', // Salles
-    militarSubstitutoId: 'M-102', // Mendes
-    dataSolicitacao: '2026-06-20',
-    dataRealizacao: '2026-06-21',
-    horaInicio: '06:00',
-    horaFim: '18:00',
-    turno: 'TURNO A',
-    postoServico: 'AMBULÂNCIA',
-    status: 'PENDENTE_SUBSTITUTO', // To serve as an immediate playground for Mendes!
-    comentarioAlteracao: undefined,
-    assinaturaSubstituida: 'DECADIGITAL:VICTOR_SALLES_MD5_SIGND_ACTIVE',
-    protocoloId: 'PEM-20260621-0089',
-    qrCode: 'PERMUCYBER_AUTH::PEM-20260621-0089::CYBERSEC_TACTICAL',
-    auditoriaHash: b2Hash
-  }
-];
+export const PERMUTAS_INICIAIS: Permuta[] = [];
 
-export const CHATS_INICIAIS: ChatMessage[] = [
-  {
-    id: 'C-01',
-    deMilitarId: 'M-101',
-    paraMilitarId: 'M-102',
-    conteudo: 'Mendes, iniciei a permuta da escala de amanhã (08h às 16h) na AMBULÂNCIA. Consegue validar pelo aplicativo?',
-    timestamp: '2026-06-20 09:21',
-    criptografada: true,
-    chaveCripto: 'AES-GCM-256-QUANTUM-NODE-SALLES'
-  },
-  {
-    id: 'C-02',
-    deMilitarId: 'M-102',
-    paraMilitarId: 'M-101',
-    conteudo: 'Aguarde um minuto, Sargento. Estou acessando o setor de saúde para avaliar meu intervalo de descanso legal.',
-    timestamp: '2026-06-20 09:25',
-    criptografada: true,
-    chaveCripto: 'AES-GCM-256-QUANTUM-NODE-MENDES'
-  }
-];
+export const CHATS_INICIAIS: ChatMessage[] = [];

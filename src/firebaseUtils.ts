@@ -48,12 +48,11 @@ export const seedInitialData = async (
   logs: BlockchainLog[],
   messages: ChatMessage[]
 ) => {
-  // Ensure every default militar exists in the Firestore database
-  for (const m of militares) {
-    const mRef = doc(db, 'militares', m.id);
-    const mSnap = await getDoc(mRef);
-    if (!mSnap.exists()) {
-      await setDoc(mRef, sanitizeForFirestore(m));
+  // Only seed if collections are completely empty to allow permanent deletions
+  const militaresSnap = await getDocs(collections.militares);
+  if (militaresSnap.empty) {
+    for (const m of militares) {
+      await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
     }
   }
 

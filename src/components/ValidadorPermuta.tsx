@@ -26,7 +26,7 @@ import { generateSimpleHash, formatarDataBR } from '../data';
 interface ValidadorPermutaProps {
   permuta: Permuta;
   allMilitares: Militar[];
-  userLogged: Militar;
+  userLogged?: Militar;
   onBack: () => void;
   onAccept: (permutaId: string, assinatura: string) => void;
   onDecline: (permutaId: string) => void;
@@ -133,6 +133,7 @@ export default function ValidadorPermuta({
   };
 
   const handleGenerateAutomatedSignature = () => {
+    if (!userLogged) return;
     const cipher = `CYBERSIGN::${userLogged.nomeGuerra.toUpperCase()}::${Math.floor(Date.now()/100).toString(16).toUpperCase()}::ACCEPT-PEER`;
     setDigitalSignatureHex(cipher);
     setIsSigned(true);

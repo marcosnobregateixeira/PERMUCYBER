@@ -21,7 +21,7 @@ import {
 import { Militar } from '../types';
 
 interface BiometricLoginProps {
-  userLogged: Militar;
+  userLogged?: Militar;
   allUsers: Militar[];
   onUserSelect: (userId: string) => void;
   onLoginSuccess: () => void;
@@ -79,12 +79,12 @@ export default function BiometricLogin({
     : [];
 
   const handleStartScan = () => {
-    if (scanState === 'SCANNING') return;
+    if (!userLogged || scanState === 'SCANNING') return;
     setScanState('SCANNING');
     setErrorText(null);
 
     // FIX: Allow admin to bypass biometric check if needed for trouble shooting or if biometrics is actially failing
-    if (userLogged.role === 'ADMIN' || userLogged.role === 'COMANDANTE') {
+    if (userLogged?.role === 'ADMIN' || userLogged?.role === 'COMANDANTE') {
       console.warn('Admin/Comandante biometric override bypass.');
       setScanState('GRANTED');
       setStage('PIN_2FA');
@@ -92,14 +92,14 @@ export default function BiometricLogin({
     }
 
     setTimeout(() => {
-      if (userLogged.biometriaAtiva) {
+      if (userLogged?.biometriaAtiva) {
         setScanState('GRANTED');
         
         // Check if first time for this particular logged user
-        const isAlreadyVerified = verifiedIds.includes(userLogged.id);
+        const isAlreadyVerified = userLogged ? verifiedIds.includes(userLogged.id) : false;
 
         setTimeout(() => {
-          if (!isAlreadyVerified) {
+          if (!isAlreadyVerified && userLogged) {
             // First time verifying! Generate list
             const nextList = [...verifiedIds, userLogged.id];
             setVerifiedIds(nextList);
@@ -124,11 +124,12 @@ export default function BiometricLogin({
 
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!userLogged) return;
     setErrorText(null);
-    console.log('PIN SUBMITTED:', pin, 'EXPECTED:', userLogged.pinSegurança, 'USER:', userLogged.id);
+    console.log('PIN SUBMITTED:', pin, 'EXPECTED:', userLogged?.pinSegurança, 'USER:', userLogged?.id);
 
     // Default or personalized pin security code check
-    if (pin === userLogged.pinSegurança) {
+    if (pin === userLogged?.pinSegurança) {
       setStage('SUCCESS');
       setTimeout(() => {
         onLoginSuccess();
@@ -202,7 +203,7 @@ export default function BiometricLogin({
                       setSearchQuery(e.target.value);
                       setShowSuggestions(true);
                     }}
-                    placeholder="Busque pelo Nome do Oficial (ex: Mendes, Salles)..."
+                    placeholder="Busque pelo Nome do PM (ex: Mendes, Rodrigues)..."
                     className="w-full bg-[#051319] border border-cyber-cyan/35 text-xs font-mono text-white pl-8 pr-3 py-2 rounded-md outline-none focus:border-cyber-blue focus:shadow-[0_0_8px_rgba(0,229,255,0.15)] transition-all placeholder:text-slate-500"
                   />
                   
@@ -242,10 +243,12 @@ export default function BiometricLogin({
                 <div className="flex items-center space-x-2 text-[8.5px] font-mono text-slate-400">
                   <span className="shrink-0 text-slate-500">Ou selecione na lista:</span>
                   <select
-                    value={userLogged.id}
+                    value={userLogged?.id || ''}
                     onChange={(e) => onUserSelect(e.target.value)}
                     className="flex-1 bg-[#051319]/60 border border-hud-border/70 text-[9px] font-mono text-white p-1 rounded outline-none cursor-pointer"
                   >
+                    <option value="" disabled className="text-slate-600">SELECIONAR MILITAR...</option>
+                    <option value="" disabled className="text-slate-600">SELECIONAR MILITAR...</option>
                     {allUsers.map((u) => (
                       <option key={u.id} value={u.id} className="bg-[#051319] text-white">
                         [{u.id}] {u.nomeGuerra} - {u.patente}
@@ -272,7 +275,7 @@ export default function BiometricLogin({
                 <button
                   type="button"
                   onClick={() => {
-                    const verified = verifiedIds.includes(userLogged.id);
+                    const verified = userLogged ? verifiedIds.includes(userLogged.id) : false;
                     if (verified) {
                       setActiveTab('CUSTOM_TOKEN');
                     } else {
@@ -283,17 +286,17 @@ export default function BiometricLogin({
                   className={`flex-1 py-1.5 text-[9.5px] font-mono uppercase font-bold tracking-wider transition-all border-b-2 flex items-center justify-center space-x-1 relative ${
                     activeTab === 'CUSTOM_TOKEN'
                       ? 'border-cyber-green text-white bg-cyber-green/5'
-                      : verifiedIds.includes(userLogged.id)
+                      : (userLogged && verifiedIds.includes(userLogged.id))
                       ? 'border-transparent text-[#00ff66]/80 hover:text-[#00ff66]'
                       : 'border-transparent text-slate-600 cursor-not-allowed'
                   }`}
                 >
-                  <Lock className={`w-3.5 h-3.5 ${verifiedIds.includes(userLogged.id) ? 'text-cyber-green' : 'text-slate-600'}`} />
+                  <Lock className={`w-3.5 h-3.5 ${(userLogged && verifiedIds.includes(userLogged.id)) ? 'text-cyber-green' : 'text-slate-600'}`} />
                   <span>2. Modificar Token</span>
-                  {!verifiedIds.includes(userLogged.id) && (
+                  {(!userLogged || !verifiedIds.includes(userLogged.id)) && (
                     <span className="absolute top-1.5 right-1 px-1 bg-cyber-red/20 text-cyber-red border border-cyber-red/35 rounded-sm text-[6.5px] scale-90">Bloqueado</span>
                   )}
-                  {verifiedIds.includes(userLogged.id) && (
+                  {(userLogged && verifiedIds.includes(userLogged.id)) && (
                     <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-cyber-green rounded-full animate-ping" />
                   )}
                 </button>
@@ -313,12 +316,22 @@ export default function BiometricLogin({
                         <Cpu className="w-5 h-5 text-cyber-cyan animate-pulse" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[7.5px] text-cyber-cyan font-mono uppercase tracking-widest font-extrabold">Oficial Selecionado</div>
-                        <div className="text-[12px] font-extrabold text-white truncate uppercase">
-                          {userLogged.nome}
+                        <div className="text-[7.5px] text-cyber-cyan font-mono uppercase tracking-widest font-extrabold">PM Selecionado</div>
+                        <div className="text-[12px] font-extrabold text-white truncate uppercase h-5 flex items-center">
+                          {userLogged ? userLogged.nome : (
+                            <span className="flex space-x-1.5">
+                              <span className="w-1.5 h-1.5 bg-cyber-cyan rounded-full animate-pulse"></span>
+                              <span className="w-1.5 h-1.5 bg-cyber-cyan rounded-full animate-pulse [animation-delay:200ms]"></span>
+                              <span className="w-1.5 h-1.5 bg-cyber-cyan rounded-full animate-pulse [animation-delay:400ms]"></span>
+                            </span>
+                          )}
                         </div>
-                        <div className="text-[8.5px] font-mono text-slate-400">
-                          ID: <span className="text-cyber-green font-bold">{userLogged.id}</span> • PATENTE: <span className="text-white uppercase font-bold">{userLogged.patente}</span>
+                        <div className="text-[8.5px] font-mono text-slate-400 h-4">
+                          {userLogged ? (
+                            <>ID: <span className="text-cyber-green font-bold">{userLogged.id}</span> • PATENTE: <span className="text-white uppercase font-bold">{userLogged.patente}</span></>
+                          ) : (
+                            <span className="text-[7px] text-slate-600 opacity-40 uppercase tracking-tighter italic">Selecione um Terminal Militar...</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -326,12 +339,12 @@ export default function BiometricLogin({
                     <div className="border-t border-hud-border/40 pt-2 grid grid-cols-2 gap-2 text-[8.5px] font-mono">
                       <div>
                         <span className="text-slate-500 uppercase font-black">Companhia:</span>
-                        <p className="text-slate-200 truncate">{userLogged.companhia}</p>
+                        <p className="text-slate-200 truncate h-3">{userLogged ? userLogged.companhia : '---'}</p>
                       </div>
                       <div>
                         <span className="text-slate-500 uppercase font-black">Biometria:</span>
-                        <p className={userLogged.biometriaAtiva ? 'text-cyber-green font-bold' : 'text-cyber-red font-bold'}>
-                          {userLogged.biometriaAtiva ? 'INTEGRADA' : 'INATIVA'}
+                        <p className={userLogged ? (userLogged.biometriaAtiva ? 'text-cyber-green font-bold' : 'text-cyber-red font-bold') : 'text-slate-700 font-bold h-3'}>
+                          {userLogged ? (userLogged.biometriaAtiva ? 'INTEGRADA' : 'INATIVA') : '---'}
                         </p>
                       </div>
                     </div>
@@ -340,8 +353,11 @@ export default function BiometricLogin({
                   {/* Fingerprint Laser scanning pad */}
                   <button
                     onClick={handleStartScan}
+                    disabled={!userLogged || scanState === 'SCANNING'}
                     className={`relative w-36 h-36 rounded-full flex flex-col items-center justify-center focus:outline-none transition-all duration-300 border overflow-hidden cursor-pointer ${
-                      scanState === 'SCANNING'
+                      !userLogged 
+                        ? 'bg-black/40 border-hud-border/20 grayscale cursor-not-allowed opacity-50'
+                        : scanState === 'SCANNING'
                         ? 'bg-cyber-cyan/5 border-cyber-blue shadow-[0_0_25px_rgba(0,229,255,0.2)]'
                         : scanState === 'GRANTED'
                         ? 'bg-cyber-green/5 border-cyber-green shadow-[0_0_25px_rgba(0,255,102,0.3)]'
@@ -423,7 +439,7 @@ export default function BiometricLogin({
                         Token Atual Armazenado:
                       </span>
                       <span className="text-sm font-black text-cyber-green font-mono tracking-widest pl-1">
-                        {userLogged.pinSegurança}
+                        {userLogged?.pinSegurança || '----'}
                       </span>
                     </div>
 
@@ -465,8 +481,10 @@ export default function BiometricLogin({
                             setTokenErrorMsg('Preencha exatamente os 4 dígitos numéricos.');
                             return;
                           }
-                          onUpdateMilitarPin?.(userLogged.id, customTokenInput);
-                          setTokenSuccessMsg('Token salvo individualmente com sucesso!');
+                          if (userLogged) {
+                            onUpdateMilitarPin?.(userLogged.id, customTokenInput);
+                            setTokenSuccessMsg('Token salvo individualmente com sucesso!');
+                          }
                           setCustomTokenInput('');
                           setTimeout(() => {
                             setTokenSuccessMsg(null);
@@ -579,9 +597,11 @@ export default function BiometricLogin({
 
               {/* Demo Hint */}
               <div className="mt-3 text-center">
-                <span className="text-[8.5px] font-mono text-slate-500 bg-hud-card border border-hud-border p-1 rounded inline-block">
-                  TOKEN CADASTRADO DO OFICIAL: <span className="text-cyber-green font-bold font-mono">{userLogged.pinSegurança}</span>
-                </span>
+                {userLogged && (
+                  <span className="text-[8.5px] font-mono text-slate-500 bg-hud-card border border-hud-border p-1 rounded inline-block">
+                    TOKEN CADASTRADO DO OFICIAL: <span className="text-cyber-green font-bold font-mono">{userLogged.pinSegurança}</span>
+                  </span>
+                )}
                 {errorText && (
                   <div className="mt-3 text-[9px] font-mono text-cyber-red animate-pulse flex items-center justify-center bg-cyber-red/10 border border-cyber-red/35 px-2.5 py-1 rounded">
                     <AlertTriangle className="w-3.5 h-3.5 mr-1 shrink-0" /> {errorText}
@@ -614,7 +634,7 @@ export default function BiometricLogin({
 
               <div className="font-mono text-[7.5px] text-[#00e5ff]/50 bg-hud-card p-2 border border-hud-border rounded text-left leading-relaxed">
                 HASH MILITAR ATIVO:<br />
-                <span className="text-cyber-blue font-bold tracking-tight">{userLogged.chaveDigital}</span>
+                <span className="text-cyber-blue font-bold tracking-tight">{userLogged?.chaveDigital || '---'}</span>
               </div>
             </motion.div>
           )}
@@ -641,7 +661,7 @@ export default function BiometricLogin({
             <div className="bg-[#031012] p-3 rounded-lg border border-hud-border/40 text-left font-mono space-y-1 gap-x-1">
               <span className="text-[8px] text-slate-400 block uppercase">Token de Segurança Inicial Alocado:</span>
               <div className="flex items-center justify-between">
-                <span className="text-base font-black text-white tracking-widest">{userLogged.pinSegurança}</span>
+                <span className="text-base font-black text-white tracking-widest">{userLogged?.pinSegurança || '---'}</span>
                 <span className="text-[8px] bg-cyber-green/20 text-cyber-green border border-cyber-green/30 px-1.5 rounded font-bold">ATIVO</span>
               </div>
             </div>

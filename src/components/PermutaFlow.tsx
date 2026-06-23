@@ -106,22 +106,22 @@ export default function PermutaFlow({
     if (!day) return null;
     const mCode = selectedMonth === 'MAIO' ? '05' : selectedMonth === 'JULHO' ? '07' : '06';
     const dateStr = `2026-${mCode}-${day.toString().padStart(2, '0')}`;
-    return escalas.find((e) => e.militarId === userLogged.id && e.data === dateStr);
+    return escalas.find((e) => e.militarId === userLogged?.id && e.data === dateStr);
   };
 
   // Sync selected date change to load any scheduled duty parameters
   useEffect(() => {
-    const activeScaleOnDay = escalas.find((e) => e.militarId === userLogged.id && e.data === selectedDate);
+    const activeScaleOnDay = escalas.find((e) => e.militarId === userLogged?.id && e.data === selectedDate);
     if (activeScaleOnDay) {
       setCustomHoraInicio(activeScaleOnDay.horaInicio);
       setCustomHoraFim(activeScaleOnDay.horaFim);
-      setCustomTurno(activeScaleOnDay.turno);
+      setCustomTurno(activeScaleOnDay.turno as any);
     }
-  }, [selectedDate, escalas, userLogged.id]);
+  }, [selectedDate, escalas, userLogged?.id]);
 
   // Pre-calculate AI Match compatibility score for matching levels (ALL other officers available)
   const militaresDisponiveis = allMilitares.filter(
-    (m) => m.id !== userLogged.id
+    (m) => m.id !== userLogged?.id
   );
 
   const candidatesWithAI = militaresDisponiveis.map((c) => {
@@ -135,7 +135,7 @@ export default function PermutaFlow({
     let status: 'RECOMMENDED' | 'COMPATIBLE' | 'BLOCKED' = 'RECOMMENDED';
 
     // If patente is different, mark compatible but keep selectable
-    if (c.patente !== userLogged.patente) {
+    if (userLogged && c.patente !== userLogged.patente) {
       score = 85;
       reason = `Rank diferente (${c.patente} vs ${userLogged.patente}). Habilitado para solicitação.`;
       status = 'COMPATIBLE';
@@ -145,7 +145,7 @@ export default function PermutaFlow({
       score = 45;
       reason = 'ATENÇÃO: Possui escala designada nesta data (alerta de choque/descanso). Habilitado para solicitação.';
       status = 'COMPATIBLE';
-    } else {
+    } else if (userLogged) {
       if (c.patente === userLogged.patente) {
         if (c.especialidade === 'MÉDICO' || c.especialidade === 'ENFERMEIRO' || c.especialidade === 'TEC. ENFERMAGEM') {
           score = 98;
@@ -255,6 +255,7 @@ export default function PermutaFlow({
 
   const handleGenerateAutomatedSignature = () => {
     // Generate simulated military SHA-256 signature cipher
+    if (!userLogged) return;
     const cipher = `CYBERSIGN::${userLogged.nomeGuerra.toUpperCase()}::${Math.floor(Date.now()/100).toString(16).toUpperCase()}::LEVEL_4`;
     setDigitalSignatureHex(cipher);
     setIsSigned(true);
@@ -282,6 +283,7 @@ export default function PermutaFlow({
 
     setIsSubmitting(true);
     try {
+      if (!userLogged) throw new Error('Militar não identificado.');
       // Create unique protocol id, QR string, and audit hashes
       const protocolDateFormatted = selectedDate.replace(/-/g, '');
       const protocoloId = `PEM-${protocolDateFormatted}-${Math.floor(Math.random() * 9000 + 1000)}`;

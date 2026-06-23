@@ -40,7 +40,7 @@ interface PainelGestorProps {
   permutas: Permuta[];
   allMilitares: Militar[];
   logs: BlockchainLog[];
-  userLogged: Militar;
+  userLogged?: Militar;
   escalas: Escala[];
   onApprovePermuta: (permutaId: string, gestorNome: string, gestorAssinatura: string) => void;
   onRejectPermuta: (permutaId: string) => void;
@@ -249,7 +249,7 @@ export default function PainelGestor({
       });
 
       const finalY = (doc as any).lastAutoTable.finalY || startY;
-      const comandante = (userLogged.role === 'COMANDANTE' || userLogged.role === 'ADMIN') ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
+      const comandante = (userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
       
       const sigY = finalY + 80;
       doc.setDrawColor(0, 0, 0);
@@ -306,7 +306,9 @@ export default function PainelGestor({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const pendentesGestor = permutas.filter(p => p.status === 'PENDENTE_GESTOR');
-  const historicoCompleto = permutas.filter(p => p.status !== 'PENDENTE_GESTOR' && p.status !== 'PENDENTE_SUBSTITUTO');
+  const historicoCompleto = permutas
+    .filter(p => p.status !== 'PENDENTE_GESTOR' && p.status !== 'PENDENTE_SUBSTITUTO')
+    .sort((a, b) => new Date(a.dataRealizacao).getTime() - new Date(b.dataRealizacao).getTime());
 
   // Simple stats
   const totalSolicitacoes = permutas.length;
@@ -314,6 +316,7 @@ export default function PainelGestor({
   const descansoMedioIndex = 98.2; // simulated tactical compliance
 
   const handleApprove = (pId: string) => {
+    if (!userLogged) return;
     const gestorAssinatura = `COMAS-CENTRAL::${userLogged.nomeGuerra.toUpperCase()}::SECURE-CRYPTO-OK-${Math.floor(Math.random()*1000).toString(16).toUpperCase()}`;
     onApprovePermuta(pId, userLogged.nomeGuerra, gestorAssinatura);
     setSelectedPermutaDetailId(null);
@@ -904,7 +907,10 @@ export default function PainelGestor({
                       </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                      {filteredPermutas.filter(p => p.status === 'APROVADO').map(p => {
+                      {filteredPermutas
+                        .filter(p => p.status === 'APROVADO')
+                        .sort((a, b) => new Date(a.dataRealizacao).getTime() - new Date(b.dataRealizacao).getTime())
+                        .map(p => {
                           const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
                           const substituido = allMilitares.find(m => m.id === p.militarSubstituidoId);
                           
@@ -947,7 +953,7 @@ export default function PainelGestor({
             <div className="mt-16 pt-8 text-center flex flex-col items-center text-[12px]">
                 <div className="w-64 border-t border-black mb-2"></div>
                 {(() => {
-                  const comandante = (userLogged.role === 'COMANDANTE' || userLogged.role === 'ADMIN') ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
+                  const comandante = (userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
                   return (
                     <React.Fragment>
                       <p className="font-bold">{comandante.nome.toUpperCase()} - {comandante.patente}</p>
@@ -1251,11 +1257,40 @@ export default function PainelGestor({
           </div>
 
           {/* User management list (Setor de Credenciais) */}
-          <div className="bg-hud-card border border-hud-border/80 rounded-xl p-3.5 space-y-3">
-            <span className="text-[9.5px] font-mono text-cyber-green uppercase tracking-wider block font-extrabold">
-              ✓ REGISTRO DE POLICIAIS
-            </span>
-            <div className="grid grid-cols-2 gap-2 text-[10px]">
+          <div className="bg-hud-card border border-hud-border/80 rounded-xl p-3.5 space-y-4">
+            <div className="flex items-center justify-between border-b border-hud-border/30 pb-3">
+              <span className="text-[9.5px] font-mono text-cyber-green uppercase tracking-wider block font-extrabold">
+                ✓ REGISTRO DE POLICIAIS
+              </span>
+              <div className="flex items-center space-x-1.5 text-cyber-blue text-[9px] font-mono bg-cyber-blue/10 px-2 py-0.5 rounded border border-cyber-blue/20">
+                <Search className="w-3 h-3" />
+                <span className="uppercase tracking-tighter">Motor de Busca Ativo</span>
+              </div>
+            </div>
+
+            {/* Search Input for Militares - MOVED UP FOR BETTER ACCESSIBILITY */}
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-3.5 w-3.5 text-slate-500 group-focus-within:text-cyber-cyan transition-colors" />
+              </div>
+              <input
+                type="text"
+                placeholder="LOCALIZAR POLICIAL PARA EDIÇÃO OU CONSULTA..."
+                value={militarSearchTerm}
+                onChange={(e) => setMilitarSearchTerm(e.target.value)}
+                className="w-full bg-[#03090b] border border-hud-border/60 hover:border-hud-border group-focus-within:border-cyber-cyan rounded-lg py-2.5 pl-9 pr-4 text-[10px] font-mono text-white placeholder-slate-600 focus:outline-none transition-all shadow-inner"
+              />
+              {militarSearchTerm && (
+                <button 
+                  onClick={() => setMilitarSearchTerm('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-white"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-[10px] pt-1">
                 <input type="text" placeholder="Nome Completo" value={newMilitarForm.nome} onChange={e => setNewMilitarForm({...newMilitarForm, nome: e.target.value})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white col-span-2" />
                 <input type="text" placeholder="Nome de Guerra" value={newMilitarForm.nomeGuerra} onChange={e => setNewMilitarForm({...newMilitarForm, nomeGuerra: e.target.value})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white col-span-2" />
                 
@@ -1358,35 +1393,13 @@ export default function PainelGestor({
               ✓ QUADRO ATIVO DE CREDENCIAIS
             </span>
             
-            {/* Search Input for Militares */}
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-3.5 w-3.5 text-slate-500 group-focus-within:text-cyber-cyan transition-colors" />
-              </div>
-              <input
-                type="text"
-                placeholder="BUSCAR POLICIAL POR NOME, GUERRA OU NUMERAL..."
-                value={militarSearchTerm}
-                onChange={(e) => setMilitarSearchTerm(e.target.value)}
-                className="w-full bg-[#03090b] border border-hud-border/60 hover:border-hud-border group-focus-within:border-cyber-cyan rounded-lg py-2 pl-9 pr-4 text-[10px] font-mono text-white placeholder-slate-600 focus:outline-none transition-all"
-              />
-              {militarSearchTerm && (
-                <button 
-                  onClick={() => setMilitarSearchTerm('')}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-white"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-            
             <div className="space-y-2 max-h-[290px] overflow-y-auto pr-1">
               {filteredMilitares.length === 0 ? (
                 <div className="text-center py-8 border border-dashed border-hud-border rounded-lg bg-black/20">
                   <span className="text-[10px] font-mono text-slate-600 uppercase tracking-widest">Nenhum registro localizado com estes parâmetros</span>
                 </div>
               ) : filteredMilitares.map((u) => {
-                const isSelected = u.id === userLogged.id;
+                const isSelected = u.id === userLogged?.id;
                 let roleTag = 'SUBSTITUÍDO';
                 if (u.id === 'M-102') roleTag = 'SUBSTITUTO';
                 if (u.id === 'M-202') roleTag = 'APROVADOR / COMANDO';
@@ -1650,7 +1663,8 @@ export default function PainelGestor({
                 <select
                   value={editingMilitar.role || 'USUARIO'}
                   onChange={e => setEditingMilitar({...editingMilitar, role: e.target.value as any})}
-                  className="bg-[#03090b] p-2 rounded border border-hud-border text-white text-xs"
+                  disabled={editingMilitar.id === userLogged?.id}
+                  className={`bg-[#03090b] p-2 rounded border border-hud-border text-white text-xs ${editingMilitar.id === userLogged?.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <option value="USUARIO">USUÁRIO (POLICIAL)</option>
                   <option value="COMANDANTE">COMANDANTE</option>

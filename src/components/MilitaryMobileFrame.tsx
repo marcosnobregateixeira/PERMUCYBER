@@ -9,7 +9,7 @@ import { Militar } from '../types';
 
 interface MilitaryMobileFrameProps {
   children: React.ReactNode;
-  userLogged: Militar;
+  userLogged?: Militar;
   allUsers: Militar[];
   onUserSwitch: (userId: string) => void;
   networkSecured: boolean;
@@ -106,8 +106,8 @@ export default function MilitaryMobileFrame({
           </div>
 
           <div className="flex items-center space-x-2">
-            <span className="text-[10px] text-cyber-cyan bg-cyber-cyan/10 px-1 border border-cyber-cyan/30 rounded uppercase font-bold tracking-tighter" title={`Acesso: ${userLogged.role}`}>
-              [{userLogged.role}] {userLogged.patente.slice(0, 3)}. {userLogged.nomeGuerra.split(' ')[1] || userLogged.nomeGuerra}
+            <span className="text-[10px] text-cyber-cyan bg-cyber-cyan/10 px-1 border border-cyber-cyan/30 rounded uppercase font-bold tracking-tighter" title={`Acesso: ${userLogged?.role || '---'}`}>
+              [{userLogged?.role || '---'}] {userLogged ? `${userLogged.patente.slice(0, 3)}. ${userLogged.nomeGuerra.split(' ')[1] || userLogged.nomeGuerra}` : 'TERMINAL AGUARDANDO'}
             </span>
             <span className="w-2 h-2 rounded-full bg-cyber-green animate-ping" />
           </div>
