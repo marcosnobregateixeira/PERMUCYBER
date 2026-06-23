@@ -59,24 +59,16 @@ export default function Dashboard({
   onAdjustPermuta,
   onUpdateAlerta
 }: DashboardProps) {
-  const getBrasiliaDate = () => {
-    const now = new Date();
-    const formatter = new Intl.DateTimeFormat('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    const parts = formatter.formatToParts(now);
-    const day = parseInt(parts.find(p => p.type === 'day')!.value);
-    const month = parseInt(parts.find(p => p.type === 'month')!.value);
-    const year = parseInt(parts.find(p => p.type === 'year')!.value);
-    return { day, month, year };
+  const today = new Date();
+  const realDay = today.getDate();
+  const monthNames: Record<number, string> = {
+    4: 'MAIO',
+    5: 'JUNHO',
+    6: 'JULHO'
   };
+  const realMonth = monthNames[today.getMonth()] || 'JUNHO';
 
-  const initialDate = getBrasiliaDate();
-  
-  const [selectedCalendarDay, setSelectedCalendarDay] = useState<number>(initialDate.day);
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<number>(realDay); 
   const [expandedHomologationId, setExpandedHomologationId] = useState<string | null>(null);
   const [showAjusteParaId, setShowAjusteParaId] = useState<string | null>(null);
   const [justificativaAjuste, setJustificativaAjuste] = useState('');
@@ -114,8 +106,7 @@ export default function Dashboard({
     (p) => (p.militarSubstituidoId === userLogged.id || p.militarSubstitutoId === userLogged.id)
   );
 
-  const initialMonth: 'MAIO' | 'JUNHO' | 'JULHO' = initialDate.month === 5 ? 'MAIO' : initialDate.month === 6 ? 'JUNHO' : 'JULHO';
-  const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO'>(initialMonth);
+  const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO'>(realMonth as any);
 
   // Full Month configuration for Maio, Junho, and Julho 2026
   const monthConfigs = {
@@ -502,10 +493,16 @@ export default function Dashboard({
       {/* TURNS CALENDAR - CALENDÁRIO DE TURNOS */}
       <div className="bg-hud-card border border-hud-border rounded-xl p-3.5 flex flex-col relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3 pb-2.5 border-b border-hud-border/30">
-          <h3 className="text-xs font-bold font-display text-white tracking-wider flex items-center uppercase">
-            <CalendarIcon className="w-4 h-4 text-cyber-blue mr-1.5" />
-            CALENDÁRIO TÁTICO MENSAL
-          </h3>
+          <div className="flex flex-col">
+            <h3 className="text-xs font-bold font-display text-white tracking-wider flex items-center uppercase">
+              <CalendarIcon className="w-4 h-4 text-cyber-blue mr-1.5" />
+              CALENDÁRIO TÁTICO MENSAL
+            </h3>
+            <div className="text-[9px] font-mono text-cyber-green mt-1 flex items-center">
+              <span className="w-1.5 h-1.5 bg-cyber-green rounded-full mr-1.5 animate-pulse" />
+              HOJE: {formatarDataBR(today.toISOString().split('T')[0])}
+            </div>
+          </div>
           
           {/* Month selector controls */}
           <div className="flex items-center space-x-1.5 bg-[#030d11] p-1 rounded-lg border border-hud-border/50 shrink-0">
@@ -567,7 +564,7 @@ export default function Dashboard({
 
             const hasScale = getDayScale(day);
             const isSelected = selectedCalendarDay === day;
-            const isToday = day === initialDate.day && selectedMonth === initialMonth;
+            const isTodaySimulated = day === realDay && selectedMonth === realMonth;
 
             return (
               <button
@@ -585,7 +582,7 @@ export default function Dashboard({
                 <span className="z-10">{day}</span>
 
                 {/* Simulated 'Today' border accent */}
-                {isToday && (
+                {isTodaySimulated && (
                   <div className="absolute top-0 left-0 w-1.5 h-1.5 bg-cyber-green rounded-br" title="Hoje" />
                 )}
 
