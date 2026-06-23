@@ -279,42 +279,44 @@ export default function Dashboard({
       </div>
 
       {/* QUICK STATUS HUD WIDGETS */}
-      <div className="grid grid-cols-2 gap-3">
-        {/* Radar scope representation */}
-        <div className="bg-hud-card border border-hud-border rounded-xl p-3 flex flex-col relative overflow-hidden">
-          <div className="absolute -right-6 -bottom-6 w-20 h-20 border border-cyber-cyan/15 rounded-full pointer-events-none flex items-center justify-center">
-            {/* Sweep radar ray */}
-            <div className="w-[1px] h-10 bg-gradient-to-t from-cyber-cyan to-transparent origin-bottom animate-radar" style={{ transformOrigin: 'bottom center' }} />
-            <div className="w-12 h-12 border border-cyber-cyan/10 rounded-full" />
+      {(userLogged.role === 'ADMIN' || userLogged.role === 'COMANDANTE') && (
+        <div className="grid grid-cols-2 gap-3" id="admin-exclusive-cards">
+          {/* Radar scope representation */}
+          <div className="bg-hud-card border border-hud-border rounded-xl p-3 flex flex-col relative overflow-hidden">
+            <div className="absolute -right-6 -bottom-6 w-20 h-20 border border-cyber-cyan/15 rounded-full pointer-events-none flex items-center justify-center">
+              {/* Sweep radar ray */}
+              <div className="w-[1px] h-10 bg-gradient-to-t from-cyber-cyan to-transparent origin-bottom animate-radar" style={{ transformOrigin: 'bottom center' }} />
+              <div className="w-12 h-12 border border-cyber-cyan/10 rounded-full" />
+            </div>
+            <span className="text-[9px] font-mono text-cyber-cyan tracking-wider uppercase">FATOR DE REPOUSO</span>
+            <div className="flex items-baseline space-x-1 mt-1 text-cyber-green text-2xl font-bold font-display neon-text-green">
+              <span>94.8%</span>
+              <span className="text-[10px] text-slate-400 font-mono tracking-normal">Acolhido</span>
+            </div>
+            <div className="flex items-center space-x-1 text-[8px] text-slate-500 font-mono mt-2">
+              <Activity className="w-3 h-3 text-cyber-green shrink-0 animate-pulse" />
+              <span>INTERVALO COERENTE DE 12h+</span>
+            </div>
           </div>
-          <span className="text-[9px] font-mono text-cyber-cyan tracking-wider uppercase">FATOR DE REPOUSO</span>
-          <div className="flex items-baseline space-x-1 mt-1 text-cyber-green text-2xl font-bold font-display neon-text-green">
-            <span>94.8%</span>
-            <span className="text-[10px] text-slate-400 font-mono tracking-normal">Acolhido</span>
-          </div>
-          <div className="flex items-center space-x-1 text-[8px] text-slate-500 font-mono mt-2">
-            <Activity className="w-3 h-3 text-cyber-green shrink-0 animate-pulse" />
-            <span>INTERVALO COERENTE DE 12h+</span>
-          </div>
-        </div>
 
-        {/* Scalability quick index */}
-        <div 
-          id="card-permutas-protocoladas"
-          onClick={() => setShowHomologadasModal(true)}
-          className="bg-hud-card border border-hud-border rounded-xl p-3 flex flex-col relative overflow-hidden cursor-pointer hover:border-cyber-blue hover:bg-cyber-blue/5 transition-all duration-200 group active:scale-[0.98]"
-        >
-          <span className="text-[9px] font-mono text-cyber-cyan tracking-wider uppercase group-hover:text-white transition-colors">PERMUTAS PROTOCOLADAS</span>
-          <div className="flex items-baseline space-x-2 mt-1 text-cyber-blue text-2xl font-bold font-display neon-text-blue group-hover:brightness-110 transition-all font-mono">
-            <span>{myInasCount(permutas, userLogged.id)}</span>
-            <span className="text-xs text-slate-400 font-mono">REGISTROS</span>
-          </div>
-          <div className="flex items-center space-x-1 text-[8px] text-slate-500 font-mono mt-2">
-            <Zap className="w-3 h-3 text-cyber-blue shrink-0 animate-bounce group-hover:text-cyber-cyan transition-colors" />
-            <span className="text-slate-400 group-hover:text-slate-200 transition-colors uppercase">CLIQUE PARA VER HOMOLOGADOS</span>
+          {/* Scalability quick index */}
+          <div 
+            id="card-permutas-protocoladas"
+            onClick={() => setShowHomologadasModal(true)}
+            className="bg-hud-card border border-hud-border rounded-xl p-3 flex flex-col relative overflow-hidden cursor-pointer hover:border-cyber-blue hover:bg-cyber-blue/5 transition-all duration-200 group active:scale-[0.98]"
+          >
+            <span className="text-[9px] font-mono text-cyber-cyan tracking-wider uppercase group-hover:text-white transition-colors">PERMUTAS PROTOCOLADAS</span>
+            <div className="flex items-baseline space-x-2 mt-1 text-cyber-blue text-2xl font-bold font-display neon-text-blue group-hover:brightness-110 transition-all font-mono">
+              <span>{myInasCount(permutas, userLogged.id)}</span>
+              <span className="text-xs text-slate-400 font-mono">REGISTROS</span>
+            </div>
+            <div className="flex items-center space-x-1 text-[8px] text-slate-500 font-mono mt-2">
+              <Zap className="w-3 h-3 text-cyber-blue shrink-0 animate-bounce group-hover:text-cyber-cyan transition-colors" />
+              <span className="text-slate-400 group-hover:text-slate-200 transition-colors uppercase">CLIQUE PARA VER HOMOLOGADOS</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ACTION ALERTS: SWAPS REQUIRING ATTENTION */}
       {pendentesSubstituto.length > 0 && (

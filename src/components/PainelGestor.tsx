@@ -29,7 +29,8 @@ import {
   Key,
   Trash2,
   User,
-  Edit
+  Edit,
+  Search
 } from 'lucide-react';
 import { Permuta, Militar, BlockchainLog, Escala, Role } from '../types';
 import { generateSimpleHash, formatarDataBR } from '../data';
@@ -128,6 +129,14 @@ export default function PainelGestor({
   const [dataFim, setDataFim] = useState<string>('');
   const [selectedPermutaDetailId, setSelectedPermutaDetailId] = useState<string | null>(null);
   const [justificativaAjuste, setJustificativaAjuste] = useState<string>('');
+  const [militarSearchTerm, setMilitarSearchTerm] = useState('');
+
+  const filteredMilitares = sortedMilitares.filter(m => 
+    m.nome.toLowerCase().includes(militarSearchTerm.toLowerCase()) ||
+    m.nomeGuerra.toLowerCase().includes(militarSearchTerm.toLowerCase()) ||
+    (m.numero && m.numero.includes(militarSearchTerm)) ||
+    m.id.toLowerCase().includes(militarSearchTerm.toLowerCase())
+  );
 
   const handleGerarPDF = async () => {
     try {
@@ -1349,8 +1358,34 @@ export default function PainelGestor({
               ✓ QUADRO ATIVO DE CREDENCIAIS
             </span>
             
+            {/* Search Input for Militares */}
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-3.5 w-3.5 text-slate-500 group-focus-within:text-cyber-cyan transition-colors" />
+              </div>
+              <input
+                type="text"
+                placeholder="BUSCAR POLICIAL POR NOME, GUERRA OU NUMERAL..."
+                value={militarSearchTerm}
+                onChange={(e) => setMilitarSearchTerm(e.target.value)}
+                className="w-full bg-[#03090b] border border-hud-border/60 hover:border-hud-border group-focus-within:border-cyber-cyan rounded-lg py-2 pl-9 pr-4 text-[10px] font-mono text-white placeholder-slate-600 focus:outline-none transition-all"
+              />
+              {militarSearchTerm && (
+                <button 
+                  onClick={() => setMilitarSearchTerm('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-white"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            
             <div className="space-y-2 max-h-[290px] overflow-y-auto pr-1">
-              {sortedMilitares.map((u) => {
+              {filteredMilitares.length === 0 ? (
+                <div className="text-center py-8 border border-dashed border-hud-border rounded-lg bg-black/20">
+                  <span className="text-[10px] font-mono text-slate-600 uppercase tracking-widest">Nenhum registro localizado com estes parâmetros</span>
+                </div>
+              ) : filteredMilitares.map((u) => {
                 const isSelected = u.id === userLogged.id;
                 let roleTag = 'SUBSTITUÍDO';
                 if (u.id === 'M-102') roleTag = 'SUBSTITUTO';

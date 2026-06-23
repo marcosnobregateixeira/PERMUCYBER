@@ -470,29 +470,7 @@ export default function App() {
       {!isLoggedIn ? (
         /* BIOMETRIC OR PASS LOGIN SCREEN */
         <div className="flex-1 flex flex-col h-full">
-          {/* Debug Depass access corner */}
-          <div className="absolute top-8 right-4 z-40 flex space-x-1.5">
-            <button
-              onClick={() => setIsLoggedIn(true)}
-              className="text-[9px] font-mono text-cyber-green bg-cyber-green/10 border border-cyber-green/30 hover:bg-cyber-green/20 px-2 py-1 rounded transition-all flex items-center space-x-1 animate-pulse"
-              id="bypass-login-btn"
-            >
-              <ShieldCheck className="w-3 h-3 text-cyber-green" />
-              <span>ACESSO DIRETO</span>
-            </button>
-            <button
-              onClick={() => {
-                handleUserChange('M-ADMIN-1');
-                setIsLoggedIn(true);
-              }}
-              className="text-[9px] font-mono text-cyber-amber bg-cyber-amber/10 border border-cyber-amber/35 hover:bg-cyber-amber/30 px-2.5 py-1 rounded transition-all flex items-center space-x-1 border-dashed"
-              id="bypass-admin-btn"
-              title="Acesso Rápido para Marcos Nobrega (Admin)"
-            >
-              <ShieldAlert className="w-3.5 h-3.5 text-cyber-amber animate-bounce" />
-              <span className="text-white">ENTRAR COMO MARCOS (ADMIN)</span>
-            </button>
-          </div>
+          {/* Biometric or pass login screen */}
           <BiometricLogin
             userLogged={loggedUser}
             allUsers={militares}
