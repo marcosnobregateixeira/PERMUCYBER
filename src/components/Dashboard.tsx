@@ -59,7 +59,24 @@ export default function Dashboard({
   onAdjustPermuta,
   onUpdateAlerta
 }: DashboardProps) {
-  const [selectedCalendarDay, setSelectedCalendarDay] = useState<number>(21); // default 21-06-2026
+  const getBrasiliaDate = () => {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const parts = formatter.formatToParts(now);
+    const day = parseInt(parts.find(p => p.type === 'day')!.value);
+    const month = parseInt(parts.find(p => p.type === 'month')!.value);
+    const year = parseInt(parts.find(p => p.type === 'year')!.value);
+    return { day, month, year };
+  };
+
+  const initialDate = getBrasiliaDate();
+  
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<number>(initialDate.day);
   const [expandedHomologationId, setExpandedHomologationId] = useState<string | null>(null);
   const [showAjusteParaId, setShowAjusteParaId] = useState<string | null>(null);
   const [justificativaAjuste, setJustificativaAjuste] = useState('');
@@ -97,7 +114,8 @@ export default function Dashboard({
     (p) => (p.militarSubstituidoId === userLogged.id || p.militarSubstitutoId === userLogged.id)
   );
 
-  const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO'>('JUNHO');
+  const initialMonth: 'MAIO' | 'JUNHO' | 'JULHO' = initialDate.month === 5 ? 'MAIO' : initialDate.month === 6 ? 'JUNHO' : 'JULHO';
+  const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO'>(initialMonth);
 
   // Full Month configuration for Maio, Junho, and Julho 2026
   const monthConfigs = {
@@ -549,7 +567,7 @@ export default function Dashboard({
 
             const hasScale = getDayScale(day);
             const isSelected = selectedCalendarDay === day;
-            const isTodaySimulated = day === 20 && selectedMonth === 'JUNHO';
+            const isToday = day === initialDate.day && selectedMonth === initialMonth;
 
             return (
               <button
@@ -567,7 +585,7 @@ export default function Dashboard({
                 <span className="z-10">{day}</span>
 
                 {/* Simulated 'Today' border accent */}
-                {isTodaySimulated && (
+                {isToday && (
                   <div className="absolute top-0 left-0 w-1.5 h-1.5 bg-cyber-green rounded-br" title="Hoje" />
                 )}
 
