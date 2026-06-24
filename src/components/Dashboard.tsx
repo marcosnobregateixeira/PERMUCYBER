@@ -566,7 +566,9 @@ export default function Dashboard({
 
             const hasScale = getDayScale(day);
             const isSelected = selectedCalendarDay === day;
-            const isTodaySimulated = day === 23 && selectedMonth === 'JUNHO';
+            const todayStrForGrid = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+            const loopDateStr = `2026-${currentMonthConfig.monthCode}-${day.toString().padStart(2, '0')}`;
+            const isTodayActual = loopDateStr === todayStrForGrid;
 
             return (
               <button
@@ -576,7 +578,7 @@ export default function Dashboard({
                 className={`aspect-square rounded-md border flex flex-col items-center justify-center transition-all relative overflow-hidden text-xs cursor-pointer ${
                   isSelected
                     ? 'bg-cyber-blue/15 border-cyber-blue text-white shadow-[0_0_8px_rgba(0,229,255,0.25)] font-bold'
-                    : isTodaySimulated
+                    : isTodayActual
                     ? 'bg-cyber-green/5 border-cyber-green/40 text-cyber-green'
                     : hasScale
                     ? 'bg-cyber-cyan/5 border-cyber-cyan/40 text-[#00e5ff] font-semibold hover:bg-cyber-cyan/15 hover:border-cyber-cyan'
@@ -586,7 +588,7 @@ export default function Dashboard({
                 <span className="z-10">{day}</span>
 
                 {/* Simulated 'Today' border accent */}
-                {isTodaySimulated && (
+                {isTodayActual && (
                   <div className="absolute top-0 left-0 w-1.5 h-1.5 bg-cyber-green rounded-br" title="Hoje" />
                 )}
 
@@ -609,11 +611,13 @@ export default function Dashboard({
           </div>
 
           {(() => {
+            const todayStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+            const actualToday = new Date(todayStr);
             const dateStr = `2026-${currentMonthConfig.monthCode}-${selectedCalendarDay.toString().padStart(2, '0')}`;
-            const simulatedToday = new Date('2026-06-23');
             const selectedDayDate = new Date(dateStr);
-            const isToday = selectedCalendarDay === 23 && selectedMonth === 'JUNHO';
-            const isPast = selectedDayDate < simulatedToday;
+            
+            const isPast = selectedDayDate < actualToday;
+            const isToday = dateStr === todayStr;
             const isBlocked = isToday || isPast;
             const scale = getDayScale(selectedCalendarDay);
 

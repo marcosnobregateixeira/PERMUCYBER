@@ -238,25 +238,6 @@ export default function ValidadorPermuta({
           </div>
         </div>
 
-        {/* RECOVERS STATS ANALYSIS BOX */}
-        <div className="bg-hud-card border border-hud-border rounded-xl p-3.5 flex flex-col space-y-1">
-          <span className="text-[9px] font-semibold text-cyber-cyan uppercase tracking-wider block">Requisitos de Escala</span>
-          <div className="grid grid-cols-2 gap-2 mt-2 font-mono">
-            <div className="bg-hud-bg/70 p-2.5 rounded border border-hud-border/40 text-center flex flex-col justify-center">
-              <span className="text-cyber-green font-bold text-xs uppercase tracking-wider">✓ 24h+ DESCANSO</span>
-              <span className="text-[7.5px] text-slate-500 uppercase tracking-tighter mt-1">INTERVALO POLICIAL</span>
-            </div>
-            <div className="bg-hud-bg/70 p-2.5 rounded border border-hud-border/40 text-center flex flex-col justify-center">
-              <span className={`font-bold text-xs uppercase tracking-wider ${militarSubstituido?.patente === militarSubstituto?.patente ? 'text-cyber-green' : 'text-cyber-amber'}`}>
-                {militarSubstituido?.patente === militarSubstituto?.patente ? '✓ MESMA PATENTE' : '⚠ PATENTES DIFERENTES'}
-              </span>
-              <span className="text-[7.5px] text-slate-500 uppercase tracking-tighter mt-1">
-                {(militarSubstituido?.patente || 'SOLDADO').toUpperCase()} ➔ {(militarSubstituto?.patente || 'SOLDADO').toUpperCase()}
-              </span>
-            </div>
-          </div>
-        </div>
-
         {/* SENDER REMARKS IF THERE IS ONE */}
         {permuta.comentarioAlteracao && (
           <div className="bg-[#1c1204]/40 border border-[#ffb300]/20 p-3 rounded-lg text-xs leading-relaxed text-slate-300">

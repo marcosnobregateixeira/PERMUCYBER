@@ -26,6 +26,7 @@ interface PermutaFlowProps {
   escala: Escala;
   allMilitares: Militar[];
   userLogged: Militar;
+  permutas: Permuta[];
   escalas: Escala[];
   onCancel: () => void;
   onSubmitPermuta: (novaPermuta: Permuta) => any;
@@ -36,6 +37,7 @@ export default function PermutaFlow({
   escala,
   allMilitares,
   userLogged,
+  permutas,
   escalas,
   onCancel,
   onSubmitPermuta,
@@ -282,13 +284,30 @@ export default function PermutaFlow({
     if (!selectedSubstituteId || !isSigned) return;
 
     // Hard validation for date: Cannot be today or past
-    const simulatedToday = new Date('2026-06-23');
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+    const actualToday = new Date(todayStr);
     const selectedDayDate = new Date(selectedDate);
-    const isToday = selectedDate === '2026-06-23';
-    const isPast = selectedDayDate < simulatedToday;
+    
+    const isToday = selectedDate === todayStr;
+    const isPast = selectedDayDate < actualToday;
 
     if (isToday || isPast) {
       alert("PROIBIDO: Não é permitido solicitar permutas para o dia atual ou datas retroativas. Selecione uma data futura no calendário.");
+      return;
+    }
+
+    // Verify if either the requester or the substitute already has a permuta on this date and shift
+    const hasConflict = permutas.some(p => {
+      if (p.dataRealizacao === selectedDate && p.turno === customTurno && p.status !== 'REJEITADO') {
+        if (p.militarSubstituidoId === userLogged.id || p.militarSubstitutoId === userLogged.id) return true;
+        if (p.militarSubstituidoId === selectedSubstituteId || p.militarSubstitutoId === selectedSubstituteId) return true;
+      }
+      return false;
+    });
+
+    if (hasConflict) {
+      alert("CONFLITO DETECTADO: Você ou o substituto já possuem uma permuta registrada para este mesmo dia e turno.");
       return;
     }
 
@@ -478,17 +497,19 @@ export default function PermutaFlow({
               );
             }
 
-            const isTodaySimulated = day === 23 && selectedMonth === 'JUNHO';
-            // Is this date selected?
             const monthCode = selectedMonth === 'MAIO' ? '05' : selectedMonth === 'JULHO' ? '07' : '06';
             const dateStr = `2026-${monthCode}-${day.toString().padStart(2, '0')}`;
             
             // Validation: Cannot select today or past dates
-            const simulatedToday = new Date('2026-06-23');
+            const now = new Date();
+            const todayStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+            const actualToday = new Date(todayStr);
             const selectedDayDate = new Date(dateStr);
-            const isToday = day === 23 && selectedMonth === 'JUNHO';
-            const isPast = selectedDayDate < simulatedToday;
+            
+            const isToday = dateStr === todayStr;
+            const isPast = selectedDayDate < actualToday;
             const isDisabled = isPast || isToday;
+            const isTodayActual = isToday;
             
             const isSelected = selectedDate === dateStr;
             const hasScale = getDayScale(day);
@@ -725,18 +746,6 @@ export default function PermutaFlow({
           </div>
         )}
 
-        {/* COMPREHENSIVE TEXT REMARK/COMMENT */}
-        <div className="space-y-1.5 font-sans">
-          <label className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center">
-            <FileEdit className="w-3.5 h-3.5 mr-1" /> JUSTIFICATIVA OU OBSERVAÇÃO (OPCIONAL)
-          </label>
-          <textarea
-            value={comentario}
-            onChange={(e) => setComentario(e.target.value)}
-            placeholder="Digite o motivo da troca ou compensações de serviço combinadas..."
-            className="w-full bg-[#051115] border border-hud-border rounded-lg p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyber-blue focus:ring-1 focus:ring-cyber-blue resize-none h-16"
-          />
-        </div>
 
         {/* SECURITY DIGITAL SECURE SIGNATURE */}
         <div className="space-y-2 font-sans">

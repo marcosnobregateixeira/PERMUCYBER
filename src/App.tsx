@@ -34,7 +34,9 @@ import {
   FileCheck,
   Clock,
   ShieldAlert,
-  PlusCircle
+  PlusCircle,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 
 import { db, auth } from './firebase';
@@ -70,6 +72,13 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<'DASHBOARD' | 'PERMUTAS' | 'CHAT' | 'GESTAO'>('DASHBOARD');
   const [activeSwapScale, setActiveSwapScale] = useState<Escala | null>(null);
   const [activeReviewPermuta, setActiveReviewPermuta] = useState<Permuta | null>(null);
+  const [showApproved, setShowApproved] = useState<boolean>(false);
+  const [showRejected, setShowRejected] = useState<boolean>(false);
+  const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
+
+  const toggleMonth = (monthKey: string) => {
+    setExpandedMonths(prev => ({ ...prev, [monthKey]: !prev[monthKey] }));
+  };
 
   useEffect(() => {
     // Seed data if missing
@@ -603,6 +612,7 @@ export default function App() {
                 escala={activeSwapScale}
                 allMilitares={militares}
                 userLogged={loggedUser}
+                permutas={permutas}
                 escalas={escalas}
                 onCancel={() => setActiveSwapScale(null)}
                 onSubmitPermuta={handleCreatePermuta}
@@ -670,31 +680,21 @@ export default function App() {
                         </button>
                       </div>
 
-                      {permutas.filter(p => p.militarSubstituidoId === loggedUser?.id || p.militarSubstitutoId === loggedUser?.id).length === 0 ? (
-                        <div className="bg-[#051115] border border-hud-border/40 p-6 rounded-xl text-center text-slate-500 font-sans text-xs">
-                          Nenhuma solicitação de troca encontrada. Para iniciar nova proposta, selecione uma escala na tela inicial do Dashboard.
-                        </div>
-                      ) : (
-                        <div className="space-y-3 font-sans">
-                          {permutas
-                            .filter(p => p.militarSubstituidoId === loggedUser?.id || p.militarSubstitutoId === loggedUser?.id)
-                            .sort((a, b) => {
-                              const priority: Record<string, number> = {
-                                'PENDENTE_SUBSTITUTO': 1,
-                                'PENDENTE_GESTOR': 2,
-                                'AJUSTE_GESTOR': 3,
-                                'APROVADO': 4,
-                                'ALTERACAO_SOLICITADA': 5,
-                                'REJEITADO_SUBSTITUTO': 6,
-                                'REJEITADO': 7
-                              };
-                              const pA = priority[a.status] || 99;
-                              const pB = priority[b.status] || 99;
-                              
-                              if (pA !== pB) return pA - pB;
-                              return new Date(a.dataRealizacao).getTime() - new Date(b.dataRealizacao).getTime();
-                            })
-                            .map((p) => {
+                      {(() => {
+                        const userPermutas = permutas.filter(p => p.militarSubstituidoId === loggedUser?.id || p.militarSubstitutoId === loggedUser?.id);
+                        if (userPermutas.length === 0) {
+                          return (
+                            <div className="bg-[#051115] border border-hud-border/40 p-6 rounded-xl text-center text-slate-500 font-sans text-xs">
+                              Nenhuma solicitação de troca encontrada. Para iniciar nova proposta, selecione uma escala na tela inicial do Dashboard.
+                            </div>
+                          );
+                        }
+
+                        const activePermutas = userPermutas.filter(p => p.status !== 'APROVADO' && p.status !== 'REJEITADO' && p.status !== 'REJEITADO_SUBSTITUTO');
+                        const approvedPermutas = userPermutas.filter(p => p.status === 'APROVADO');
+                        const rejectedPermutas = userPermutas.filter(p => p.status === 'REJEITADO' || p.status === 'REJEITADO_SUBSTITUTO');
+
+                        const renderPermutaItem = (p: Permuta) => {
                             const origin = militares.find(m => m.id === p.militarSubstituidoId);
                             const dest = militares.find(m => m.id === p.militarSubstitutoId);
                             
@@ -769,8 +769,9 @@ export default function App() {
                                        <span className="text-cyber-green/70 mr-1.5 font-bold">✓</span>
                                        <span>{formatarDataBR(p.dataRealizacao)} • {p.turno}</span>
                                      </div>
-                                     <div className="text-[9px] text-slate-500 font-mono">
-                                        Substituto: {dest?.nomeGuerra}
+                                     <div className="text-[9px] text-slate-500 font-mono text-right leading-tight">
+                                        De: {origin?.nomeGuerra}<br/>
+                                        Para: {dest?.nomeGuerra}
                                      </div>
                                   </div>
                                 )}
@@ -838,9 +839,107 @@ export default function App() {
                                 )}
                               </div>
                             );
-                          })}
-                        </div>
-                      )}
+                        };
+
+                        const sortPermutas = (a: Permuta, b: Permuta) => {
+                          const priority: Record<string, number> = {
+                            'PENDENTE_SUBSTITUTO': 1,
+                            'PENDENTE_GESTOR': 2,
+                            'AJUSTE_GESTOR': 3,
+                            'APROVADO': 4,
+                            'ALTERACAO_SOLICITADA': 5,
+                            'REJEITADO_SUBSTITUTO': 6,
+                            'REJEITADO': 7
+                          };
+                          const pA = priority[a.status] || 99;
+                          const pB = priority[b.status] || 99;
+                          if (pA !== pB) return pA - pB;
+                          return new Date(a.dataRealizacao).getTime() - new Date(b.dataRealizacao).getTime();
+                        };
+
+                        const groupAndRenderPermutas = (permutasList: Permuta[], groupPrefix: string) => {
+                          const sorted = [...permutasList].sort((a, b) => new Date(a.dataRealizacao).getTime() - new Date(b.dataRealizacao).getTime());
+                          
+                          const monthsNames: Record<string, string> = {
+                            '01': 'JANEIRO', '02': 'FEVEREIRO', '03': 'MARÇO', '04': 'ABRIL', '05': 'MAIO', '06': 'JUNHO',
+                            '07': 'JULHO', '08': 'AGOSTO', '09': 'SETEMBRO', '10': 'OUTUBRO', '11': 'NOVEMBRO', '12': 'DEZEMBRO'
+                          };
+
+                          const groups: { month: string; items: Permuta[] }[] = [];
+                          
+                          sorted.forEach(p => {
+                            const monthStr = p.dataRealizacao.split('-')[1];
+                            const monthName = monthsNames[monthStr] || monthStr;
+                            let group = groups.find(g => g.month === monthName);
+                            if (!group) {
+                              group = { month: monthName, items: [] };
+                              groups.push(group);
+                            }
+                            group.items.push(p);
+                          });
+
+                          return groups.map(g => {
+                            const key = `${groupPrefix}-${g.month}`;
+                            const isOpen = !!expandedMonths[key];
+                            return (
+                              <div key={g.month} className="mb-4 last:mb-0 bg-[#061217] rounded-lg border border-hud-border overflow-hidden">
+                                <button 
+                                  onClick={() => toggleMonth(key)}
+                                  className="w-full flex justify-between items-center p-3 text-[10px] text-slate-400 hover:text-white font-bold tracking-widest uppercase transition-colors"
+                                >
+                                  <span>{g.month} ({g.items.length})</span>
+                                  {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                </button>
+                                {isOpen && (
+                                  <div className="p-3 space-y-3 border-t border-hud-border/50 bg-[#03080a]">
+                                    {g.items.map(renderPermutaItem)}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          });
+                        };
+
+                        return (
+                          <div className="space-y-3 font-sans">
+                            {activePermutas.sort(sortPermutas).map(renderPermutaItem)}
+
+                            {approvedPermutas.length > 0 && (
+                              <div className="mt-6 border border-cyber-green/20 rounded-xl overflow-hidden bg-[#03080a]">
+                                <button 
+                                  onClick={() => setShowApproved(!showApproved)} 
+                                  className="w-full flex justify-between items-center bg-cyber-green/5 p-3 hover:bg-cyber-green/10 transition-all text-cyber-green text-[10px] font-mono uppercase font-bold"
+                                >
+                                  <span>✓ Permutas Homologadas ({approvedPermutas.length})</span>
+                                  {showApproved ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                </button>
+                                {showApproved && (
+                                  <div className="p-3 bg-[#03080a] border-t border-cyber-green/20">
+                                    {groupAndRenderPermutas(approvedPermutas, 'APPROVED')}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {rejectedPermutas.length > 0 && (
+                              <div className="mt-4 border border-cyber-red/20 rounded-xl overflow-hidden bg-[#03080a]">
+                                <button 
+                                  onClick={() => setShowRejected(!showRejected)} 
+                                  className="w-full flex justify-between items-center bg-cyber-red/5 p-3 hover:bg-cyber-red/10 transition-all text-cyber-red text-[10px] font-mono uppercase font-bold"
+                                >
+                                  <span>✕ Permutas Recusadas ({rejectedPermutas.length})</span>
+                                  {showRejected ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                </button>
+                                {showRejected && (
+                                  <div className="p-3 bg-[#03080a] border-t border-cyber-red/20">
+                                    {groupAndRenderPermutas(rejectedPermutas, 'REJECTED')}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}

@@ -305,6 +305,13 @@ export default function PainelGestor({
   const [showAjusteParaId, setShowAjusteParaId] = useState<string | null>(null);
   const [selectedHistoricId, setSelectedHistoricId] = useState<string | null>(null);
 
+  const [toastMessage, setToastMessage] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToastMessage({ msg, type });
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const pendentesGestor = permutas.filter(p => p.status === 'PENDENTE_GESTOR');
@@ -322,18 +329,21 @@ export default function PainelGestor({
     const gestorAssinatura = `COMAS-CENTRAL::${userLogged.nomeGuerra.toUpperCase()}::SECURE-CRYPTO-OK-${Math.floor(Math.random()*1000).toString(16).toUpperCase()}`;
     onApprovePermuta(pId, userLogged.nomeGuerra, gestorAssinatura);
     setSelectedPermutaDetailId(null);
+    showToast('OK! Permuta homologada com sucesso.', 'success');
   };
 
   const handleDelete = (pId: string) => {
     if (onDeletePermuta) {
       onDeletePermuta(pId);
       setSelectedPermutaDetailId(null);
+      showToast('OK! Registro excluído.', 'success');
     }
   };
 
   const handleReject = (pId: string) => {
     onRejectPermuta(pId);
     setSelectedPermutaDetailId(null);
+    showToast('OK! Permuta rejeitada.', 'success');
   };
 
   const handleSendAdjust = (pId: string) => {
@@ -342,10 +352,22 @@ export default function PainelGestor({
     setShowAjusteParaId(null);
     setJustificativaAjuste('');
     setSelectedPermutaDetailId(null);
+    showToast('OK! Solicitação de ajuste enviada para o policial.', 'success');
   };
 
   return (
     <div className="flex-1 flex flex-col p-4 bg-[#03080a] text-slate-100 select-none pb-12" id="painel-gestor-container">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div style={{ zIndex: 99999 }} className={`fixed top-10 left-1/2 transform -translate-x-1/2 px-5 py-3 rounded-xl text-center text-xs font-mono font-bold uppercase tracking-wider transition-all ${
+          toastMessage.type === 'success' 
+            ? 'bg-[#021c22] text-[#00ff66] border border-[#00ff66]/40 shadow-[0_0_20px_rgba(0,255,102,0.3)]' 
+            : 'bg-[#1c0202] text-cyber-red border border-cyber-red/40 shadow-[0_0_20px_rgba(255,0,51,0.3)]'
+        }`}>
+          {toastMessage.msg}
+        </div>
+      )}
+
       {/* COMPACT SUB TABS CONTROLS */}
       <div className="grid grid-cols-5 gap-1 bg-[#061217] p-1 rounded-lg border border-hud-border/70 mb-4 text-[10px] font-mono">
         <button
