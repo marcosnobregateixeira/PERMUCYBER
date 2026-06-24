@@ -406,7 +406,7 @@ export default function Dashboard({
                         <span className={`bg-cyber-amber/20 text-cyber-amber border border-cyber-amber/30 text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase ${index === 0 ? 'animate-pulse' : ''}`}>
                           {index === 0 ? 'PRÓXIMO DA FILA' : `FILA: ${index + 1}/${pendentesGestor.length}`}
                         </span>
-                        <h4 className="text-sm font-bold text-white uppercase">{p.postoServico} - {p.turno}</h4>
+                        <h4 className="text-sm font-bold text-white uppercase">{subsBy?.funcao || p.postoServico} - {p.turno}</h4>
                       </div>
                       
                       <div className="grid grid-cols-2 gap-3 mt-3">

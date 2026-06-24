@@ -478,7 +478,7 @@ export default function PainelGestor({
                         <span className="text-[8px] font-mono text-cyber-cyan uppercase font-bold tracking-tight bg-cyber-cyan/10 border border-cyber-cyan/20 px-1 rounded">
                           PROTOCOL {p.protocoloId}
                         </span>
-                        <h4 className="text-xs font-bold text-white truncate mt-1">{p.postoServico}</h4>
+                        <h4 className="text-xs font-bold text-white truncate mt-1">{subBy?.funcao || p.postoServico} - {p.turno}</h4>
                         <p className="text-[10px] font-mono text-slate-400 mt-0.5 truncate">
                           {subBy?.nomeGuerra} ➔ {subRepl?.nomeGuerra}
                         </p>
@@ -563,7 +563,7 @@ export default function PainelGestor({
                                         </div>
                                         <div className="flex items-center space-x-1.5 shrink-0 ml-1">
                                           <span className="text-[8px] text-slate-500 max-w-[80px] truncate uppercase font-sans">
-                                            {hPerm.postoServico}
+                                            {subBy?.funcao || hPerm.postoServico} - {hPerm.turno}
                                           </span>
                                           <span className={`text-[7.5px] font-bold uppercase ${statusColor}`}>
                                             {hPerm.status === 'APROVADO' ? 'APROVADA' : hPerm.status.replace('_', ' ')}
@@ -718,7 +718,7 @@ export default function PainelGestor({
                         >
                           <div className="min-w-0">
                             <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
-                              <span className="font-bold text-white text-[11px] uppercase tracking-wide">{h.postoServico}</span>
+                              <span className="font-bold text-white text-[11px] uppercase tracking-wide">{subBy?.funcao || h.postoServico} - {h.turno}</span>
                               <span className="text-[7px] bg-hud-card border border-hud-border text-slate-400 px-1 rounded font-mono">{h.protocoloId}</span>
                             </div>
                             <p className="text-[9.5px] text-slate-400 font-mono mt-0.5 truncate">
