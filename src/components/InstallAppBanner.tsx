@@ -70,19 +70,24 @@ export default function InstallAppBanner() {
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <button
-            onClick={handleInstallClick}
-            className="bg-cyber-cyan hover:bg-[#00b3cc] text-black font-bold font-mono uppercase text-[9px] px-3 py-1.5 rounded transition-all shadow-[0_0_10px_rgba(0,229,255,0.4)] flex items-center space-x-1"
-          >
-            {isInIframe ? (
-              <>
-                <span>Abrir App</span>
-                <ExternalLink className="w-3 h-3 ml-1" />
-              </>
-            ) : (
+          {isInIframe ? (
+            <a
+              href={window.location.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-cyber-cyan hover:bg-[#00b3cc] text-black font-bold font-mono uppercase text-[9px] px-3 py-1.5 rounded transition-all shadow-[0_0_10px_rgba(0,229,255,0.4)] flex items-center space-x-1"
+            >
+              <span>Abrir App</span>
+              <ExternalLink className="w-3 h-3 ml-1" />
+            </a>
+          ) : (
+            <button
+              onClick={handleInstallClick}
+              className="bg-cyber-cyan hover:bg-[#00b3cc] text-black font-bold font-mono uppercase text-[9px] px-3 py-1.5 rounded transition-all shadow-[0_0_10px_rgba(0,229,255,0.4)] flex items-center space-x-1"
+            >
               <span>Instalar</span>
-            )}
-          </button>
+            </button>
+          )}
           <button
             onClick={() => setShowBanner(false)}
             className="p-1.5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors"
