@@ -38,12 +38,6 @@ export default function InstallAppBanner() {
   }, []);
 
   const handleInstallClick = async () => {
-    if (isInIframe) {
-      // Cannot install from iframe, open in new tab
-      window.open(window.location.href, '_blank');
-      return;
-    }
-
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
@@ -72,19 +66,24 @@ export default function InstallAppBanner() {
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <button
-            onClick={handleInstallClick}
-            className="bg-cyber-cyan hover:bg-[#00b3cc] text-black font-bold font-mono uppercase text-[9px] px-3 py-1.5 rounded transition-all shadow-[0_0_10px_rgba(0,229,255,0.4)] flex items-center space-x-1"
-          >
-            {isInIframe ? (
-              <>
-                <span>Abrir App</span>
-                <ExternalLink className="w-3 h-3 ml-1" />
-              </>
-            ) : (
+          {isInIframe ? (
+            <a
+              href={window.location.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-cyber-cyan hover:bg-[#00b3cc] text-black font-bold font-mono uppercase text-[9px] px-3 py-1.5 rounded transition-all shadow-[0_0_10px_rgba(0,229,255,0.4)] flex items-center space-x-1"
+            >
+              <span>Abrir App</span>
+              <ExternalLink className="w-3 h-3 ml-1" />
+            </a>
+          ) : (
+            <button
+              onClick={handleInstallClick}
+              className="bg-cyber-cyan hover:bg-[#00b3cc] text-black font-bold font-mono uppercase text-[9px] px-3 py-1.5 rounded transition-all shadow-[0_0_10px_rgba(0,229,255,0.4)] flex items-center space-x-1"
+            >
               <span>Instalar</span>
-            )}
-          </button>
+            </button>
+          )}
           <button
             onClick={() => setShowBanner(false)}
             className="p-1.5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors"
@@ -107,9 +106,9 @@ export default function InstallAppBanner() {
             
             <div className="space-y-4 text-sm text-slate-300 font-sans leading-relaxed">
               {isIOS ? (
-                <p>Para instalar no <strong>iOS (iPhone/iPad)</strong>:<br/><br/>1. Toque no botão de <strong className="text-white">Compartilhar</strong> (quadrado com seta para cima) na barra inferior do Safari.<br/>2. Role para baixo e selecione <strong className="text-white">"Adicionar à Tela de Início"</strong>.</p>
+                <p>Este aplicativo não é baixado pela App Store. Para instalar no <strong>iOS (iPhone/iPad)</strong>:<br/><br/>1. Abra este link no navegador <strong>Safari</strong>.<br/>2. Toque no botão de <strong className="text-white">Compartilhar</strong> (quadrado com seta para cima) na barra inferior.<br/>3. Role para baixo e selecione <strong className="text-white">"Adicionar à Tela de Início"</strong>.</p>
               ) : (
-                <p>Para instalar no seu <strong>Android</strong> ou <strong>Computador</strong>:<br/><br/>1. Abra o menu de opções do seu navegador (três pontinhos).<br/>2. Selecione <strong className="text-white">"Instalar aplicativo"</strong> ou <strong className="text-white">"Adicionar à tela inicial"</strong>.</p>
+                <p>Este aplicativo não precisa da Play Store, ele é instalado direto pelo navegador.<br/><br/>Para instalar no seu <strong>Android</strong> ou <strong>Computador</strong>:<br/><br/>1. Abra o menu de opções do seu navegador (três pontinhos no canto superior).<br/>2. Selecione <strong className="text-white">"Instalar aplicativo"</strong> ou <strong className="text-white">"Adicionar à tela inicial"</strong>.</p>
               )}
             </div>
 

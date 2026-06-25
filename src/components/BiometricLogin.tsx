@@ -158,18 +158,7 @@ export default function BiometricLogin({
       {/* Brand Upper Title */}
       <div className="relative z-10 flex flex-col items-center mt-2.5 text-center">
         <div className="flex items-center space-x-2 text-cyber-blue drop-shadow-[0_0_10px_rgba(0,229,255,0.4)]">
-          <img 
-            src="/logo.jpg" 
-            alt="PM Permuta" 
-            className="w-10 h-10 object-cover rounded-full border border-cyber-cyan shadow-[0_0_15px_rgba(0,229,255,0.5)]"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              if (e.currentTarget.nextElementSibling) {
-                e.currentTarget.nextElementSibling.classList.remove('hidden');
-              }
-            }}
-          />
-          <Shield className="w-7 h-7 text-cyber-blue animate-pulse hidden" />
+          <Shield className="w-7 h-7 text-cyber-blue animate-pulse" />
           <h1 className="text-2xl font-black font-display tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyber-blue via-cyber-cyan to-white select-none">
             PERMUCYBER
           </h1>
