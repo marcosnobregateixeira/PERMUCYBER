@@ -73,7 +73,7 @@ export default function InstallAppBanner() {
               rel="noopener noreferrer"
               className="bg-cyber-cyan hover:bg-[#00b3cc] text-black font-bold font-mono uppercase text-[9px] px-3 py-1.5 rounded transition-all shadow-[0_0_10px_rgba(0,229,255,0.4)] flex items-center space-x-1"
             >
-              <span>Abrir App</span>
+              <span>Abrir no Navegador</span>
               <ExternalLink className="w-3 h-3 ml-1" />
             </a>
           ) : (
