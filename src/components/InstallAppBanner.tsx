@@ -63,9 +63,7 @@ export default function InstallAppBanner() {
     <>
       <div className="bg-[#061217] border-b border-cyber-cyan/30 p-3 flex items-center justify-between shadow-[0_4px_15px_rgba(0,229,255,0.1)] z-40 relative">
         <div className="flex items-center space-x-3 text-white">
-          <div className="bg-cyber-cyan/20 p-2 rounded-lg border border-cyber-cyan/40">
-            <Download className="w-5 h-5 text-cyber-cyan animate-pulse" />
-          </div>
+          <img src="/logo.jpg" alt="Logo" className="w-9 h-9 rounded-full border border-cyber-cyan/40 shadow-[0_0_10px_rgba(0,229,255,0.3)] object-cover" />
           <div>
             <h4 className="font-bold text-[11px] font-mono uppercase tracking-wider text-cyber-cyan">Baixar Aplicativo</h4>
             <p className="text-[9px] text-slate-400 font-sans mt-0.5">Disponível para Android, iOS e PC.</p>
