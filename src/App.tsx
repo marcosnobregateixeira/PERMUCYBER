@@ -17,6 +17,7 @@ import {
 import { Militar, Escala, Alerta, BlockchainLog, Permuta, ChatMessage, Role, BackupSnapshot, AppConfig } from './types';
 import MilitaryMobileFrame from './components/MilitaryMobileFrame';
 import BiometricLogin from './components/BiometricLogin';
+import InstallAppBanner from './components/InstallAppBanner';
 import Dashboard from './components/Dashboard';
 import PermutaFlow from './components/PermutaFlow';
 import ValidadorPermuta from './components/ValidadorPermuta';
@@ -564,6 +565,7 @@ export default function App() {
       {!isLoggedIn ? (
         /* BIOMETRIC OR PASS LOGIN SCREEN */
         <div className="flex-1 flex flex-col h-full">
+          <InstallAppBanner />
           {/* Biometric or pass login screen */}
           <BiometricLogin
             userLogged={loggedUser}
