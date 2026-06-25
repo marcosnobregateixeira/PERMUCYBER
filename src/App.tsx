@@ -562,10 +562,10 @@ export default function App() {
       onUpdateMilitarNomeGuerra={handleUpdateMilitarNomeGuerra}
       isLoggedIn={isLoggedIn}
     >
+      <InstallAppBanner />
       {!isLoggedIn ? (
         /* BIOMETRIC OR PASS LOGIN SCREEN */
         <div className="flex-1 flex flex-col h-full">
-          <InstallAppBanner />
           {/* Biometric or pass login screen */}
           <BiometricLogin
             userLogged={loggedUser}
