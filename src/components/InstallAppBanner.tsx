@@ -106,9 +106,9 @@ export default function InstallAppBanner() {
             
             <div className="space-y-4 text-sm text-slate-300 font-sans leading-relaxed">
               {isIOS ? (
-                <p>Este aplicativo não é baixado pela App Store. Para instalar no <strong>iOS (iPhone/iPad)</strong>:<br/><br/>1. Abra este link no navegador <strong>Safari</strong>.<br/>2. Toque no botão de <strong className="text-white">Compartilhar</strong> (quadrado com seta para cima) na barra inferior.<br/>3. Role para baixo e selecione <strong className="text-white">"Adicionar à Tela de Início"</strong>.</p>
+                <p>Este aplicativo não é baixado pela App Store. Para instalar no <strong>iOS (iPhone/iPad)</strong>:<br/><br/>1. Abra este link no navegador <strong>Safari</strong> se ainda não estiver.<br/>2. Toque no botão de <strong className="text-white">Compartilhar</strong> (quadrado com seta para cima) na barra inferior.<br/>3. Role para baixo e selecione <strong className="text-white">"Adicionar à Tela de Início"</strong>.</p>
               ) : (
-                <p>Este aplicativo não precisa da Play Store, ele é instalado direto pelo navegador.<br/><br/>Para instalar no seu <strong>Android</strong> ou <strong>Computador</strong>:<br/><br/>1. Abra o menu de opções do seu navegador (três pontinhos no canto superior).<br/>2. Selecione <strong className="text-white">"Instalar aplicativo"</strong> ou <strong className="text-white">"Adicionar à tela inicial"</strong>.</p>
+                <p>Este aplicativo é um <strong>Web App</strong> e não baixa um arquivo instalador (.exe).<br/><br/>Para instalar no <strong>Computador / Notebook</strong>:<br/>1. Abra pelo navegador <strong>Google Chrome</strong> ou Edge.<br/>2. Procure um ícone de <strong className="text-white">Computador com uma setinha</strong> na barra de endereços (onde fica o site) e clique nele para Instalar.<br/>3. Ou clique nos <strong>3 pontinhos</strong> do navegador no canto superior direito e selecione <strong className="text-white">"Instalar Permuta Cyber..."</strong> ou <strong className="text-white">"Salvar e compartilhar &gt; Instalar página como app"</strong>.</p>
               )}
             </div>
 
