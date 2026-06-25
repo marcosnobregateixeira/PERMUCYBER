@@ -1,13 +1,21 @@
-self.addEventListener('install', (event) => {
-  self.skipWaiting();
-});
+const CACHE_NAME = 'permuta-cyber-v1';
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll([
+        '/',
+        '/index.html',
+        '/manifest.json'
+      ]);
+    })
+  );
 });
 
 self.addEventListener('fetch', (event) => {
-  // Just a pass-through to satisfy PWA requirements
-  // without risking cache.addAll failures.
-  event.respondWith(fetch(event.request).catch(() => new Response("Offline")));
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      return response || fetch(event.request);
+    })
+  );
 });
