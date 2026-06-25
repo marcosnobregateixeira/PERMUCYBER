@@ -70,11 +70,6 @@ export default function PermutaFlow({
   );
   
   // Signature pad states
-  const [isSigned, setIsSigned] = useState<boolean>(false);
-  const [digitalSignatureHex, setDigitalSignatureHex] = useState<string>('');
-  const [manualSignaturePoints, setManualSignaturePoints] = useState<{ x: number; y: number }[]>([]);
-  const [isDrawing, setIsDrawing] = useState<boolean>(false);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Full Month configuration for Maio, Junho, and Julho 2026
   const monthConfigs = {
@@ -172,116 +167,9 @@ export default function PermutaFlow({
   // Sort by score
   const sortedAIAdvice = [...candidatesWithAI].sort((a, b) => b.score - a.score);
 
-  useEffect(() => {
-    // If we have canvas, hook listeners
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.strokeStyle = '#00e5ff';
-        ctx.lineWidth = 2.5;
-        ctx.lineCap = 'round';
-      }
-    }
-  }, [canvasRef.current]);
-
-  const handleStartDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    setIsDrawing(true);
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    
-    // Get correct coordinates
-    let clientX, clientY;
-    if ('touches' in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-    
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-    }
-  };
-
-  const handleDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-
-    let clientX, clientY;
-    if ('touches' in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.lineTo(x, y);
-      ctx.stroke();
-      setManualSignaturePoints((prev) => [...prev, { x, y }]);
-      setIsSigned(true);
-    }
-  };
-
-  const handleStopDrawing = () => {
-    setIsDrawing(false);
-  };
-
-  const handleClearSignature = () => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-    }
-    setManualSignaturePoints([]);
-    setIsSigned(false);
-    setDigitalSignatureHex('');
-  };
-
-  const handleGenerateAutomatedSignature = () => {
-    // Generate simulated military SHA-256 signature cipher
-    if (!userLogged) return;
-    const cipher = `CYBERSIGN::${userLogged.nomeGuerra.toUpperCase()}::${Math.floor(Date.now()/100).toString(16).toUpperCase()}::LEVEL_4`;
-    setDigitalSignatureHex(cipher);
-    setIsSigned(true);
-
-    // Draw something on canvas programmatically to make it look active
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.beginPath();
-        ctx.strokeStyle = '#00ff66';
-        ctx.moveTo(10, 40);
-        ctx.lineTo(60, 20);
-        ctx.lineTo(120, 60);
-        ctx.lineTo(190, 10);
-        ctx.stroke();
-      }
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSubstituteId || !isSigned) return;
+    if (!selectedSubstituteId) return;
 
     // Hard validation for date: Cannot be today or past
     const now = new Date();
@@ -317,7 +205,7 @@ export default function PermutaFlow({
       // Create unique protocol id, QR string, and audit hashes
       const protocolDateFormatted = selectedDate.replace(/-/g, '');
       const protocoloId = `PEM-${protocolDateFormatted}-${Math.floor(Math.random() * 9000 + 1000)}`;
-      const signText = digitalSignatureHex || `DECADIGITAL::${userLogged.nomeGuerra.toUpperCase()}::${JSON.stringify(manualSignaturePoints).slice(0, 30)}`;
+      const signText = `CYBERSIGN::${userLogged.nomeGuerra.toUpperCase()}::${Math.floor(Date.now()/100).toString(16).toUpperCase()}::LEVEL_4`;
       
       // Find if user has actual scale on selected day to link properly
       const matchedScaleOnDay = escalas.find((esc) => esc.militarId === userLogged.id && esc.data === selectedDate);
@@ -609,82 +497,84 @@ export default function PermutaFlow({
           </div>
 
           {/* Candidates selector cards */}
-          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-            {(() => {
-              const filteredList = sortedAIAdvice.filter((item) => {
-                const matchSearch =
-                  item.militar.nomeGuerra.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  item.militar.especialidade.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  item.militar.patente.toLowerCase().includes(searchTerm.toLowerCase());
-                
-                if (useAIAdvice) {
-                  // Only high compatibility scores when AI suggestions are active
-                  return matchSearch && item.score >= 80;
+          {searchTerm.trim().length > 0 && (
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+              {(() => {
+                const filteredList = sortedAIAdvice.filter((item) => {
+                  const matchSearch =
+                    item.militar.nomeGuerra.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    item.militar.especialidade.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    item.militar.patente.toLowerCase().includes(searchTerm.toLowerCase());
+                  
+                  if (useAIAdvice) {
+                    // Only high compatibility scores when AI suggestions are active
+                    return matchSearch && item.score >= 80;
+                  }
+                  return matchSearch;
+                });
+
+                if (filteredList.length === 0) {
+                  return (
+                    <div className="text-center py-6 text-slate-500 text-xs font-mono border border-dashed border-hud-border/40 rounded-xl bg-[#03090b]/40">
+                      Nenhum policial encontrado para a pesquisa.
+                    </div>
+                  );
                 }
-                return matchSearch;
-              });
 
-              if (filteredList.length === 0) {
-                return (
-                  <div className="text-center py-6 text-slate-500 text-xs font-mono border border-dashed border-hud-border/40 rounded-xl bg-[#03090b]/40">
-                    Nenhum policial encontrado para a pesquisa.
-                  </div>
-                );
-              }
+                return filteredList.map((item) => {
+                  const isSelected = selectedSubstituteId === item.militar.id;
+                  const isBlocked = false;
 
-              return filteredList.map((item) => {
-                const isSelected = selectedSubstituteId === item.militar.id;
-                const isBlocked = false;
-
-                return (
-                  <div
-                    key={item.militar.id}
-                    onClick={() => setSelectedSubstituteId(item.militar.id)}
-                    className={`border rounded-xl p-3 flex flex-col justify-between transition-all relative overflow-hidden ${
-                      isSelected
-                        ? 'bg-cyber-cyan/15 border-cyber-blue shadow-[0_0_10px_rgba(0,229,255,0.2)] cursor-pointer'
-                        : 'bg-hud-card/60 border-hud-border/70 hover:border-cyber-cyan/50 hover:bg-hud-card cursor-pointer'
-                    }`}
-                    id={`ia-candidate-${item.militar.id}`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center space-x-2.5">
-                        <div className="w-8 h-8 rounded-full bg-cyber-cyan/15 border border-cyber-cyan/35 flex items-center justify-center font-bold text-xs text-cyber-cyan">
-                          {item.militar.nomeGuerra.split('.')[1]?.slice(0, 3).trim().toUpperCase() || 'SGT'}
+                  return (
+                    <div
+                      key={item.militar.id}
+                      onClick={() => setSelectedSubstituteId(item.militar.id)}
+                      className={`border rounded-xl p-3 flex flex-col justify-between transition-all relative overflow-hidden ${
+                        isSelected
+                          ? 'bg-cyber-cyan/15 border-cyber-blue shadow-[0_0_10px_rgba(0,229,255,0.2)] cursor-pointer'
+                          : 'bg-hud-card/60 border-hud-border/70 hover:border-cyber-cyan/50 hover:bg-hud-card cursor-pointer'
+                      }`}
+                      id={`ia-candidate-${item.militar.id}`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center space-x-2.5">
+                          <div className="w-8 h-8 rounded-full bg-cyber-cyan/15 border border-cyber-cyan/35 flex items-center justify-center font-bold text-xs text-cyber-cyan">
+                            {item.militar.nomeGuerra.split('.')[1]?.slice(0, 3).trim().toUpperCase() || 'SGT'}
+                          </div>
+                          <div>
+                            <h5 className="text-xs font-bold text-white mb-0.5">
+                              {item.militar.patente} {item.militar.nomeGuerra}
+                            </h5>
+                            <p className="text-[9px] text-slate-400 uppercase tracking-wide font-mono">
+                              {item.militar.especialidade}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h5 className="text-xs font-bold text-white mb-0.5">
-                            {item.militar.patente} {item.militar.nomeGuerra}
-                          </h5>
-                          <p className="text-[9px] text-slate-400 uppercase tracking-wide font-mono">
-                            {item.militar.especialidade}
-                          </p>
+
+                        {/* IA Match rate */}
+                        <div className="text-right">
+                          <span className={`text-[11px] font-bold ${
+                            item.score > 80 ? 'text-cyber-green' : item.score > 50 ? 'text-cyber-amber' : 'text-cyber-red'
+                          }`}>
+                            {item.score}%
+                          </span>
+                          <span className="text-[7px] text-slate-500 block uppercase">Compatibilidade</span>
                         </div>
                       </div>
 
-                      {/* IA Match rate */}
-                      <div className="text-right">
-                        <span className={`text-[11px] font-bold ${
-                          item.score > 80 ? 'text-cyber-green' : item.score > 50 ? 'text-cyber-amber' : 'text-cyber-red'
-                        }`}>
-                          {item.score}%
-                        </span>
-                        <span className="text-[7px] text-slate-500 block uppercase">Compatibilidade</span>
+                      {/* AI reason explanation */}
+                      <div className="bg-hud-bg/40 border-t border-hud-border/20 pt-2 mt-2 flex items-start space-x-1">
+                        <Sparkles className={`w-3 h-3 shrink-0 mt-0.5 ${isBlocked ? 'text-cyber-red' : 'text-cyber-cyan'}`} />
+                        <p className={`text-[9px] leading-relaxed ${isBlocked ? 'text-cyber-red/80' : 'text-slate-300'}`}>
+                          {item.reason}
+                        </p>
                       </div>
                     </div>
-
-                    {/* AI reason explanation */}
-                    <div className="bg-hud-bg/40 border-t border-hud-border/20 pt-2 mt-2 flex items-start space-x-1">
-                      <Sparkles className={`w-3 h-3 shrink-0 mt-0.5 ${isBlocked ? 'text-cyber-red' : 'text-cyber-cyan'}`} />
-                      <p className={`text-[9px] leading-relaxed ${isBlocked ? 'text-cyber-red/80' : 'text-slate-300'}`}>
-                        {item.reason}
-                      </p>
-                    </div>
-                  </div>
-                );
-              });
-            })()}
-          </div>
+                  );
+                });
+              })()}
+            </div>
+          )}
         </div>
 
         {/* DYNAMIC TIME SELECTOR REVEALED ON SELECTION */}
@@ -747,69 +637,6 @@ export default function PermutaFlow({
         )}
 
 
-        {/* SECURITY DIGITAL SECURE SIGNATURE */}
-        <div className="space-y-2 font-sans">
-          <label className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center justify-between">
-            <span className="flex items-center">
-              <ShieldCheck className="w-3.5 h-3.5 mr-1 text-cyber-cyan" /> ASSINATURA DO SOLICITANTE
-            </span>
-            <span className="text-[8px] text-cyber-amber bg-cyber-amber/15 px-1 rounded uppercase font-bold">OBRIGATÓRIO</span>
-          </label>
-
-          <div className="bg-[#051115] border border-hud-border rounded-xl p-3 space-y-2.5">
-            {/* Pad drawing area */}
-            <div className="relative">
-              <canvas
-                ref={canvasRef}
-                width={280}
-                height={80}
-                onMouseDown={handleStartDrawing}
-                onMouseMove={handleDrawing}
-                onMouseUp={handleStopDrawing}
-                onMouseLeave={handleStopDrawing}
-                onTouchStart={handleStartDrawing}
-                onTouchMove={handleDrawing}
-                onTouchEnd={handleStopDrawing}
-                className="w-full bg-[#020709] border border-hud-border/40 rounded-lg cursor-crosshair h-20 shadow-inner"
-              />
-              
-              {/* Overlay guides */}
-              {!isSigned && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-500 text-[10.5px] uppercase tracking-wider">
-                  Assine na tela ou use a assinatura automática
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-between items-center">
-              <button
-                type="button"
-                onClick={handleGenerateAutomatedSignature}
-                className="text-[9.5px] bg-cyber-green/10 text-cyber-green border border-cyber-green/30 px-3 py-1.5 rounded transition-all flex items-center space-x-1 uppercase font-bold font-mono"
-                id="sign-secure-token-btn"
-              >
-                <Edit3 className="w-3 h-3" />
-                <span>ASSINAR AUTOMATICAMENTE</span>
-              </button>
-              
-              <button
-                type="button"
-                onClick={handleClearSignature}
-                className="text-[9px] text-cyber-red bg-[#1a0508]/40 border border-[#441118]/30 px-3 py-1.5 rounded hover:bg-[#340b10] transition-all uppercase font-bold font-mono"
-              >
-                LIMPAR
-              </button>
-            </div>
-
-            {digitalSignatureHex && (
-              <div className="p-1 px-2.5 bg-[#00ff66]/10 border border-[#00ff66]/30 rounded text-[9.5px] text-cyber-green flex items-center space-x-1.5 font-sans justify-center py-1.5 animate-pulse-subtle">
-                <ShieldCheck className="w-4 h-4 shrink-0 text-cyber-green" />
-                <span className="font-bold uppercase tracking-wider">✓ Assinatura digital vinculada e homologada</span>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* DISMISS / TRANSMIT OPERATIONAL BUTTON ACTIONS */}
         <div className="grid grid-cols-2 gap-3.5 pt-2">
           <button
@@ -822,9 +649,9 @@ export default function PermutaFlow({
           
           <button
             type="submit"
-            disabled={!selectedSubstituteId || !isSigned}
+            disabled={!selectedSubstituteId}
             className={`w-full text-xs font-bold py-2.5 rounded-lg font-mono uppercase transition-all flex items-center justify-center space-x-1.5 ${
-              selectedSubstituteId && isSigned
+              selectedSubstituteId
                 ? 'bg-cyber-blue text-black hover:bg-cyber-cyan shadow-[0_0_15px_rgba(0,229,255,0.4)]'
                 : 'bg-hud-card border border-hud-border text-slate-500 cursor-not-allowed'
             }`}

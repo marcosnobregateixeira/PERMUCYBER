@@ -44,119 +44,12 @@ export default function ValidadorPermuta({
 }: ValidadorPermutaProps) {
   const [altComment, setAltComment] = useState<string>('');
   const [showAltInput, setShowAltInput] = useState<boolean>(false);
-  const [isSigned, setIsSigned] = useState<boolean>(false);
-  const [digitalSignatureHex, setDigitalSignatureHex] = useState<string>('');
-  
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [isDrawing, setIsDrawing] = useState<boolean>(false);
 
   const militarSubstituido = allMilitares.find(m => m.id === permuta.militarSubstituidoId);
   const militarSubstituto = allMilitares.find(m => m.id === permuta.militarSubstitutoId);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.strokeStyle = '#00ff66';
-        ctx.lineWidth = 2.5;
-        ctx.lineCap = 'round';
-      }
-    }
-  }, [canvasRef.current, showAltInput]);
-
-  const handleStartDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    setIsDrawing(true);
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    
-    let clientX, clientY;
-    if ('touches' in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-    
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-    }
-  };
-
-  const handleDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-
-    let clientX, clientY;
-    if ('touches' in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.lineTo(x, y);
-      ctx.stroke();
-      setIsSigned(true);
-    }
-  };
-
-  const handleStopDrawing = () => {
-    setIsDrawing(false);
-  };
-
-  const handleClearSignature = () => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-    }
-    setIsSigned(false);
-    setDigitalSignatureHex('');
-  };
-
-  const handleGenerateAutomatedSignature = () => {
-    if (!userLogged) return;
-    const cipher = `CYBERSIGN::${userLogged.nomeGuerra.toUpperCase()}::${Math.floor(Date.now()/100).toString(16).toUpperCase()}::ACCEPT-PEER`;
-    setDigitalSignatureHex(cipher);
-    setIsSigned(true);
-
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.beginPath();
-        ctx.strokeStyle = '#00ff66';
-        ctx.moveTo(15, 30);
-        ctx.lineTo(75, 45);
-        ctx.lineTo(135, 15);
-        ctx.lineTo(210, 55);
-        ctx.stroke();
-      }
-    }
-  };
-
   const handleAcceptClick = () => {
-    if (!isSigned) return;
-    const sigText = digitalSignatureHex || `DECADIGITAL::PEER_MENDES_OK_VERIFIED`;
+    const sigText = `CYBERSIGN::${userLogged?.nomeGuerra?.toUpperCase() || 'UNKNOWN'}::${Math.floor(Date.now()/100).toString(16).toUpperCase()}::ACCEPT-PEER`;
     onAccept(permuta.id, sigText);
   };
 
@@ -250,76 +143,12 @@ export default function ValidadorPermuta({
         {!showAltInput ? (
           <div className="space-y-4">
             
-            {/* SIGNATURE SECURITY INTERFACE */}
-            <div className="bg-[#051115] border border-hud-border rounded-xl p-3 space-y-2">
-              <label className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                <span className="flex items-center">
-                  <Lock className="w-3.5 h-3.5 mr-1 text-cyber-green" /> ASSINATURA DIGITAL
-                </span>
-                <span className="text-[8.5px] text-cyber-amber bg-[#ffb300]/10 border border-[#ffb300]/20 px-1.5 rounded uppercase font-bold">REQUERIDO</span>
-              </label>
-
-              <div className="relative">
-                <canvas
-                  ref={canvasRef}
-                  width={280}
-                  height={80}
-                  onMouseDown={handleStartDrawing}
-                  onMouseMove={handleDrawing}
-                  onMouseUp={handleStopDrawing}
-                  onMouseLeave={handleStopDrawing}
-                  onTouchStart={handleStartDrawing}
-                  onTouchMove={handleDrawing}
-                  onTouchEnd={handleStopDrawing}
-                  className="w-full bg-[#020709] border border-hud-border/40 rounded-lg cursor-crosshair h-20 shadow-inner"
-                />
-                
-                {!isSigned && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-500 text-[10.5px] uppercase tracking-wider">
-                    Assine na tela ou use a assinatura automática
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-between items-center font-mono">
-                <button
-                  type="button"
-                  onClick={handleGenerateAutomatedSignature}
-                  className="text-[9.5px] bg-cyber-green/10 text-cyber-green hover:bg-cyber-green/20 border border-cyber-green/35 px-2.5 py-1.5 rounded transition-all flex items-center space-x-1 uppercase font-bold"
-                  id="sign-secure-token-sub-btn"
-                >
-                  <Edit3 className="w-3 h-3" />
-                  <span>ASSINAR AUTOMATICAMENTE</span>
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={handleClearSignature}
-                  className="text-[9px] text-cyber-red bg-[#1a0508]/40 border border-[#441118]/30 px-2.5 py-1.5 rounded hover:bg-[#340b10] transition-all uppercase font-bold"
-                >
-                  LIMPAR
-                </button>
-              </div>
-
-              {digitalSignatureHex && (
-                <div className="p-1 px-2.5 bg-[#00ff66]/10 border border-[#00ff66]/30 rounded text-[9.5px] text-cyber-green flex items-center space-x-1.5 justify-center py-1.5 animate-pulse-subtle">
-                  <ShieldCheck className="w-4 h-4 shrink-0 text-cyber-green" />
-                  <span className="font-bold uppercase tracking-wider">✓ Assinatura eletrônica vinculada</span>
-                </div>
-              )}
-            </div>
-
             {/* BUTTONS ROW: DECLINE, CHANGE REQUEST, ACCEPT */}
             <div className="flex flex-col space-y-2 pt-2">
               <button
                 type="button"
                 onClick={handleAcceptClick}
-                disabled={!isSigned}
-                className={`w-full text-xs font-bold py-3 rounded-lg font-mono uppercase transition-all flex items-center justify-center space-x-1.5 ${
-                  isSigned
-                    ? 'bg-cyber-green text-black hover:bg-[#00ff66]/90 shadow-[0_0_15px_rgba(0,255,102,0.4)]'
-                    : 'bg-hud-card border border-hud-border text-slate-500 cursor-not-allowed'
-                }`}
+                className="w-full text-xs font-bold py-3 rounded-lg font-mono uppercase transition-all flex items-center justify-center space-x-1.5 bg-cyber-green text-black hover:bg-[#00ff66]/90 shadow-[0_0_15px_rgba(0,255,102,0.4)]"
                 id="accept-swap-btn"
               >
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
