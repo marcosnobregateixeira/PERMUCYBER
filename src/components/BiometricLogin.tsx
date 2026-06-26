@@ -95,17 +95,12 @@ export default function BiometricLogin({
       if (userLogged?.biometriaAtiva) {
         setScanState('GRANTED');
         
-        // Check if first time for this particular logged user
-        const isAlreadyVerified = userLogged ? verifiedIds.includes(userLogged.id) : false;
+        // Check if first time for this particular logged user (has default PIN)
+        const isFirstTime = !userLogged?.pinSegurança || userLogged.pinSegurança === '1234';
 
         setTimeout(() => {
-          if (!isAlreadyVerified && userLogged) {
-            // First time verifying! Generate list
-            const nextList = [...verifiedIds, userLogged.id];
-            setVerifiedIds(nextList);
-            localStorage.setItem('pm_verified_biometric_ids', JSON.stringify(nextList));
-            
-            // Show awesome success alert and open customization tab
+          if (isFirstTime && userLogged) {
+            // First time verifying! Show popup and open customization tab
             setShowFirstTimeSuccessPopup(true);
             setActiveTab('CUSTOM_TOKEN');
             setScanState('IDLE');
@@ -433,22 +428,12 @@ export default function BiometricLogin({
                   </div>
 
                   <div className="space-y-3 font-sans">
-                    {/* Display of currently generated / configured token */}
-                    <div className="bg-[#030e12] p-2.5 rounded-lg border border-hud-border/40">
-                      <span className="text-[8px] font-mono text-slate-400 block uppercase mb-0.5">
-                        Token Atual Armazenado:
-                      </span>
-                      <span className="text-sm font-black text-cyber-green font-mono tracking-widest pl-1">
-                        {userLogged?.pinSegurança || '----'}
-                      </span>
-                    </div>
-
                     <div className="flex flex-col space-y-1">
                       <label className="text-[8.5px] font-bold font-mono text-slate-300 uppercase">
-                        Inserir Novo Token (4 dígitos numéricos):
+                        Inserir Novo PIN de Segurança (4 dígitos numéricos):
                       </label>
                       <input
-                        type="text"
+                        type="password"
                         maxLength={4}
                         value={customTokenInput}
                         onChange={(e) => {
@@ -456,7 +441,7 @@ export default function BiometricLogin({
                           setCustomTokenInput(val);
                           setTokenErrorMsg(null);
                         }}
-                        placeholder="Ex: 5543"
+                        placeholder="••••"
                         className="w-full bg-[#051319] border border-cyber-green/35 text-xs font-mono text-white p-2 text-center rounded-md outline-none focus:border-cyber-green focus:shadow-[0_0_8px_rgba(0,255,102,0.15)] transition-all tracking-[0.4em]"
                       />
                     </div>
@@ -597,11 +582,6 @@ export default function BiometricLogin({
 
               {/* Demo Hint */}
               <div className="mt-3 text-center">
-                {userLogged && (
-                  <span className="text-[8.5px] font-mono text-slate-500 bg-hud-card border border-hud-border p-1 rounded inline-block">
-                    TOKEN CADASTRADO DO OFICIAL: <span className="text-cyber-green font-bold font-mono">{userLogged.pinSegurança}</span>
-                  </span>
-                )}
                 {errorText && (
                   <div className="mt-3 text-[9px] font-mono text-cyber-red animate-pulse flex items-center justify-center bg-cyber-red/10 border border-cyber-red/35 px-2.5 py-1 rounded">
                     <AlertTriangle className="w-3.5 h-3.5 mr-1 shrink-0" /> {errorText}
@@ -651,23 +631,15 @@ export default function BiometricLogin({
             
             <div className="space-y-1">
               <h3 className="text-[12.5px] font-extrabold text-white uppercase tracking-wider">
-                BIOMETRIA GRAVADA PELA PRIMEIRA VEZ!
+                BIOMETRIA RECONHECIDA!
               </h3>
               <p className="text-[8px] font-mono text-cyber-green uppercase tracking-widest leading-none">
-                Reconhecimento Regimental de Proteção Ativado
+                Primeiro Acesso Detectado
               </p>
             </div>
 
-            <div className="bg-[#031012] p-3 rounded-lg border border-hud-border/40 text-left font-mono space-y-1 gap-x-1">
-              <span className="text-[8px] text-slate-400 block uppercase">Token de Segurança Inicial Alocado:</span>
-              <div className="flex items-center justify-between">
-                <span className="text-base font-black text-white tracking-widest">{userLogged?.pinSegurança || '---'}</span>
-                <span className="text-[8px] bg-cyber-green/20 text-cyber-green border border-cyber-green/30 px-1.5 rounded font-bold">ATIVO</span>
-              </div>
-            </div>
-
             <p className="text-[10px] text-slate-400 leading-snug">
-              Seu registro biométrico foi autenticado com sucesso. Liberamos a aba de configuração para você personalizar seu token com uma numeração privada.
+              Seu registro biométrico foi autenticado com sucesso. Para sua segurança, é necessário configurar um PIN pessoal (2FA) exclusivo e secreto.
             </p>
 
             <button
@@ -675,7 +647,7 @@ export default function BiometricLogin({
               onClick={() => setShowFirstTimeSuccessPopup(false)}
               className="w-full bg-cyber-green hover:bg-cyber-green/90 text-black font-mono font-bold text-[10px] uppercase py-2 rounded focus:outline-none transition-all cursor-pointer"
             >
-              CONFIGURAR MEU TOKEN INDIVIDUAL
+              CRIAR MEU PIN DE SEGURANÇA
             </button>
           </div>
         </div>

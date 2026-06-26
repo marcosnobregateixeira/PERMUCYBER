@@ -1567,7 +1567,7 @@ export default function PainelGestor({
 
                     <div className="flex items-center justify-between border-t border-hud-border/30 pt-2 text-[9.5px] font-mono">
                       <span className="text-slate-400">
-                        PIN / 2FA: <span className="font-bold text-cyber-green">{u.pinSegurança}</span>
+                        PIN / 2FA: <span className="font-bold text-cyber-green">****</span>
                       </span>
                       
                       {!isSelected && onUserSwitch && (
@@ -1707,11 +1707,11 @@ export default function PainelGestor({
               <div className="flex flex-col space-y-1">
                 <label className="text-[8.5px] font-mono text-slate-400 uppercase tracking-wider font-bold">PIN de Segurança (2FA)</label>
                 <input
-                  type="text"
+                  type="password"
                   value={editingMilitar.pinSegurança || ''}
                   onChange={e => setEditingMilitar({...editingMilitar, pinSegurança: e.target.value})}
                   className="bg-[#03090b] p-2 rounded border border-hud-border text-white font-mono text-xs"
-                  placeholder="PIN PIN"
+                  placeholder="••••"
                 />
               </div>
 
