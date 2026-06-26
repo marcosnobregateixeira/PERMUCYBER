@@ -11,6 +11,13 @@ export type Quadro = 'QOPM' | 'QOAPM' | 'QOCPM' | 'QPPM';
 
 export type Role = 'USUARIO' | 'COMANDANTE' | 'ADMIN';
 
+export interface Afastamento {
+  id: string;
+  motivo: 'FÉRIAS' | 'LICENÇA' | 'LUTO' | 'ATESTADO' | 'OUTROS';
+  dataInicio: string; // YYYY-MM-DD
+  dataFim: string; // YYYY-MM-DD
+}
+
 export interface Militar {
   id: string;
   nome: string;
@@ -27,6 +34,8 @@ export interface Militar {
   pinSegurança: string;
   matriculaFuncional?: string;
   numero?: string;
+  setor?: string;
+  afastamentos?: Afastamento[];
 }
 
 export interface Escala {
@@ -45,7 +54,8 @@ export type PermutaStatus =
   | 'APROVADO' 
   | 'REJEITADO' 
   | 'REJEITADO_SUBSTITUTO'
-  | 'AJUSTE_GESTOR';
+  | 'AJUSTE_GESTOR'
+  | 'SEM_EFEITO';
 
 export interface Permuta {
   id: string;

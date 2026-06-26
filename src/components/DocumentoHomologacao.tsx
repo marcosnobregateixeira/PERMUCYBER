@@ -77,9 +77,13 @@ export default function DocumentoHomologacao({
             </span>
           </div>
         </div>
-        <div className="bg-cyber-green/10 text-cyber-green border border-cyber-green/30 rounded px-2 py-0.5 text-[9px] font-mono font-bold tracking-tight shrink-0 flex items-center space-x-1">
+        <div className={`rounded px-2 py-0.5 text-[9px] font-mono font-bold tracking-tight shrink-0 flex items-center space-x-1 border ${
+          permuta.status === 'SEM_EFEITO' 
+            ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' 
+            : 'bg-cyber-green/10 text-cyber-green border-cyber-green/30'
+        }`}>
           <ShieldCheck className="w-3.5 h-3.5" />
-          <span>HOMOLOGADA</span>
+          <span>{permuta.status === 'SEM_EFEITO' ? 'TORNADO SEM EFEITO' : 'HOMOLOGADA'}</span>
         </div>
       </div>
 

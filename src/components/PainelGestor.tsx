@@ -30,7 +30,8 @@ import {
   Trash2,
   User,
   Edit,
-  Search
+  Search,
+  ChevronDown
 } from 'lucide-react';
 import { Permuta, Militar, BlockchainLog, Escala, Role } from '../types';
 import { generateSimpleHash, formatarDataBR } from '../data';
@@ -45,6 +46,7 @@ interface PainelGestorProps {
   onApprovePermuta: (permutaId: string, gestorNome: string, gestorAssinatura: string) => void;
   onRejectPermuta: (permutaId: string) => void;
   onAdjustPermuta: (permutaId: string, justificativa: string) => void;
+  onTornarSemEfeitoPermuta?: (permutaId: string) => void;
   onDeletePermuta?: (permutaId: string) => void;
   onRefreshData?: () => void;
   onImportMilitaresJSON?: (militares: Militar[]) => void;
@@ -85,6 +87,7 @@ export default function PainelGestor({
   onApprovePermuta,
   onRejectPermuta,
   onAdjustPermuta,
+  onTornarSemEfeitoPermuta,
   onDeletePermuta,
   onRefreshData,
   onImportMilitaresJSON,
@@ -109,6 +112,7 @@ export default function PainelGestor({
   const [newMilitarForm, setNewMilitarForm] = useState<Partial<Militar>>({ nome: '', nomeGuerra: '', patente: 'SD', funcao: 'ADM', quadro: 'QPPM', pinSegurança: '1234', numero: '', matriculaFuncional: '' });
   const [militarIdToDelete, setMilitarIdToDelete] = useState<string | null>(null);
   const [editingMilitar, setEditingMilitar] = useState<Militar | null>(null);
+  const [editPolicialTab, setEditPolicialTab] = useState<'GERAL' | 'AFASTAMENTOS'>('GERAL');
 
   const maskMF = (val: string) => {
     let v = val.replace(/\D/g, '');
@@ -125,9 +129,10 @@ export default function PainelGestor({
     if (v.length > 2) v = v.replace(/^(\d{2})(\d)/, '$1.$2');
     return v;
   };
-  const [reportTipo, setReportTipo] = useState<'GERAL' | 'INDIVIDUAL' | 'FUNCAO'>('GERAL');
+  const [reportTipo, setReportTipo] = useState<'GERAL' | 'INDIVIDUAL' | 'FUNCAO' | 'SETOR'>('GERAL');
   const [reportMilitarId, setReportMilitarId] = useState<string>('');
   const [reportFuncao, setReportFuncao] = useState<string>('');
+  const [reportSetor, setReportSetor] = useState<string>('');
   const [dataInicio, setDataInicio] = useState<string>('');
   const [dataFim, setDataFim] = useState<string>('');
   const [selectedPermutaDetailId, setSelectedPermutaDetailId] = useState<string | null>(null);
@@ -201,9 +206,11 @@ export default function PainelGestor({
         doc.text(`Policial: ${policialNome}`, 40, 125);
       } else if (reportTipo === 'FUNCAO' && reportFuncao) {
         doc.text(`Função: ${reportFuncao}`, 40, 125);
+      } else if (reportTipo === 'SETOR' && reportSetor) {
+        doc.text(`Setor: ${reportSetor}`, 40, 125);
       }
       
-      const tempY = ((reportTipo === 'INDIVIDUAL' && reportMilitarId) || (reportTipo === 'FUNCAO' && reportFuncao)) ? 145 : 130;
+      const tempY = ((reportTipo === 'INDIVIDUAL' && reportMilitarId) || (reportTipo === 'FUNCAO' && reportFuncao) || (reportTipo === 'SETOR' && reportSetor)) ? 145 : 130;
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
       doc.text("TURNOS:", 40, tempY);
@@ -213,7 +220,7 @@ export default function PainelGestor({
       
       const startY = tempY + 25;
 
-      const approvedPermutas = filteredPermutas.filter(p => p.status === 'APROVADO');
+      const approvedPermutas = filteredPermutas.filter(p => p.status === 'APROVADO' || p.status === 'SEM_EFEITO');
 
       const tableData = approvedPermutas.map(p => {
         const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
@@ -234,29 +241,32 @@ export default function PainelGestor({
 
         const subObj = formatMilitarRelatorio(substituto);
         const subdoObj = formatMilitarRelatorio(substituido);
+        const statusServico = p.status === 'SEM_EFEITO' ? 'TORNADO SEM EFEITO' : 'CUMPRIDA';
 
         return [
           p.turno,
           formatarDataBR(p.dataRealizacao),
           subObj,
           subdoObj,
-          homolStr
+          homolStr,
+          statusServico
         ];
       });
 
       autoTable(doc, {
         startY: startY,
-        head: [['TURNO', 'DATA', 'MILITAR SUBSTITUTO', 'MILITAR SUBSTITUÍDO', 'DADOS DA HOMOLOGAÇÃO']],
+        head: [['TURNO', 'DATA', 'MILITAR SUBSTITUTO', 'MILITAR SUBSTITUÍDO', 'DADOS DA HOMOLOGAÇÃO', 'STATUS DO SERVIÇO']],
         body: tableData,
         theme: 'grid',
         headStyles: { fillColor: [40, 40, 45], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, halign: 'center' },
         styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak', halign: 'center', valign: 'middle' },
         columnStyles: {
-          0: { cellWidth: 45 },
-          1: { cellWidth: 55 },
+          0: { cellWidth: 40 },
+          1: { cellWidth: 50 },
           2: { cellWidth: 'auto' },
           3: { cellWidth: 'auto' },
-          4: { cellWidth: 120, fontSize: 6.5 }
+          4: { cellWidth: 100, fontSize: 6.5 },
+          5: { cellWidth: 70, fontSize: 6.5 }
         },
         alternateRowStyles: { fillColor: [250, 250, 250] }
       });
@@ -296,6 +306,11 @@ export default function PainelGestor({
         const substituido = allMilitares.find(m => m.id === p.militarSubstituidoId);
         if (substituto?.funcao !== reportFuncao && substituido?.funcao !== reportFuncao) matches = false;
     }
+    if (reportTipo === 'SETOR' && reportSetor) {
+        const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
+        const substituido = allMilitares.find(m => m.id === p.militarSubstituidoId);
+        if (substituto?.setor !== reportSetor && substituido?.setor !== reportSetor) matches = false;
+    }
     return matches;
   }).sort((a, b) => a.dataRealizacao.localeCompare(b.dataRealizacao));
 
@@ -320,6 +335,9 @@ export default function PainelGestor({
   const lastGestor = filteredPermutas.find(p => p.gestorNome)?.gestorNome;
   const [showAjusteParaId, setShowAjusteParaId] = useState<string | null>(null);
   const [selectedHistoricId, setSelectedHistoricId] = useState<string | null>(null);
+  const [isHistoricoExpanded, setIsHistoricoExpanded] = useState<boolean>(false);
+  const [historicoFilter, setHistoricoFilter] = useState<'TODAS' | 'APROVADAS' | 'REJEITADAS' | 'SEM_EFEITO'>('TODAS');
+  const [confirmSemEfeitoId, setConfirmSemEfeitoId] = useState<string | null>(null);
 
   const [toastMessage, setToastMessage] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
 
@@ -702,16 +720,67 @@ export default function PainelGestor({
 
           {/* HISTORIC SWAPS OF PREVIOUS RECORDS */}
           <div className="border-t border-hud-border/40 pt-4 mt-2">
-            <h3 className="text-xs font-bold font-display text-white tracking-wider uppercase mb-2 flex items-center">
-              <FileText className="w-4 h-4 text-cyber-cyan mr-1.5" />
-              REGISTROS FECHADOS DA GUARNIMENTO
-            </h3>
+            <button 
+              onClick={() => setIsHistoricoExpanded(!isHistoricoExpanded)}
+              className="w-full flex items-center justify-between text-left group"
+            >
+              <h3 className="text-xs font-bold font-display text-white tracking-wider uppercase flex items-center group-hover:text-cyber-cyan transition-colors">
+                <FileText className="w-4 h-4 text-cyber-cyan mr-1.5" />
+                REGISTROS FECHADOS DA GUARNIÇÃO
+              </h3>
+              <div className={`text-cyber-cyan transition-transform duration-300 ${isHistoricoExpanded ? 'rotate-180' : ''}`}>
+                <ChevronDown className="w-4 h-4" />
+              </div>
+            </button>
             
-            {historicoCompleto.length === 0 ? (
-              <p className="text-slate-500 font-mono text-[10px] text-center py-2">Sem histórico consolidado recente.</p>
-            ) : (
-              <div className="space-y-2">
-                {historicoCompleto.map((h) => {
+            {isHistoricoExpanded && (
+              <div className="mt-4">
+                
+                {/* Tabs de Filtro */}
+                <div className="flex space-x-1 border-b border-hud-border/40 pb-2 mb-3">
+                  <button
+                    onClick={() => setHistoricoFilter('TODAS')}
+                    className={`px-3 py-1 text-[9px] font-bold tracking-widest font-mono rounded ${historicoFilter === 'TODAS' ? 'bg-hud-border/60 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                  >
+                    TODAS
+                  </button>
+                  <button
+                    onClick={() => setHistoricoFilter('APROVADAS')}
+                    className={`px-3 py-1 text-[9px] font-bold tracking-widest font-mono rounded ${historicoFilter === 'APROVADAS' ? 'bg-cyber-green/20 text-cyber-green border border-cyber-green/30' : 'text-slate-500 hover:text-cyber-green/50'}`}
+                  >
+                    APROVADAS
+                  </button>
+                  <button
+                    onClick={() => setHistoricoFilter('REJEITADAS')}
+                    className={`px-3 py-1 text-[9px] font-bold tracking-widest font-mono rounded ${historicoFilter === 'REJEITADAS' ? 'bg-cyber-red/20 text-cyber-red border border-cyber-red/30' : 'text-slate-500 hover:text-cyber-red/50'}`}
+                  >
+                    REJEITADAS
+                  </button>
+                  <button
+                    onClick={() => setHistoricoFilter('SEM_EFEITO')}
+                    className={`px-3 py-1 text-[9px] font-bold tracking-widest font-mono rounded ${historicoFilter === 'SEM_EFEITO' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30' : 'text-slate-500 hover:text-amber-500/50'}`}
+                  >
+                    SEM EFEITO
+                  </button>
+                </div>
+
+                {historicoCompleto.filter(h => {
+                  if (historicoFilter === 'TODAS') return true;
+                  if (historicoFilter === 'APROVADAS') return h.status === 'APROVADO';
+                  if (historicoFilter === 'REJEITADAS') return h.status === 'REJEITADO' || h.status === 'REJEITADO_SUBSTITUTO';
+                  if (historicoFilter === 'SEM_EFEITO') return h.status === 'SEM_EFEITO';
+                  return true;
+                }).length === 0 ? (
+                  <p className="text-slate-500 font-mono text-[10px] text-center py-2">Sem registros para o filtro selecionado.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {historicoCompleto.filter(h => {
+                      if (historicoFilter === 'TODAS') return true;
+                      if (historicoFilter === 'APROVADAS') return h.status === 'APROVADO';
+                      if (historicoFilter === 'REJEITADAS') return h.status === 'REJEITADO' || h.status === 'REJEITADO_SUBSTITUTO';
+                      if (historicoFilter === 'SEM_EFEITO') return h.status === 'SEM_EFEITO';
+                      return true;
+                    }).map((h) => {
                   const subBy = allMilitares.find(m => m.id === h.militarSubstituidoId);
                   const subRepl = allMilitares.find(m => m.id === h.militarSubstitutoId);
                   const isApproved = h.status === 'APROVADO';
@@ -746,6 +815,8 @@ export default function PainelGestor({
                             <span className={`text-[8px] font-mono px-1 rounded border font-bold ${
                               isApproved 
                                 ? 'bg-cyber-green/10 text-cyber-green border-cyber-green/20' 
+                                : h.status === 'SEM_EFEITO' 
+                                ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                                 : 'bg-cyber-red/10 text-cyber-red border-cyber-red/20'
                             }`}>
                               {isApproved ? 'APROVADA' : h.status.replace(/_/g, ' ')}
@@ -772,9 +843,50 @@ export default function PainelGestor({
                       {isExpanded && (
                         <div className="px-3 pb-3 border-t border-hud-border/40 pt-2 bg-[#03090b]/40">
 
-                          {isApproved ? (
+                          {h.status === 'APROVADO' || h.status === 'SEM_EFEITO' ? (
                             <div className="space-y-2">
-                              <span className="text-[8px] font-mono text-cyber-cyan font-bold block uppercase tracking-wide">CERTIDÃO ARQUIVADA DE HOMOLOGAÇÃO:</span>
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-[8px] font-mono text-cyber-cyan font-bold block uppercase tracking-wide">CERTIDÃO ARQUIVADA DE HOMOLOGAÇÃO:</span>
+                                {onTornarSemEfeitoPermuta && h.status === 'APROVADO' && (
+                                  <div className="flex items-center space-x-2">
+                                    {confirmSemEfeitoId === h.id ? (
+                                      <>
+                                        <span className="text-[8px] font-mono text-amber-500 font-bold">CONFIRMAR?</span>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onTornarSemEfeitoPermuta(h.id);
+                                            setConfirmSemEfeitoId(null);
+                                            setSelectedHistoricId(null);
+                                          }}
+                                          className="bg-amber-500/20 hover:bg-amber-500/40 text-amber-500 border border-amber-500 text-[9px] font-bold py-1 px-3 rounded transition-colors uppercase tracking-wider"
+                                        >
+                                          DESEJA "TORNAR SEM EFEITO" PARA CONCLUIR
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setConfirmSemEfeitoId(null);
+                                          }}
+                                          className="text-slate-400 hover:text-white text-[9px] font-mono px-2 py-1"
+                                        >
+                                          CANCELAR
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setConfirmSemEfeitoId(h.id);
+                                        }}
+                                        className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 text-[9px] font-bold py-1 px-2 rounded transition-colors uppercase tracking-wider"
+                                      >
+                                        Tornar Sem Efeito
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                               <DocumentoHomologacao
                                 permuta={h}
                                 allMilitares={allMilitares}
@@ -800,6 +912,8 @@ export default function PainelGestor({
                 })}
               </div>
             )}
+            </div>
+          )}
           </div>
         </div>
       )}
@@ -891,10 +1005,11 @@ export default function PainelGestor({
                     <label className="text-[9px] font-mono text-slate-500 uppercase font-bold">Fim:</label>
                     <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="bg-[#020507] border border-hud-border rounded px-2 py-1 text-white" />
                 </div>
-                <select value={reportTipo} onChange={(e) => setReportTipo(e.target.value as 'GERAL' | 'INDIVIDUAL' | 'FUNCAO')} className="col-span-2 bg-[#020507] border border-hud-border rounded px-2 py-1 text-white mt-2">
+                <select value={reportTipo} onChange={(e) => setReportTipo(e.target.value as 'GERAL' | 'INDIVIDUAL' | 'FUNCAO' | 'SETOR')} className="col-span-2 bg-[#020507] border border-hud-border rounded px-2 py-1 text-white mt-2">
                 <option value="GERAL">RELATÓRIO GERAL</option>
                 <option value="INDIVIDUAL">RELATÓRIO INDIVIDUAL</option>
                 <option value="FUNCAO">RELATÓRIO POR FUNÇÃO ATIVA</option>
+                <option value="SETOR">RELATÓRIO POR SETOR</option>
             </select>
             {reportTipo === 'INDIVIDUAL' && (
                 <select value={reportMilitarId} onChange={(e) => setReportMilitarId(e.target.value)} className="col-span-2 bg-[#020507] border border-hud-border rounded px-2 py-1 text-white">
@@ -907,6 +1022,14 @@ export default function PainelGestor({
                     <option value="">Selecione a Função</option>
                     {Array.from(new Set(allMilitares.map(m => m.funcao).filter(Boolean))).sort().map(f => (
                         <option key={f} value={f}>{f}</option>
+                    ))}
+                </select>
+            )}
+            {reportTipo === 'SETOR' && (
+                <select value={reportSetor} onChange={(e) => setReportSetor(e.target.value)} className="col-span-2 bg-[#020507] border border-hud-border rounded px-2 py-1 text-white">
+                    <option value="">Selecione o Setor</option>
+                    {Array.from(new Set(allMilitares.map(m => m.setor).filter(Boolean))).sort().map(s => (
+                        <option key={s} value={s}>{s}</option>
                     ))}
                 </select>
             )}
@@ -961,6 +1084,12 @@ export default function PainelGestor({
                         <p className="text-slate-700"><strong>Função:</strong> <span className="text-slate-500 font-medium">{reportFuncao || '...'}</span></p>
                       </div>
                     )}
+                    {reportTipo === 'SETOR' && (
+                      <div className="flex items-center space-x-2">
+                        <User className="w-4 h-4 text-slate-400" />
+                        <p className="text-slate-700"><strong>Setor:</strong> <span className="text-slate-500 font-medium">{reportSetor || '...'}</span></p>
+                      </div>
+                    )}
                 </div>
                 
                 <div className="border border-slate-200 p-4 rounded-xl bg-gradient-to-r from-slate-50 to-white shadow-sm">
@@ -990,15 +1119,16 @@ export default function PainelGestor({
                   <thead>
                       <tr className="bg-slate-900 text-white font-bold uppercase tracking-wider text-[9px]">
                           <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[10%]">Turno</th>
-                          <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[12%]">Data</th>
-                          <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[24%]">Militar Substituto</th>
-                          <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[24%]">Militar Substituído</th>
-                          <th className="p-4 whitespace-nowrap w-[30%]">Homologação</th>
+                          <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[10%]">Data</th>
+                          <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[20%]">Militar Substituto</th>
+                          <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[20%]">Militar Substituído</th>
+                          <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[20%]">Homologação</th>
+                          <th className="p-4 whitespace-nowrap w-[20%]">Status do Serviço</th>
                       </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                       {filteredPermutas
-                        .filter(p => p.status === 'APROVADO')
+                        .filter(p => p.status === 'APROVADO' || p.status === 'SEM_EFEITO')
                         .sort((a, b) => new Date(a.dataRealizacao).getTime() - new Date(b.dataRealizacao).getTime())
                         .map(p => {
                           const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
@@ -1019,6 +1149,7 @@ export default function PainelGestor({
                           
                           const subObj = formatMilitarRelatorio(substituto);
                           const subdoObj = formatMilitarRelatorio(substituido);
+                          const statusServico = p.status === 'SEM_EFEITO' ? 'TORNADO SEM EFEITO' : 'CUMPRIDA';
                           
                           return (
                             <tr key={p.id} className="border-b border-slate-100 even:bg-slate-50/50 hover:bg-slate-100/50 transition-colors whitespace-nowrap text-[9px]">
@@ -1030,8 +1161,11 @@ export default function PainelGestor({
                                <td className="p-4 border-r border-slate-100 text-slate-800 font-medium text-center">
                                  {subdoObj}
                                </td>
-                               <td className="p-4 text-slate-500 italic text-[8.5px] leading-tight text-center">
+                               <td className="p-4 border-r border-slate-100 text-slate-500 italic text-[8.5px] leading-tight text-center">
                                  {homolLabel}
+                               </td>
+                               <td className="p-4 text-slate-700 font-bold text-[8.5px] leading-tight text-center uppercase">
+                                 {statusServico}
                                </td>
                             </tr>
                           );
@@ -1402,6 +1536,11 @@ export default function PainelGestor({
                 <select value={newMilitarForm.quadro} onChange={e => setNewMilitarForm({...newMilitarForm, quadro: e.target.value as any})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white col-span-2">
                     {['QOPM', 'QOAPM', 'QOCPM', 'QPPM'].map(q => <option key={q} value={q}>{q}</option>)}
                 </select>
+                <select value={newMilitarForm.setor || ''} onChange={e => setNewMilitarForm({...newMilitarForm, setor: e.target.value})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white col-span-2 uppercase">
+                    <option value="">-- NENHUM SETOR --</option>
+                    <option value="AMBULÂNCIA">AMBULÂNCIA (Enfermeiro, Motorista, Fiscal)</option>
+                    <option value="SOBREAVISO">SOBREAVISO (Assistente Social, Psicólogo)</option>
+                </select>
 
                 {/* DYNAMIC DIAGNOSTIC DUPLICITY SYSTEM */}
                 {(() => {
@@ -1682,6 +1821,22 @@ export default function PainelGestor({
               </span>
             </div>
 
+            <div className="flex space-x-1 border-b border-hud-border/30 pb-2">
+              <button
+                onClick={() => setEditPolicialTab('GERAL')}
+                className={`flex-1 py-1 text-[10px] uppercase font-bold tracking-wider rounded ${editPolicialTab === 'GERAL' ? 'bg-cyber-cyan/10 text-cyber-cyan border border-cyber-cyan/30' : 'text-slate-500 hover:text-slate-300 bg-transparent'}`}
+              >
+                Dados Gerais
+              </button>
+              <button
+                onClick={() => setEditPolicialTab('AFASTAMENTOS')}
+                className={`flex-1 py-1 text-[10px] uppercase font-bold tracking-wider rounded ${editPolicialTab === 'AFASTAMENTOS' ? 'bg-cyber-cyan/10 text-cyber-cyan border border-cyber-cyan/30' : 'text-slate-500 hover:text-slate-300 bg-transparent'}`}
+              >
+                Afastamentos
+              </button>
+            </div>
+
+            {editPolicialTab === 'GERAL' && (
             <div className="grid grid-cols-2 gap-3 text-[10.5px] text-left max-h-[380px] overflow-y-auto pr-1">
               <div className="col-span-2 flex flex-col space-y-1">
                 <label className="text-[8.5px] font-mono text-slate-400 uppercase tracking-wider font-bold">Nome Completo</label>
@@ -1757,7 +1912,7 @@ export default function PainelGestor({
                 </datalist>
               </div>
 
-              <div className="flex flex-col space-y-1 col-span-2">
+              <div className="flex flex-col space-y-1 col-span-1">
                 <label className="text-[8.5px] font-mono text-slate-400 uppercase tracking-wider font-bold">Quadro PM</label>
                 <select
                   value={editingMilitar.quadro || 'QPPM'}
@@ -1767,6 +1922,19 @@ export default function PainelGestor({
                   {['QOPM', 'QOAPM', 'QOCPM', 'QPPM'].map(q => (
                     <option key={q} value={q}>{q}</option>
                   ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col space-y-1 col-span-1">
+                <label className="text-[8.5px] font-mono text-slate-400 uppercase tracking-wider font-bold">Setor</label>
+                <select
+                  value={editingMilitar.setor || ''}
+                  onChange={e => setEditingMilitar({...editingMilitar, setor: e.target.value})}
+                  className="bg-[#03090b] p-2 rounded border border-hud-border text-white text-xs uppercase"
+                >
+                  <option value="">-- NENHUM --</option>
+                  <option value="AMBULÂNCIA">AMBULÂNCIA (Enfermeiro, Motorista, Fiscal)</option>
+                  <option value="SOBREAVISO">SOBREAVISO (Assistente Social, Psicólogo)</option>
                 </select>
               </div>
 
@@ -1810,6 +1978,102 @@ export default function PainelGestor({
                 </button>
               </div>
             </div>
+            )}
+
+            {editPolicialTab === 'AFASTAMENTOS' && (
+            <div className="flex flex-col space-y-4 max-h-[380px] overflow-y-auto pr-1 text-[10.5px]">
+              <div className="bg-[#03090b] border border-hud-border p-3 rounded flex flex-col space-y-3">
+                <span className="text-[9px] font-mono text-cyber-cyan uppercase font-bold tracking-widest border-b border-cyber-cyan/30 pb-1">Novo Afastamento</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="col-span-2 flex flex-col space-y-1">
+                    <label className="text-[8.5px] font-mono text-slate-400 uppercase tracking-wider font-bold">Motivo</label>
+                    <select
+                      id="novoMotivoAfastamento"
+                      className="bg-[#020507] p-2 rounded border border-hud-border text-white text-xs"
+                      defaultValue="FÉRIAS"
+                    >
+                      <option value="FÉRIAS">FÉRIAS</option>
+                      <option value="LICENÇA">LICENÇA</option>
+                      <option value="LUTO">LUTO</option>
+                      <option value="ATESTADO">ATESTADO</option>
+                      <option value="OUTROS">OUTROS</option>
+                    </select>
+                  </div>
+                  <div className="col-span-1 flex flex-col space-y-1">
+                    <label className="text-[8.5px] font-mono text-slate-400 uppercase tracking-wider font-bold">Início</label>
+                    <input type="date" id="novaDataInicioAfastamento" className="bg-[#020507] p-2 rounded border border-hud-border text-white text-[10px] uppercase font-mono" />
+                  </div>
+                  <div className="col-span-1 flex flex-col space-y-1">
+                    <label className="text-[8.5px] font-mono text-slate-400 uppercase tracking-wider font-bold">Fim</label>
+                    <input type="date" id="novaDataFimAfastamento" className="bg-[#020507] p-2 rounded border border-hud-border text-white text-[10px] uppercase font-mono" />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const motivo = (document.getElementById('novoMotivoAfastamento') as HTMLSelectElement).value as any;
+                    const dataInicio = (document.getElementById('novaDataInicioAfastamento') as HTMLInputElement).value;
+                    const dataFim = (document.getElementById('novaDataFimAfastamento') as HTMLInputElement).value;
+                    if (!dataInicio || !dataFim) {
+                      alert('Selecione as datas de início e fim.');
+                      return;
+                    }
+                    if (dataInicio > dataFim) {
+                      alert('Data de início não pode ser maior que a de fim.');
+                      return;
+                    }
+                    const newAfastamento = {
+                      id: 'afst_' + Date.now().toString(36),
+                      motivo,
+                      dataInicio,
+                      dataFim
+                    };
+                    const updatedAfastamentos = [...(editingMilitar.afastamentos || []), newAfastamento];
+                    setEditingMilitar({...editingMilitar, afastamentos: updatedAfastamentos});
+                    if (onUpdateMilitar) {
+                      onUpdateMilitar(editingMilitar.id, { afastamentos: updatedAfastamentos });
+                    }
+                    (document.getElementById('novaDataInicioAfastamento') as HTMLInputElement).value = '';
+                    (document.getElementById('novaDataFimAfastamento') as HTMLInputElement).value = '';
+                  }}
+                  className="bg-cyber-cyan/10 hover:bg-cyber-cyan/20 border border-cyber-cyan/50 text-cyber-cyan text-[10px] font-bold uppercase tracking-widest py-1.5 rounded transition-all"
+                >
+                  Registrar Afastamento
+                </button>
+              </div>
+
+              <div className="flex flex-col space-y-2">
+                <span className="text-[9px] font-mono text-slate-400 uppercase font-bold tracking-widest border-b border-hud-border pb-1">Registros de Afastamento</span>
+                {(!editingMilitar.afastamentos || editingMilitar.afastamentos.length === 0) ? (
+                  <p className="text-[10px] text-slate-500 italic py-2 text-center">Nenhum afastamento registrado.</p>
+                ) : (
+                  <div className="flex flex-col space-y-2">
+                    {editingMilitar.afastamentos.map(af => (
+                      <div key={af.id} className="bg-slate-900/50 border border-slate-700/50 p-2 rounded flex justify-between items-center">
+                        <div className="flex flex-col">
+                          <span className="text-cyber-amber font-bold text-[10px] uppercase">{af.motivo}</span>
+                          <span className="text-slate-400 text-[9px] font-mono">{af.dataInicio.split('-').reverse().join('/')} até {af.dataFim.split('-').reverse().join('/')}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = editingMilitar.afastamentos!.filter(a => a.id !== af.id);
+                            setEditingMilitar({...editingMilitar, afastamentos: updated});
+                            if (onUpdateMilitar) {
+                              onUpdateMilitar(editingMilitar.id, { afastamentos: updated });
+                            }
+                          }}
+                          className="text-red-400 hover:text-red-300 bg-red-400/10 p-1.5 rounded"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            )}
 
             <div className="flex space-x-2.5 pt-4 border-t border-hud-border/30">
               <button

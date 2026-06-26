@@ -392,12 +392,34 @@ export default function App() {
 
   const handleAcceptPermuta = async (permutaId: string, peerSignature: string) => {
     if (!loggedUser) return;
+    const targetPermuta = permutas.find(p => p.id === permutaId);
+    if (!targetPermuta) return;
+
+    const substituteAfastamento = loggedUser.afastamentos?.find(a => 
+      targetPermuta.dataRealizacao >= a.dataInicio && targetPermuta.dataRealizacao <= a.dataFim
+    );
+    if (substituteAfastamento) {
+      alert(`PROIBIDO: Você não pode aceitar a permuta nesta data pois possui afastamento registrado (${substituteAfastamento.motivo} de ${substituteAfastamento.dataInicio} a ${substituteAfastamento.dataFim}).`);
+      return;
+    }
+
+    const substituido = militares.find(m => m.id === targetPermuta.militarSubstituidoId);
+    if (substituido) {
+      const substituidoAfastamento = substituido.afastamentos?.find(a => 
+        targetPermuta.dataRealizacao >= a.dataInicio && targetPermuta.dataRealizacao <= a.dataFim
+      );
+      if (substituidoAfastamento) {
+        alert(`PROIBIDO: O solicitante da permuta possui afastamento registrado nesta data (${substituidoAfastamento.motivo}). A permuta não pode prosseguir.`);
+        return;
+      }
+    }
+
     const permutaRef = doc(db, 'permutas', permutaId);
     await setDoc(permutaRef, sanitizeForFirestore({
       status: 'PENDENTE_GESTOR',
       assinaturaSubstituta: peerSignature
     }), { merge: true });
-    await appendAuditLog('PERMUTA_ACEITA', `Sgt. Mendes assinou digitalmente aceitando a permuta ref. protocolo ${permutas.find(p => p.id === permutaId)?.protocoloId}. Encaminhado ao conselho operacional.`, loggedUser.nomeGuerra, logs);
+    await appendAuditLog('PERMUTA_ACEITA', `Sgt. Mendes assinou digitalmente aceitando a permuta ref. protocolo ${targetPermuta.protocoloId}. Encaminhado ao conselho operacional.`, loggedUser.nomeGuerra, logs);
     setActiveReviewPermuta(null);
     setCurrentTab('PERMUTAS');
   };
@@ -437,6 +459,28 @@ export default function App() {
     if (!loggedUser || (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN')) return;
     const targetPermuta = permutas.find(p => p.id === permutaId);
     if (!targetPermuta) return;
+
+    const substituto = militares.find(m => m.id === targetPermuta.militarSubstitutoId);
+    if (substituto) {
+      const substituteAfastamento = substituto.afastamentos?.find(a => 
+        targetPermuta.dataRealizacao >= a.dataInicio && targetPermuta.dataRealizacao <= a.dataFim
+      );
+      if (substituteAfastamento) {
+        alert(`ERRO: O substituto possui afastamento registrado nesta data (${substituteAfastamento.motivo}). Homologação cancelada.`);
+        return;
+      }
+    }
+
+    const substituido = militares.find(m => m.id === targetPermuta.militarSubstituidoId);
+    if (substituido) {
+      const substituidoAfastamento = substituido.afastamentos?.find(a => 
+        targetPermuta.dataRealizacao >= a.dataInicio && targetPermuta.dataRealizacao <= a.dataFim
+      );
+      if (substituidoAfastamento) {
+        alert(`ERRO: O solicitante possui afastamento registrado nesta data (${substituidoAfastamento.motivo}). Homologação cancelada.`);
+        return;
+      }
+    }
 
     const permutaRef = doc(db, 'permutas', permutaId);
     await setDoc(permutaRef, sanitizeForFirestore({
@@ -500,6 +544,45 @@ export default function App() {
       dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
     }), { merge: true });
     await appendAuditLog('PROCESSO_REJEITADO', `Permuta ID ${targetPermuta.protocoloId} rejeitada administrativamente pelo Comando de Batalhão.`, loggedUser.nomeGuerra, logs);
+  };
+
+  const handleTornarSemEfeitoPermuta = async (permutaId: string) => {
+    if (!loggedUser || (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN')) return;
+    const targetPermuta = permutas.find(p => p.id === permutaId);
+    if (!targetPermuta) return;
+
+    const permutaRef = doc(db, 'permutas', permutaId);
+    await setDoc(permutaRef, sanitizeForFirestore({
+      status: 'SEM_EFEITO',
+      gestorNome: loggedUser.nomeGuerra,
+      dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
+    }), { merge: true });
+
+    // Attempt to revert the scale
+    const originalEscalaId = targetPermuta.escalaSubstituidaId;
+    const escalaOriginal = escalas.find(e => e.id === originalEscalaId);
+
+    if (escalaOriginal && !originalEscalaId.startsWith('S-TEMP-')) {
+      const escalaRef = doc(db, 'escalas', originalEscalaId);
+      await setDoc(escalaRef, sanitizeForFirestore({
+        militarId: targetPermuta.militarSubstituidoId // Revert to original
+      }), { merge: true });
+    } else {
+      // It might have been generated, let's search by substitute and date/turno
+      const generatedEscala = escalas.find(e => 
+        e.militarId === targetPermuta.militarSubstitutoId && 
+        e.data === targetPermuta.dataRealizacao && 
+        e.turno === targetPermuta.turno
+      );
+      if (generatedEscala) {
+        const escalaRef = doc(db, 'escalas', generatedEscala.id);
+        await setDoc(escalaRef, sanitizeForFirestore({
+          militarId: targetPermuta.militarSubstituidoId // Revert to original
+        }), { merge: true });
+      }
+    }
+
+    await appendAuditLog('INTEGRALIZAÇÃO', `Permuta ID ${targetPermuta.protocoloId} tornada SEM EFEITO pelo Comando. Escala revertida.`, loggedUser.nomeGuerra, logs);
   };
 
   const handleAdjustPermutaGestor = async (permutaId: string, justificativa: string) => {
@@ -968,6 +1051,7 @@ export default function App() {
                         onApprovePermuta={handleApprovePermutaGestor}
                         onRejectPermuta={handleRejectPermutaGestor}
                         onAdjustPermuta={handleAdjustPermutaGestor}
+                        onTornarSemEfeitoPermuta={handleTornarSemEfeitoPermuta}
                         onDeletePermuta={handleDeletePermuta}
                         onAddMilitar={handleAddMilitarIndividual}
                         onDeleteMilitar={handleDeleteMilitar}

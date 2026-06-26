@@ -137,7 +137,13 @@ export default function PermutaFlow({
       status = 'COMPATIBLE';
     }
 
-    if (hasConflictScale) {
+    const afastamento = c.afastamentos?.find(a => selectedDate >= a.dataInicio && selectedDate <= a.dataFim);
+
+    if (afastamento) {
+      score = 0;
+      reason = `AFASTAMENTO ATIVO: ${afastamento.motivo} (${afastamento.dataInicio.split('-').reverse().join('/')} a ${afastamento.dataFim.split('-').reverse().join('/')}). PROIBIDO PERMUTAR.`;
+      status = 'BLOCKED';
+    } else if (hasConflictScale) {
       score = 45;
       reason = 'ATENÇÃO: Possui escala designada nesta data (alerta de choque/descanso). Habilitado para solicitação.';
       status = 'COMPATIBLE';
@@ -185,6 +191,26 @@ export default function PermutaFlow({
     if (diffDays < 1 || diffDays > 30) {
       alert("PROIBIDO: Somente são permitidas permutas para datas entre o dia seguinte (amanhã) e até no máximo 30 dias a partir de hoje. Selecione uma data válida.");
       return;
+    }
+
+    // Verify if either the requester or the substitute has an Afastamento on the selectedDate
+    const requesterAfastamento = userLogged.afastamentos?.find(a => 
+      selectedDate >= a.dataInicio && selectedDate <= a.dataFim
+    );
+    if (requesterAfastamento) {
+      alert(`PROIBIDO: Você não pode solicitar permuta nesta data pois possui afastamento registrado (${requesterAfastamento.motivo} de ${requesterAfastamento.dataInicio} a ${requesterAfastamento.dataFim}).`);
+      return;
+    }
+
+    const substitute = allMilitares.find(m => m.id === selectedSubstituteId);
+    if (substitute) {
+      const substituteAfastamento = substitute.afastamentos?.find(a => 
+        selectedDate >= a.dataInicio && selectedDate <= a.dataFim
+      );
+      if (substituteAfastamento) {
+        alert(`PROIBIDO: O substituto selecionado não pode permutar nesta data pois possui afastamento registrado (${substituteAfastamento.motivo} de ${substituteAfastamento.dataInicio} a ${substituteAfastamento.dataFim}).`);
+        return;
+      }
     }
 
     // Verify if either the requester or the substitute already has a permuta on this date and shift
@@ -528,15 +554,17 @@ export default function PermutaFlow({
 
                 return filteredList.map((item) => {
                   const isSelected = selectedSubstituteId === item.militar.id;
-                  const isBlocked = false;
+                  const isBlocked = item.status === 'BLOCKED';
 
                   return (
                     <div
                       key={item.militar.id}
-                      onClick={() => setSelectedSubstituteId(item.militar.id)}
+                      onClick={() => { if (!isBlocked) setSelectedSubstituteId(item.militar.id); }}
                       className={`border rounded-xl p-3 flex flex-col justify-between transition-all relative overflow-hidden ${
                         isSelected
                           ? 'bg-cyber-cyan/15 border-cyber-blue shadow-[0_0_10px_rgba(0,229,255,0.2)] cursor-pointer'
+                          : isBlocked 
+                          ? 'bg-red-500/10 border-red-500/30 opacity-60 cursor-not-allowed'
                           : 'bg-hud-card/60 border-hud-border/70 hover:border-cyber-cyan/50 hover:bg-hud-card cursor-pointer'
                       }`}
                       id={`ia-candidate-${item.militar.id}`}
