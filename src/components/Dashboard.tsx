@@ -509,17 +509,6 @@ export default function Dashboard({
           {/* Month selector controls */}
           <div className="flex items-center space-x-1.5 bg-[#030d11] p-1 rounded-lg border border-hud-border/50 shrink-0">
             <button
-              onClick={() => handleMonthChange('MAIO')}
-              className={`px-2.5 py-1 rounded text-[9.5px] font-mono font-bold tracking-wide transition-all cursor-pointer ${
-                selectedMonth === 'MAIO'
-                  ? 'bg-cyber-blue/20 text-[#00e5ff] border border-cyber-cyan/35 shadow-[0_0_6px_rgba(0,229,255,0.2)]'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/40 border border-transparent'
-              }`}
-              title="Ver Mês Anterior (Maio 2026)"
-            >
-              MAIO
-            </button>
-            <button
               onClick={() => handleMonthChange('JUNHO')}
               className={`px-2.5 py-1 rounded text-[9.5px] font-mono font-bold tracking-wide transition-all cursor-pointer ${
                 selectedMonth === 'JUNHO'
@@ -613,12 +602,14 @@ export default function Dashboard({
           {(() => {
             const todayStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
             const actualToday = new Date(todayStr);
+            actualToday.setHours(0, 0, 0, 0);
             const dateStr = `2026-${currentMonthConfig.monthCode}-${selectedCalendarDay.toString().padStart(2, '0')}`;
             const selectedDayDate = new Date(dateStr);
+            selectedDayDate.setHours(0, 0, 0, 0);
             
-            const isPast = selectedDayDate < actualToday;
-            const isToday = dateStr === todayStr;
-            const isBlocked = isToday || isPast;
+            const diffTime = selectedDayDate.getTime() - actualToday.getTime();
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            const isBlocked = diffDays < 1 || diffDays > 30;
             const scale = getDayScale(selectedCalendarDay);
 
             if (isBlocked) {
@@ -626,7 +617,7 @@ export default function Dashboard({
                 <div className="flex items-center justify-between bg-hud-bg/40 p-2 rounded border border-hud-border/30">
                   <div className="flex items-center space-x-2 text-[10px] text-slate-500 font-mono uppercase">
                     <AlertOctagon className="w-4 h-4 text-slate-600" />
-                    <span>Bloqueado: Data retroativa ou atual</span>
+                    <span>Bloqueado: Apenas amanhã até 30 dias</span>
                   </div>
                   <div className="text-[8px] bg-hud-border/20 px-2 py-1 rounded text-slate-500 border border-hud-border/30 font-bold">
                     INDISPONÍVEL

@@ -125,19 +125,28 @@ export default function PainelGestor({
     if (v.length > 2) v = v.replace(/^(\d{2})(\d)/, '$1.$2');
     return v;
   };
-  const [reportTipo, setReportTipo] = useState<'GERAL' | 'INDIVIDUAL'>('GERAL');
+  const [reportTipo, setReportTipo] = useState<'GERAL' | 'INDIVIDUAL' | 'FUNCAO'>('GERAL');
   const [reportMilitarId, setReportMilitarId] = useState<string>('');
+  const [reportFuncao, setReportFuncao] = useState<string>('');
   const [dataInicio, setDataInicio] = useState<string>('');
   const [dataFim, setDataFim] = useState<string>('');
   const [selectedPermutaDetailId, setSelectedPermutaDetailId] = useState<string | null>(null);
   const [justificativaAjuste, setJustificativaAjuste] = useState<string>('');
   const [militarSearchTerm, setMilitarSearchTerm] = useState('');
+  const [credencialSearchTerm, setCredencialSearchTerm] = useState('');
 
   const filteredMilitares = sortedMilitares.filter(m => 
     m.nome.toLowerCase().includes(militarSearchTerm.toLowerCase()) ||
     m.nomeGuerra.toLowerCase().includes(militarSearchTerm.toLowerCase()) ||
     (m.numero && m.numero.includes(militarSearchTerm)) ||
     m.id.toLowerCase().includes(militarSearchTerm.toLowerCase())
+  );
+
+  const filteredMilitaresForCredenciais = sortedMilitares.filter(m => 
+    m.nome.toLowerCase().includes(credencialSearchTerm.toLowerCase()) ||
+    m.nomeGuerra.toLowerCase().includes(credencialSearchTerm.toLowerCase()) ||
+    (m.numero && m.numero.includes(credencialSearchTerm)) ||
+    m.id.toLowerCase().includes(credencialSearchTerm.toLowerCase())
   );
 
   const handleGerarPDF = async () => {
@@ -190,9 +199,11 @@ export default function PainelGestor({
       if (reportTipo === 'INDIVIDUAL' && reportMilitarId) {
         const policialNome = allMilitares.find(m => m.id === reportMilitarId)?.nome || '...';
         doc.text(`Policial: ${policialNome}`, 40, 125);
+      } else if (reportTipo === 'FUNCAO' && reportFuncao) {
+        doc.text(`Função: ${reportFuncao}`, 40, 125);
       }
       
-      const tempY = (reportTipo === 'INDIVIDUAL' && reportMilitarId) ? 145 : 130;
+      const tempY = ((reportTipo === 'INDIVIDUAL' && reportMilitarId) || (reportTipo === 'FUNCAO' && reportFuncao)) ? 145 : 130;
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
       doc.text("TURNOS:", 40, tempY);
@@ -279,6 +290,11 @@ export default function PainelGestor({
     if (dataFim && p.dataRealizacao > dataFim) matches = false;
     if (reportTipo === 'INDIVIDUAL' && reportMilitarId) {
         if (p.militarSubstituidoId !== reportMilitarId && p.militarSubstitutoId !== reportMilitarId) matches = false;
+    }
+    if (reportTipo === 'FUNCAO' && reportFuncao) {
+        const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
+        const substituido = allMilitares.find(m => m.id === p.militarSubstituidoId);
+        if (substituto?.funcao !== reportFuncao && substituido?.funcao !== reportFuncao) matches = false;
     }
     return matches;
   }).sort((a, b) => a.dataRealizacao.localeCompare(b.dataRealizacao));
@@ -875,14 +891,23 @@ export default function PainelGestor({
                     <label className="text-[9px] font-mono text-slate-500 uppercase font-bold">Fim:</label>
                     <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="bg-[#020507] border border-hud-border rounded px-2 py-1 text-white" />
                 </div>
-                <select value={reportTipo} onChange={(e) => setReportTipo(e.target.value as 'GERAL' | 'INDIVIDUAL')} className="col-span-2 bg-[#020507] border border-hud-border rounded px-2 py-1 text-white mt-2">
+                <select value={reportTipo} onChange={(e) => setReportTipo(e.target.value as 'GERAL' | 'INDIVIDUAL' | 'FUNCAO')} className="col-span-2 bg-[#020507] border border-hud-border rounded px-2 py-1 text-white mt-2">
                 <option value="GERAL">RELATÓRIO GERAL</option>
                 <option value="INDIVIDUAL">RELATÓRIO INDIVIDUAL</option>
+                <option value="FUNCAO">RELATÓRIO POR FUNÇÃO ATIVA</option>
             </select>
             {reportTipo === 'INDIVIDUAL' && (
                 <select value={reportMilitarId} onChange={(e) => setReportMilitarId(e.target.value)} className="col-span-2 bg-[#020507] border border-hud-border rounded px-2 py-1 text-white">
                     <option value="">Selecione o Policial</option>
                     {sortedMilitares.map(m => <option key={m.id} value={m.id}>{m.patente} {m.nomeGuerra}</option>)}
+                </select>
+            )}
+            {reportTipo === 'FUNCAO' && (
+                <select value={reportFuncao} onChange={(e) => setReportFuncao(e.target.value)} className="col-span-2 bg-[#020507] border border-hud-border rounded px-2 py-1 text-white">
+                    <option value="">Selecione a Função</option>
+                    {Array.from(new Set(allMilitares.map(m => m.funcao).filter(Boolean))).sort().map(f => (
+                        <option key={f} value={f}>{f}</option>
+                    ))}
                 </select>
             )}
           </div>
@@ -928,6 +953,12 @@ export default function PainelGestor({
                       <div className="flex items-center space-x-2">
                         <User className="w-4 h-4 text-slate-400" />
                         <p className="text-slate-700"><strong>Policial:</strong> <span className="text-slate-500 font-medium">{allMilitares.find(m => m.id === reportMilitarId)?.nome || '...'}</span></p>
+                      </div>
+                    )}
+                    {reportTipo === 'FUNCAO' && (
+                      <div className="flex items-center space-x-2">
+                        <User className="w-4 h-4 text-slate-400" />
+                        <p className="text-slate-700"><strong>Função:</strong> <span className="text-slate-500 font-medium">{reportFuncao || '...'}</span></p>
                       </div>
                     )}
                 </div>
@@ -1446,16 +1477,51 @@ export default function PainelGestor({
                   );
                 })()}
             </div>
-            <span className="text-[9.5px] font-mono text-cyber-green uppercase tracking-wider block font-extrabold border-t border-hud-border/30 pt-3">
-              ✓ QUADRO ATIVO DE CREDENCIAIS
-            </span>
+            <div className="flex items-center justify-between border-t border-hud-border/30 pt-3">
+              <span className="text-[9.5px] font-mono text-cyber-green uppercase tracking-wider block font-extrabold">
+                ✓ QUADRO ATIVO DE CREDENCIAIS
+              </span>
+              <div className="flex items-center space-x-1 text-[8.5px] font-mono text-slate-500 uppercase">
+                <Search className="w-3 h-3 text-slate-600" />
+                <span>Busca Credenciais</span>
+              </div>
+            </div>
+
+            {/* Search Input for Credentials */}
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-3.5 w-3.5 text-slate-500 group-focus-within:text-cyber-green transition-colors" />
+              </div>
+              <input
+                type="text"
+                placeholder="LOCALIZAR CREDENCIAL DE POLICIAL..."
+                value={credencialSearchTerm}
+                onChange={(e) => setCredencialSearchTerm(e.target.value)}
+                className="w-full bg-[#03090b] border border-hud-border/60 hover:border-hud-border group-focus-within:border-cyber-green rounded-lg py-2 pl-9 pr-8 text-[10px] font-mono text-white placeholder-slate-600 focus:outline-none transition-all shadow-inner"
+              />
+              {credencialSearchTerm && (
+                <button 
+                  onClick={() => setCredencialSearchTerm('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-white text-xs font-bold"
+                >
+                  ×
+                </button>
+              )}
+            </div>
             
             <div className="space-y-2 max-h-[290px] overflow-y-auto pr-1">
-              {filteredMilitares.length === 0 ? (
+              {!credencialSearchTerm.trim() ? (
+                <div className="text-center py-6 border border-dashed border-hud-border/30 rounded-lg bg-black/10 flex flex-col items-center justify-center space-y-1.5">
+                  <Search className="w-4 h-4 text-slate-600 animate-pulse" />
+                  <span className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">
+                    Insira uma busca acima para listar credenciais
+                  </span>
+                </div>
+              ) : filteredMilitaresForCredenciais.length === 0 ? (
                 <div className="text-center py-8 border border-dashed border-hud-border rounded-lg bg-black/20">
                   <span className="text-[10px] font-mono text-slate-600 uppercase tracking-widest">Nenhum registro localizado com estes parâmetros</span>
                 </div>
-              ) : filteredMilitares.map((u) => {
+              ) : filteredMilitaresForCredenciais.map((u) => {
                 const isSelected = u.id === userLogged?.id;
                 let roleTag = 'SUBSTITUÍDO';
                 if (u.id === 'M-102') roleTag = 'SUBSTITUTO';

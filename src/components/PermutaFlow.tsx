@@ -54,8 +54,7 @@ export default function PermutaFlow({
   const [lastSubstituteName, setLastSubstituteName] = useState<string>('');
   
   // Custom date selection & monthly schedule
-  const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO'>(() => {
-    if (escala.data.includes('-05-')) return 'MAIO';
+  const [selectedMonth, setSelectedMonth] = useState<'JUNHO' | 'JULHO'>(() => {
     if (escala.data.includes('-07-')) return 'JULHO';
     return 'JUNHO';
   });
@@ -171,17 +170,20 @@ export default function PermutaFlow({
     e.preventDefault();
     if (!selectedSubstituteId) return;
 
-    // Hard validation for date: Cannot be today or past
+    // Hard validation for date: Must be from tomorrow up to 30 days
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
     const actualToday = new Date(todayStr);
-    const selectedDayDate = new Date(selectedDate);
+    actualToday.setHours(0, 0, 0, 0);
     
-    const isToday = selectedDate === todayStr;
-    const isPast = selectedDayDate < actualToday;
+    const selectedDayDate = new Date(selectedDate);
+    selectedDayDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = selectedDayDate.getTime() - actualToday.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
-    if (isToday || isPast) {
-      alert("PROIBIDO: Não é permitido solicitar permutas para o dia atual ou datas retroativas. Selecione uma data futura no calendário.");
+    if (diffDays < 1 || diffDays > 30) {
+      alert("PROIBIDO: Somente são permitidas permutas para datas entre o dia seguinte (amanhã) e até no máximo 30 dias a partir de hoje. Selecione uma data válida.");
       return;
     }
 
@@ -295,9 +297,6 @@ export default function PermutaFlow({
                 // Reset flow so they can request another one easily
                 setSelectedSubstituteId('');
                 setComentario('');
-                setIsSigned(false);
-                setDigitalSignatureHex('');
-                setManualSignaturePoints([]);
                 setIsSubmittedSuccessfully(false);
                 setSearchTerm('');
               }}
@@ -348,7 +347,7 @@ export default function PermutaFlow({
           
           {/* Month selector controls */}
           <div className="flex items-center space-x-1 bg-[#030d11] p-1 rounded-lg border border-hud-border/50 shrink-0 select-none">
-            {['MAIO', 'JUNHO', 'JULHO'].map((m) => (
+            {['JUNHO', 'JULHO'].map((m) => (
               <button
                 key={m}
                 type="button"
@@ -385,18 +384,24 @@ export default function PermutaFlow({
               );
             }
 
-            const monthCode = selectedMonth === 'MAIO' ? '05' : selectedMonth === 'JULHO' ? '07' : '06';
+            const monthCode = selectedMonth === 'JULHO' ? '07' : '06';
             const dateStr = `2026-${monthCode}-${day.toString().padStart(2, '0')}`;
             
             // Validation: Cannot select today or past dates
             const now = new Date();
             const todayStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
             const actualToday = new Date(todayStr);
-            const selectedDayDate = new Date(dateStr);
+            actualToday.setHours(0, 0, 0, 0);
             
+            const selectedDayDate = new Date(dateStr);
+            selectedDayDate.setHours(0, 0, 0, 0);
+            
+            const diffTime = selectedDayDate.getTime() - actualToday.getTime();
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            
+            const isDisabled = diffDays < 1 || diffDays > 30;
             const isToday = dateStr === todayStr;
-            const isPast = selectedDayDate < actualToday;
-            const isDisabled = isPast || isToday;
+            const isPast = diffDays < 0;
             const isTodayActual = isToday;
             
             const isSelected = selectedDate === dateStr;
