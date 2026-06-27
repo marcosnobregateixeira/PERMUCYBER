@@ -69,8 +69,8 @@ export default function BiometricLogin({
     setCustomTokenInput('');
   }, [userLogged]);
 
-  // Autocomplete suggestions filter (min 3 letters)
-  const isSearchActive = searchQuery.trim().length >= 3;
+  // Autocomplete suggestions filter (min 1 letter)
+  const isSearchActive = searchQuery.trim().length >= 1;
   const filteredSuggestions = isSearchActive
     ? allUsers.filter(u => 
         u.nome.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -233,23 +233,6 @@ export default function BiometricLogin({
                   )}
                 </div>
 
-                {/* Fallback Direct Dropdown */}
-                <div className="flex items-center space-x-2 text-[8.5px] font-mono text-slate-400">
-                  <span className="shrink-0 text-slate-500">Ou selecione na lista:</span>
-                  <select
-                    value={userLogged?.id || ''}
-                    onChange={(e) => onUserSelect(e.target.value)}
-                    className="flex-1 bg-[#051319]/60 border border-hud-border/70 text-[9px] font-mono text-white p-1 rounded outline-none cursor-pointer"
-                  >
-                    <option value="" disabled className="text-slate-600">SELECIONAR MILITAR...</option>
-                    <option value="" disabled className="text-slate-600">SELECIONAR MILITAR...</option>
-                    {allUsers.map((u) => (
-                      <option key={u.id} value={u.id} className="bg-[#051319] text-white">
-                        [{u.id}] {u.nomeGuerra} - {u.patente}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
               {/* Navigation Tabs (Scanner vs. Token Manager) */}
