@@ -78,6 +78,8 @@ export interface Permuta {
   protocoloId: string; // PEM-YYYYMMDD-XXXX
   qrCode: string;
   auditoriaHash: string;
+  motivoSemEfeito?: string;
+  dataCancelamentoAutomatico?: string;
 }
 
 export interface Alerta {

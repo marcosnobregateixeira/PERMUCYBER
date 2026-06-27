@@ -58,6 +58,7 @@ interface PainelGestorProps {
   onUpdateMilitarNumero?: (id: string, numero: string) => void;
   onAddMilitar?: (m: Militar) => void;
   onDeleteMilitar?: (id: string) => void;
+  onClearLogs?: () => void;
   onToggleBiometria?: (id: string) => void;
   onUserSwitch?: (userId: string) => void;
   backups?: any[];
@@ -99,6 +100,7 @@ export default function PainelGestor({
   onUpdateMilitarNumero,
   onAddMilitar,
   onDeleteMilitar,
+  onClearLogs,
   onToggleBiometria,
   onUserSwitch,
   backups,
@@ -282,7 +284,7 @@ export default function PainelGestor({
       
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
-      doc.text(`${comandante.nome.toUpperCase()} - ${comandante.patente}`, pageWidth / 2, sigY + 15, { align: 'center' });
+      doc.text(`${comandante.nome.toUpperCase()} - ${comandante.patente} ${comandante.quadro || 'QPPM'}`, pageWidth / 2, sigY + 15, { align: 'center' });
       doc.setFont("helvetica", "normal");
       doc.text(comandante.funcao, pageWidth / 2, sigY + 30, { align: 'center' });
       doc.text(`M.F. ${comandante.matriculaFuncional || '___.___._-_'}`, pageWidth / 2, sigY + 45, { align: 'center' });
@@ -932,6 +934,19 @@ export default function PainelGestor({
             </p>
           </div>
 
+          {onClearLogs && (userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') && logs.length > 0 && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={onClearLogs}
+                className="bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-500/30 px-3 py-1.5 rounded-lg text-[9px] font-mono font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all shadow-[0_0_10px_rgba(239,68,68,0.15)] active:scale-95"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Limpar Livro de Auditoria</span>
+              </button>
+            </div>
+          )}
+
           <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
             {logs.map((log) => {
               let typeColor = 'text-cyber-blue bg-cyber-blue/15 border-cyber-blue/30';
@@ -1181,7 +1196,7 @@ export default function PainelGestor({
                   const comandante = (userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
                   return (
                     <React.Fragment>
-                      <p className="font-bold">{comandante.nome.toUpperCase()} - {comandante.patente}</p>
+                      <p className="font-bold">{comandante.nome.toUpperCase()} - {comandante.patente} {comandante.quadro || 'QPPM'}</p>
                       <p>{comandante.funcao}</p>
                       <p>M.F. {comandante.matriculaFuncional || '___.___._-_'}</p>
                     </React.Fragment>
@@ -1626,7 +1641,11 @@ export default function PainelGestor({
                 </select>
                 <select value={newMilitarForm.setor || ''} onChange={e => setNewMilitarForm({...newMilitarForm, setor: e.target.value})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white col-span-2 uppercase">
                     <option value="">-- NENHUM SETOR --</option>
+                    <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
                     <option value="AMBULÂNCIA">AMBULÂNCIA (Enfermeiro, Motorista, Fiscal)</option>
+                    <option value="FISIOTERAPIA">FISIOTERAPIA</option>
+                    <option value="MÉDICA">MÉDICA</option>
+                    <option value="ODONTOLOGIA">ODONTOLOGIA</option>
                     <option value="SOBREAVISO">SOBREAVISO (Assistente Social, Psicólogo)</option>
                 </select>
 
@@ -2021,7 +2040,11 @@ export default function PainelGestor({
                   className="bg-[#03090b] p-2 rounded border border-hud-border text-white text-xs uppercase"
                 >
                   <option value="">-- NENHUM --</option>
+                  <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
                   <option value="AMBULÂNCIA">AMBULÂNCIA (Enfermeiro, Motorista, Fiscal)</option>
+                  <option value="FISIOTERAPIA">FISIOTERAPIA</option>
+                  <option value="MÉDICA">MÉDICA</option>
+                  <option value="ODONTOLOGIA">ODONTOLOGIA</option>
                   <option value="SOBREAVISO">SOBREAVISO (Assistente Social, Psicólogo)</option>
                 </select>
               </div>

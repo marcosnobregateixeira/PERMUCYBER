@@ -280,6 +280,52 @@ export default function Dashboard({
 
 
 
+      {/* AVISOS DE PERMUTA TORNADA SEM EFEITO POR AFASTAMENTO */}
+      {(() => {
+        const cancelledSwaps = permutas.filter(p => 
+          p.status === 'SEM_EFEITO' && 
+          (p.militarSubstituidoId === userLogged?.id || p.militarSubstitutoId === userLogged?.id) &&
+          p.motivoSemEfeito
+        );
+        if (cancelledSwaps.length === 0) return null;
+        return (
+          <div className="space-y-3" id="afastamentos-cancellation-warnings">
+            {cancelledSwaps.map(p => {
+              const subBy = allMilitares.find(m => m.id === p.militarSubstituidoId);
+              const subTo = allMilitares.find(m => m.id === p.militarSubstitutoId);
+              return (
+                <div 
+                  key={p.id}
+                  className="bg-gradient-to-r from-red-950/40 to-red-950/15 border-2 border-red-500/50 p-4 rounded-xl relative overflow-hidden shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                >
+                  <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-red-500/40" />
+                  <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-red-500/40" />
+                  <div className="flex items-start space-x-3">
+                    <div className="bg-red-500/20 text-red-400 p-2 rounded-full mt-0.5 shrink-0">
+                      <AlertTriangle className="w-5 h-5 animate-pulse" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs font-black tracking-widest text-red-400 uppercase font-mono">
+                        Permuta Tornada Sem Efeito Automaticamente
+                      </h4>
+                      <p className="text-xs font-bold text-white mt-1 uppercase">
+                        Serviço: {p.postoServico} • {formatarDataBR(p.dataRealizacao)} ({p.turno})
+                      </p>
+                      <p className="text-[11px] text-slate-300 font-sans mt-1.5 leading-relaxed bg-black/40 border border-red-500/20 rounded p-2">
+                        <strong>Motivo:</strong> {p.motivoSemEfeito}
+                      </p>
+                      <div className="text-[9px] text-slate-500 font-mono mt-2 uppercase">
+                        Envolvidos: {subBy?.patente} {subBy?.nomeGuerra} ➔ {subTo?.patente} {subTo?.nomeGuerra}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       {/* ACTION ALERTS: SWAPS REQUIRING ATTENTION */}
       {pendentesSubstituto.length > 0 && (
         <div className="bg-gradient-to-r from-cyber-blue/20 to-cyber-blue/5 border-2 border-cyber-blue p-4 rounded-xl flex flex-col relative overflow-hidden shadow-[0_0_20px_rgba(0,229,255,0.4)] animate-pulse shadow-cyber-blue/30 backdrop-blur-sm">

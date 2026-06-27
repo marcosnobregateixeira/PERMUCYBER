@@ -694,6 +694,106 @@ export default function App() {
     await appendAuditLog('INTEGRALIZAÇÃO', `Protocolo de permuta excluído pelo militar solicitante.`, loggedUser.nomeGuerra, logs);
   };
 
+  const handleClearAllLogs = async () => {
+    if (!loggedUser || (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN')) return;
+    if (!window.confirm("CONFIRMAR OPERAÇÃO: Deseja realmente excluir permanentemente todos os logs de auditoria do sistema?")) {
+      return;
+    }
+    try {
+      for (const log of logs) {
+        await deleteDoc(doc(db, 'logs', log.id));
+      }
+      setLogs([]);
+      await appendAuditLog('INTEGRALIZAÇÃO', `Todos os logs de auditoria anteriores foram excluídos permanentemente por comando de ${loggedUser.nomeGuerra}.`, loggedUser.nomeGuerra, []);
+      alert("Sucesso: Livro de auditoria limpo com sucesso!");
+    } catch (e) {
+      console.error("Erro ao limpar logs:", e);
+      alert("Erro ao excluir logs.");
+    }
+  };
+
+  // Automated detection of afastamentos causing active permutas to be "SEM_EFEITO"
+  useEffect(() => {
+    if (!militares || militares.length === 0 || !permutas || permutas.length === 0) return;
+    
+    const activeStatuses = ['APROVADO', 'PENDENTE_SUBSTITUTO', 'PENDENTE_GESTOR', 'AJUSTE_GESTOR', 'ALTERACAO_SOLICITADA'];
+    
+    const checkAndCancelPermutas = async () => {
+      let updatedAny = false;
+      const updatedPermutas = [...permutas];
+
+      for (let i = 0; i < updatedPermutas.length; i++) {
+        const p = updatedPermutas[i];
+        if (!activeStatuses.includes(p.status)) continue;
+        
+        const subId = p.militarSubstituidoId;
+        const subtoId = p.militarSubstitutoId;
+        const date = p.dataRealizacao;
+        
+        const substituido = militares.find(m => m.id === subId);
+        const substituto = militares.find(m => m.id === subtoId);
+        
+        let hasAfastamento = false;
+        let motivo = '';
+        let militarAfastadoNome = '';
+        
+        if (substituido) {
+          const af = substituido.afastamentos?.find(a => date >= a.dataInicio && date <= a.dataFim);
+          if (af) {
+            hasAfastamento = true;
+            motivo = af.motivo;
+            militarAfastadoNome = substituido.nomeGuerra;
+          }
+        }
+        
+        if (!hasAfastamento && substituto) {
+          const af = substituto.afastamentos?.find(a => date >= a.dataInicio && date <= a.dataFim);
+          if (af) {
+            hasAfastamento = true;
+            motivo = af.motivo;
+            militarAfastadoNome = substituto.nomeGuerra;
+          }
+        }
+        
+        if (hasAfastamento) {
+          if (p.status === 'APROVADO') {
+            await revertOrDeleteScaleForPermuta(p);
+          }
+          
+          const motivoStr = `Afastamento de ${militarAfastadoNome} (${motivo}) registrado para a data do serviço.`;
+          const dataCancelamento = new Date().toISOString();
+          
+          try {
+            const permutaRef = doc(db, 'permutas', p.id);
+            await setDoc(permutaRef, sanitizeForFirestore({
+              status: 'SEM_EFEITO',
+              motivoSemEfeito: motivoStr,
+              dataCancelamentoAutomatico: dataCancelamento
+            }), { merge: true });
+          } catch (e) {
+            console.error("Firestore error auto-cancelling permuta:", e);
+          }
+          
+          updatedPermutas[i] = {
+            ...p,
+            status: 'SEM_EFEITO',
+            motivoSemEfeito: motivoStr,
+            dataCancelamentoAutomatico: dataCancelamento
+          };
+          updatedAny = true;
+          
+          await appendAuditLog('INTEGRALIZAÇÃO', `Permuta ID ${p.protocoloId} tornada SEM EFEITO automaticamente devido a afastamento ativo de ${militarAfastadoNome} (${motivo}).`, 'SISTEMA', logs);
+        }
+      }
+
+      if (updatedAny) {
+        setPermutas(updatedPermutas);
+      }
+    };
+    
+    checkAndCancelPermutas();
+  }, [militares, permutas]);
+
   const handleRequestAlteration = async (permutaId: string, comentario: string) => {
     if (!loggedUser) return;
     try {
@@ -1385,6 +1485,7 @@ export default function App() {
                         onDeletePermuta={handleDeletePermuta}
                         onAddMilitar={handleAddMilitarIndividual}
                         onDeleteMilitar={handleDeleteMilitar}
+                        onClearLogs={handleClearAllLogs}
                         onToggleBiometria={handleToggleBiometria}
                         onRefreshData={handleRefreshAll}
                         onImportMilitaresJSON={handleImportMilitaresJSON}
