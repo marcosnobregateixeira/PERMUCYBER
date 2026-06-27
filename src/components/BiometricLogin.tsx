@@ -158,7 +158,7 @@ export default function BiometricLogin({
           </h1>
         </div>
         <p className="text-[8.5px] font-mono tracking-[0.3em] text-[#00b0ff]/80 uppercase mt-0.5">
-          REPARTIÇÃO MILITAR TÁTICA
+          PERMUTA DE SERVIÇO
         </p>
         <div className="w-14 h-[1px] bg-gradient-to-r from-transparent via-cyber-blue to-transparent mt-1.5" />
       </div>
@@ -197,7 +197,7 @@ export default function BiometricLogin({
                       setSearchQuery(e.target.value);
                       setShowSuggestions(true);
                     }}
-                    placeholder="Busque pelo Nome do PM (ex: Mendes, Rodrigues)..."
+                    placeholder="Busque pelo seu nome..."
                     className="w-full bg-[#051319] border border-cyber-cyan/35 text-xs font-mono text-white pl-8 pr-3 py-2 rounded-md outline-none focus:border-cyber-blue focus:shadow-[0_0_8px_rgba(0,229,255,0.15)] transition-all placeholder:text-slate-500"
                   />
                   
