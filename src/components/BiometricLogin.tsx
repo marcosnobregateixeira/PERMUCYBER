@@ -121,7 +121,6 @@ export default function BiometricLogin({
     e.preventDefault();
     if (!userLogged) return;
     setErrorText(null);
-    console.log('PIN SUBMITTED:', pin, 'EXPECTED:', userLogged?.pinSegurança, 'USER:', userLogged?.id);
 
     // Default or personalized pin security code check
     if (pin === userLogged?.pinSegurança) {

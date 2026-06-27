@@ -142,6 +142,7 @@ export default function PainelGestor({
   const [justificativaAjuste, setJustificativaAjuste] = useState<string>('');
   const [militarSearchTerm, setMilitarSearchTerm] = useState('');
   const [credencialSearchTerm, setCredencialSearchTerm] = useState('');
+  const [verificarMilitarId, setVerificarMilitarId] = useState<string>('');
 
   const filteredMilitares = sortedMilitares.filter(m => 
     m.nome.toLowerCase().includes(militarSearchTerm.toLowerCase()) ||
@@ -392,6 +393,39 @@ export default function PainelGestor({
     showToast('OK! Solicitação de ajuste enviada para o policial.', 'success');
   };
 
+  // Calculations for current month's permutas and selected policeman
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-11
+  
+  // All approved permutas in current month
+  const permutasAprovadasMesAtual = permutas.filter(p => {
+    if (p.status !== 'APROVADO') return false;
+    const pDate = new Date(p.dataRealizacao + 'T12:00:00');
+    return pDate.getFullYear() === currentYear && pDate.getMonth() === currentMonth;
+  });
+
+  // Selected officer's approved permutas in current month
+  const permutasMilitarMesAtual = permutasAprovadasMesAtual.filter(p => {
+    if (!verificarMilitarId) return false;
+    return p.militarSubstituidoId === verificarMilitarId || p.militarSubstitutoId === verificarMilitarId;
+  });
+
+  // Extract unique sorted dates (formatted as DD/MM) for the selected officer (or all if none selected)
+  const targetPermutasList = verificarMilitarId ? permutasMilitarMesAtual : permutasAprovadasMesAtual;
+  const datasMesAtual = Array.from(new Set(
+    targetPermutasList.map(p => {
+      const pDate = new Date(p.dataRealizacao + 'T12:00:00');
+      const dia = String(pDate.getDate()).padStart(2, '0');
+      const mes = String(pDate.getMonth() + 1).padStart(2, '0');
+      return `${dia}/${mes}`;
+    })
+  )).sort((a, b) => {
+    const [diaA, mesA] = a.split('/').map(Number);
+    const [diaB, mesB] = b.split('/').map(Number);
+    return mesA !== mesB ? mesA - mesB : diaA - diaB;
+  });
+
   return (
     <div className="flex-1 flex flex-col p-4 bg-[#03080a] text-slate-100 select-none pb-12" id="painel-gestor-container">
       {/* Toast Notification */}
@@ -462,17 +496,40 @@ export default function PainelGestor({
 
       {/* QUICK KPI METRIC CARDS */}
       <div className="grid grid-cols-3 gap-2 mb-4 text-center">
-        <div className="bg-hud-card border border-hud-border p-2 rounded-lg">
+        <div className="bg-hud-card border border-hud-border p-2 rounded-lg flex flex-col justify-between min-h-[58px] text-left">
           <span className="text-[7.5px] font-mono text-slate-500 block uppercase">FILA RATIF.</span>
-          <span className="text-sm font-black font-display text-[#ffb300]">{pendentesGestor.length} NO FILTRO</span>
+          <select
+            value={verificarMilitarId}
+            onChange={(e) => setVerificarMilitarId(e.target.value)}
+            className="w-full bg-[#020507] border border-hud-border rounded px-1 py-0.5 text-white text-[10px] font-mono focus:border-cyber-blue outline-none uppercase cursor-pointer"
+          >
+            <option value="">-- SELECIONE POLICIAL --</option>
+            {sortedMilitares.map(m => (
+              <option key={m.id} value={m.id} className="bg-[#03080a] text-white">
+                {m.patente} {m.nomeGuerra}
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="bg-hud-card border border-hud-border p-2 rounded-lg">
+        <div className="bg-hud-card border border-hud-border p-2 rounded-lg flex flex-col justify-between min-h-[58px] text-center">
           <span className="text-[7.5px] font-mono text-slate-500 block uppercase">CONCLUÍDAS</span>
-          <span className="text-sm font-black font-display text-cyber-green">{totalAprovadas} TROCAS</span>
+          <span className="text-xs font-black font-mono text-cyber-green uppercase leading-loose truncate">
+            {verificarMilitarId ? (
+              `${permutasMilitarMesAtual.length} TROCAS`
+            ) : (
+              `${permutasAprovadasMesAtual.length} TROCAS (GERAL)`
+            )}
+          </span>
         </div>
-        <div className="bg-hud-card border border-hud-border p-2 rounded-lg">
+        <div className="bg-hud-card border border-hud-border p-2 rounded-lg flex flex-col justify-between min-h-[58px] text-center justify-center">
           <span className="text-[7.5px] font-mono text-slate-500 block uppercase">CADASTRO AUDITADO</span>
-          <span className="text-sm font-black font-display text-cyber-blue">{logs.length} BLOCOS</span>
+          {datasMesAtual.length > 0 ? (
+            <div className="overflow-x-auto whitespace-nowrap text-[10px] font-mono font-black text-cyber-blue py-1 scrollbar-none">
+              {datasMesAtual.join(' • ')}
+            </div>
+          ) : (
+            <span className="text-[10px] font-mono text-slate-500 leading-loose">NENHUMA DATA</span>
+          )}
         </div>
       </div>
 
