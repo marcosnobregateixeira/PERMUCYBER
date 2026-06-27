@@ -94,9 +94,9 @@ export default function ValidadorPermuta({
               </div>
               <div className="w-4 h-4 rounded-full bg-cyber-amber border-2 border-hud-bg shadow-[0_0_8px_#ffb300] shrink-0 mt-1" />
               <div className="flex-1 min-w-0 bg-hud-card border border-hud-border/50 rounded-lg p-2.5">
-                <h4 className="text-xs font-bold text-white truncate">{permuta.postoServico}</h4>
-                <div className="flex items-center space-x-2 text-[9px] text-slate-400 mt-1">
-                  <Clock className="w-3.5 h-3.5 text-cyber-cyan" />
+                <h4 className="text-xs font-bold text-white truncate">{militarSubstituido?.setor || permuta.postoServico}</h4>
+                <div className="flex items-center space-x-2 text-[11px] text-slate-300 font-semibold mt-1.5">
+                  <Clock className="w-4 h-4 text-cyber-cyan shrink-0" />
                   <span>{formatarDataBR(permuta.dataRealizacao)} @ {permuta.horaInicio} - {permuta.horaFim} ({permuta.turno})</span>
                 </div>
               </div>

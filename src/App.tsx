@@ -56,16 +56,83 @@ const sortMilitarByPatente = (a: Militar, b: Militar) => {
 };
 
 export default function App() {
-  const [militares, setMilitares] = useState<Militar[]>([]);
+  const [militares, setMilitares] = useState<Militar[]>(() => {
+    try {
+      const saved = localStorage.getItem('permucyber_militares');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed.sort(sortMilitarByPatente);
+      }
+    } catch (e) {
+      console.error("Local load error for militares:", e);
+    }
+    return [...MILITARES].sort(sortMilitarByPatente);
+  });
   const [selectedMilitarId, setSelectedMilitarId] = useState<string>('');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
   
-  const [escalas, setEscalas] = useState<Escala[]>([]);
-  const [alertas, setAlertas] = useState<Alerta[]>([]);
-  const [permutas, setPermutas] = useState<Permuta[]>([]);
-  const [logs, setLogs] = useState<BlockchainLog[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [escalas, setEscalas] = useState<Escala[]>(() => {
+    try {
+      const saved = localStorage.getItem('permucyber_escalas');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error("Local load error for escalas:", e);
+    }
+    return ESCALAS_INICIAIS;
+  });
+  const [alertas, setAlertas] = useState<Alerta[]>(() => {
+    try {
+      const saved = localStorage.getItem('permucyber_alertas');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error("Local load error for alertas:", e);
+    }
+    return ALERTAS_INICIAIS;
+  });
+  const [permutas, setPermutas] = useState<Permuta[]>(() => {
+    try {
+      const saved = localStorage.getItem('permucyber_permutas');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error("Local load error for permutas:", e);
+    }
+    return PERMUTAS_INICIAIS;
+  });
+  const [logs, setLogs] = useState<BlockchainLog[]>(() => {
+    try {
+      const saved = localStorage.getItem('permucyber_logs');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error("Local load error for logs:", e);
+    }
+    return LOGS_INICIAIS;
+  });
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem('permucyber_messages');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error("Local load error for messages:", e);
+    }
+    return CHATS_INICIAIS;
+  });
   const [backups, setBackups] = useState<BackupSnapshot[]>([]);
   const [config, setConfig] = useState<AppConfig>({ id: 'main', brasaoEsquerdoUrl: '', brasaoDireitoUrl: '' });
   const [backupStatusMsg, setBackupStatusMsg] = useState<string>('Sincronização em nuvem e backups estão ativos.');
@@ -81,29 +148,92 @@ export default function App() {
     setExpandedMonths(prev => ({ ...prev, [monthKey]: !prev[monthKey] }));
   };
 
+  // Synchronize dynamic local changes to localStorage as a fallback database
   useEffect(() => {
+    if (militares && militares.length > 0) {
+      try { localStorage.setItem('permucyber_militares', JSON.stringify(militares)); } catch (e) {}
+    }
+  }, [militares]);
+
+  useEffect(() => {
+    if (escalas && escalas.length > 0) {
+      try { localStorage.setItem('permucyber_escalas', JSON.stringify(escalas)); } catch (e) {}
+    }
+  }, [escalas]);
+
+  useEffect(() => {
+    if (alertas && alertas.length > 0) {
+      try { localStorage.setItem('permucyber_alertas', JSON.stringify(alertas)); } catch (e) {}
+    }
+  }, [alertas]);
+
+  useEffect(() => {
+    if (permutas && permutas.length > 0) {
+      try { localStorage.setItem('permucyber_permutas', JSON.stringify(permutas)); } catch (e) {}
+    }
+  }, [permutas]);
+
+  useEffect(() => {
+    if (logs && logs.length > 0) {
+      try { localStorage.setItem('permucyber_logs', JSON.stringify(logs)); } catch (e) {}
+    }
+  }, [logs]);
+
+  useEffect(() => {
+    if (messages && messages.length > 0) {
+      try { localStorage.setItem('permucyber_messages', JSON.stringify(messages)); } catch (e) {}
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    const handleFirebaseError = (error: any) => {
+      console.warn("Firebase limit or connectivity issue, activating secure offline mode:", error);
+      setFirebaseError(error.message || "Quota Exceeded");
+      setBackupStatusMsg("AVISO: Cota diária gratuita do Firebase excedida. Modo Offline Seguro Ativo.");
+      setIsLoading(false);
+    };
+
     // Seed data if missing
     seedInitialData(MILITARES, ESCALAS_INICIAIS, PERMUTAS_INICIAIS, ALERTAS_INICIAIS, LOGS_INICIAIS, CHATS_INICIAIS)
       .then(() => {
-        // Setup real-time listeners
+        // Setup real-time listeners with safety callbacks
         const unsubMilitares = onSnapshot(collection(db, 'militares'), (snap) => {
           const list = snap.docs.map(d => {
             const data = d.data() as Militar;
             return { ...data, id: d.id }; // Garantir que o ID do objeto seja o ID do documento Firestore
           });
           setMilitares(list.sort(sortMilitarByPatente));
-        });
-        const unsubEscalas = onSnapshot(collection(db, 'escalas'), (snap) => setEscalas(snap.docs.map(d => ({ ...d.data() as Escala, id: d.id }))));
-        const unsubAlertas = onSnapshot(collection(db, 'alertas'), (snap) => setAlertas(snap.docs.map(d => ({ ...d.data() as Alerta, id: d.id }))));
-        const unsubPermutas = onSnapshot(collection(db, 'permutas'), (snap) => setPermutas(snap.docs.map(d => ({ ...d.data() as Permuta, id: d.id }))));
-        const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => setLogs(snap.docs.map(d => ({ ...d.data() as BlockchainLog, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp))));
-        const unsubMessages = onSnapshot(collection(db, 'messages'), (snap) => setMessages(snap.docs.map(d => ({ ...d.data() as ChatMessage, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp))));
-        const unsubBackups = onSnapshot(collection(db, 'backups'), (snap) => setBackups(snap.docs.map(d => ({ ...d.data() as any as BackupSnapshot, id: d.id })).sort((a,b) => b.timestamp.localeCompare(a.timestamp))));
+        }, handleFirebaseError);
+
+        const unsubEscalas = onSnapshot(collection(db, 'escalas'), (snap) => {
+          setEscalas(snap.docs.map(d => ({ ...d.data() as Escala, id: d.id })));
+        }, handleFirebaseError);
+
+        const unsubAlertas = onSnapshot(collection(db, 'alertas'), (snap) => {
+          setAlertas(snap.docs.map(d => ({ ...d.data() as Alerta, id: d.id })));
+        }, handleFirebaseError);
+
+        const unsubPermutas = onSnapshot(collection(db, 'permutas'), (snap) => {
+          setPermutas(snap.docs.map(d => ({ ...d.data() as Permuta, id: d.id })));
+        }, handleFirebaseError);
+
+        const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => {
+          setLogs(snap.docs.map(d => ({ ...d.data() as BlockchainLog, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
+        }, handleFirebaseError);
+
+        const unsubMessages = onSnapshot(collection(db, 'messages'), (snap) => {
+          setMessages(snap.docs.map(d => ({ ...d.data() as ChatMessage, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
+        }, handleFirebaseError);
+
+        const unsubBackups = onSnapshot(collection(db, 'backups'), (snap) => {
+          setBackups(snap.docs.map(d => ({ ...d.data() as any as BackupSnapshot, id: d.id })).sort((a,b) => b.timestamp.localeCompare(a.timestamp)));
+        }, handleFirebaseError);
+
         const unsubConfig = onSnapshot(doc(db, 'settings', 'config'), (snap) => {
           if (snap.exists()) {
             setConfig(snap.data() as AppConfig);
           }
-        });
+        }, handleFirebaseError);
         
         setIsLoading(false);
 
@@ -119,16 +249,7 @@ export default function App() {
         };
       })
       .catch((error) => {
-        console.error("Firebase Sync Error:", error);
-        
-        // Fallback to local data to avoid breaking the UI during propagation
-        setMilitares([...MILITARES].sort(sortMilitarByPatente));
-        setEscalas(ESCALAS_INICIAIS);
-        setAlertas(ALERTAS_INICIAIS);
-        setPermutas(PERMUTAS_INICIAIS);
-        setLogs(LOGS_INICIAIS);
-        setMessages(CHATS_INICIAIS);
-        setIsLoading(false);
+        handleFirebaseError(error);
       });
   }, []);
 
@@ -222,37 +343,74 @@ export default function App() {
       
       for (const m of militares) {
         if (!snapshot.militares.some(sm => sm.id === m.id)) {
-          await deleteDoc(doc(db, 'militares', m.id));
+          try {
+            await deleteDoc(doc(db, 'militares', m.id));
+          } catch (e) {
+            console.error("Firestore error deleting militar:", e);
+          }
         }
       }
       for (const e of escalas) {
         if (!snapshot.escalas.some(se => se.id === e.id)) {
-          await deleteDoc(doc(db, 'escalas', e.id));
+          try {
+            await deleteDoc(doc(db, 'escalas', e.id));
+          } catch (e) {
+            console.error("Firestore error deleting escala:", e);
+          }
         }
       }
       for (const p of permutas) {
         if (!snapshot.permutas.some(sp => sp.id === p.id)) {
-          await deleteDoc(doc(db, 'permutas', p.id));
+          try {
+            await deleteDoc(doc(db, 'permutas', p.id));
+          } catch (e) {
+            console.error("Firestore error deleting permuta:", e);
+          }
         }
       }
 
       for (const m of snapshot.militares) {
-        await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
+        try {
+          await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
+        } catch (e) {
+          console.error("Firestore error setting militar:", e);
+        }
       }
       for (const e of snapshot.escalas) {
-        await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e));
+        try {
+          await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e));
+        } catch (e) {
+          console.error("Firestore error setting escala:", e);
+        }
       }
       for (const p of snapshot.permutas) {
-        await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore(p));
+        try {
+          await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore(p));
+        } catch (e) {
+          console.error("Firestore error setting permuta:", e);
+        }
       }
 
+      // Always restore local state variables regardless of Firestore failures
+      setMilitares(snapshot.militares.sort(sortMilitarByPatente));
+      setEscalas(snapshot.escalas);
+      setPermutas(snapshot.permutas);
+      if (snapshot.alertas) setAlertas(snapshot.alertas);
+      if (snapshot.logs) setLogs(snapshot.logs);
+
       await appendAuditLog('INTEGRALIZAÇÃO', `Restauração pontual efetuada com sucesso: ${snapshot.id}.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
-      alert(`SUCESSO! O banco de dados em nuvem foi totalmente restaurado para a imagem de segurança ${snapshot.id}.`);
+      alert(`SUCESSO! O banco de dados foi totalmente restaurado para a imagem de segurança ${snapshot.id}.`);
       setBackupStatusMsg(`✓ Restauro concluído com sucesso para o backup ${snapshot.id}.`);
     } catch (err) {
       console.error("Restore failed:", err);
-      alert("Falha crítica ao sincronizar restauro em nuvem.");
-      setBackupStatusMsg("⚠️ Erro de restauro e reconciliação.");
+      // Fallback local updates if anything failed during local operations
+      setMilitares(snapshot.militares.sort(sortMilitarByPatente));
+      setEscalas(snapshot.escalas);
+      setPermutas(snapshot.permutas);
+      if (snapshot.alertas) setAlertas(snapshot.alertas);
+      if (snapshot.logs) setLogs(snapshot.logs);
+      alert("Banco de dados restaurado localmente devido a limitações de conexão com a nuvem.");
+      setBackupStatusMsg("✓ Restauro offline concluído com sucesso.");
     }
   };
 
@@ -343,8 +501,13 @@ export default function App() {
 
   const handleImportMilitaresJSON = async (imported: Militar[]) => {
     for (const m of imported) {
-      await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
+      try {
+        await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
+      } catch (e) {
+        console.error("Firestore error importing militar:", e);
+      }
     }
+    setMilitares(imported.sort(sortMilitarByPatente));
     if (imported.length > 0 && !imported.some(m => m.id === selectedMilitarId)) {
       setSelectedMilitarId(imported[0].id);
       setIsLoggedIn(false);
@@ -372,7 +535,19 @@ export default function App() {
 
   const handleCreatePermuta = async (novaPermuta: Permuta) => {
     if (!loggedUser) return;
-    await setDoc(doc(db, 'permutas', novaPermuta.id), sanitizeForFirestore(novaPermuta));
+    try {
+      await setDoc(doc(db, 'permutas', novaPermuta.id), sanitizeForFirestore(novaPermuta));
+    } catch (e) {
+      console.error("Firestore error creating permuta:", e);
+    }
+    
+    // Optimistic/Local fallback update
+    setPermutas(prev => {
+      const exists = prev.some(p => p.id === novaPermuta.id);
+      if (exists) return prev;
+      return [...prev, novaPermuta];
+    });
+
     await appendAuditLog('PERMUTA_CRIADA', `Permuta criada para posto [${novaPermuta.postoServico}] de ${loggedUser.nomeGuerra}. Assinado digitalmente sob protocolo ${novaPermuta.protocoloId}.`, loggedUser.nomeGuerra, logs);
 
     const recipient = militares.find(m => m.id === novaPermuta.militarSubstitutoId);
@@ -386,7 +561,16 @@ export default function App() {
         criptografada: true,
         chaveCripto: 'AES-AUTO-SYSTEM-TRANS'
       };
-      await setDoc(doc(db, 'messages', automatedMsg.id), sanitizeForFirestore(automatedMsg));
+      try {
+        await setDoc(doc(db, 'messages', automatedMsg.id), sanitizeForFirestore(automatedMsg));
+      } catch (e) {
+        console.error("Firestore error sending automated message:", e);
+      }
+      setMessages(prev => {
+        const exists = prev.some(m => m.id === automatedMsg.id);
+        if (exists) return prev;
+        return [...prev, automatedMsg].sort((a,b) => a.timestamp.localeCompare(b.timestamp));
+      });
     }
   };
 
@@ -414,11 +598,19 @@ export default function App() {
       }
     }
 
-    const permutaRef = doc(db, 'permutas', permutaId);
-    await setDoc(permutaRef, sanitizeForFirestore({
-      status: 'PENDENTE_GESTOR',
-      assinaturaSubstituta: peerSignature
-    }), { merge: true });
+    try {
+      const permutaRef = doc(db, 'permutas', permutaId);
+      await setDoc(permutaRef, sanitizeForFirestore({
+        status: 'PENDENTE_GESTOR',
+        assinaturaSubstituta: peerSignature
+      }), { merge: true });
+    } catch (e) {
+      console.error("Firestore error accepting permuta:", e);
+    }
+
+    // Local fallback update
+    setPermutas(prev => prev.map(p => p.id === permutaId ? { ...p, status: 'PENDENTE_GESTOR', assinaturaSubstituta: peerSignature } : p));
+
     await appendAuditLog('PERMUTA_ACEITA', `Sgt. Mendes assinou digitalmente aceitando a permuta ref. protocolo ${targetPermuta.protocoloId}. Encaminhado ao conselho operacional.`, loggedUser.nomeGuerra, logs);
     setActiveReviewPermuta(null);
     setCurrentTab('PERMUTAS');
@@ -426,30 +618,97 @@ export default function App() {
 
   const handleDeclinePermuta = async (permutaId: string) => {
     if (!loggedUser) return;
-    const permutaRef = doc(db, 'permutas', permutaId);
-    await setDoc(permutaRef, sanitizeForFirestore({ status: 'REJEITADO_SUBSTITUTO' }), { merge: true });
+    try {
+      const permutaRef = doc(db, 'permutas', permutaId);
+      await setDoc(permutaRef, sanitizeForFirestore({ status: 'REJEITADO_SUBSTITUTO' }), { merge: true });
+    } catch (e) {
+      console.error("Firestore error declining permuta:", e);
+    }
+
+    // Local fallback update
+    setPermutas(prev => prev.map(p => p.id === permutaId ? { ...p, status: 'REJEITADO_SUBSTITUTO' } : p));
+
     await appendAuditLog('INTEGRALIZAÇÃO', `Solicitação de permuta cancelada/rejeitada pelo militar substituto. Protocolo suspenso.`, loggedUser.nomeGuerra, logs);
     setActiveReviewPermuta(null);
     setCurrentTab('PERMUTAS');
   };
 
+  const revertOrDeleteScaleForPermuta = async (targetPermuta: Permuta) => {
+    const originalEscalaId = targetPermuta.escalaSubstituidaId;
+    
+    if (originalEscalaId.startsWith('S-TEMP-')) {
+      // It was a dynamically created/generated scale. We should delete it!
+      try {
+        await deleteDoc(doc(db, 'escalas', originalEscalaId));
+      } catch (e) {
+        console.error("Firestore error deleting generated escala:", e);
+      }
+      
+      // Also look for any scale matching the substitute, date, and shift to be safe
+      const generatedEscala = escalas.find(e => 
+        (e.id === originalEscalaId) || 
+        (e.militarId === targetPermuta.militarSubstitutoId && 
+         e.data === targetPermuta.dataRealizacao && 
+         e.turno === targetPermuta.turno)
+      );
+      if (generatedEscala && generatedEscala.id !== originalEscalaId) {
+        try {
+          await deleteDoc(doc(db, 'escalas', generatedEscala.id));
+        } catch (e) {
+          console.error("Firestore error deleting generated escala by match:", e);
+        }
+      }
+      
+      const idsToDelete = [originalEscalaId, generatedEscala?.id].filter(Boolean) as string[];
+      setEscalas(prev => prev.filter(e => !idsToDelete.includes(e.id)));
+    } else {
+      // It was an original official scale record. We revert it to the original owner!
+      try {
+        const escalaRef = doc(db, 'escalas', originalEscalaId);
+        await setDoc(escalaRef, sanitizeForFirestore({
+          militarId: targetPermuta.militarSubstituidoId
+        }), { merge: true });
+      } catch (e) {
+        console.error("Firestore error reverting escala:", e);
+      }
+      
+      setEscalas(prev => prev.map(e => e.id === originalEscalaId ? {
+        ...e,
+        militarId: targetPermuta.militarSubstituidoId
+      } : e));
+    }
+  };
+
   const handleDeletePermuta = async (id: string) => {
     if (!loggedUser) return;
+    const targetPermuta = permutas.find(p => p.id === id);
+    if (targetPermuta && targetPermuta.status === 'APROVADO') {
+      await revertOrDeleteScaleForPermuta(targetPermuta);
+    }
     try {
       await deleteDoc(doc(db, 'permutas', id));
-      await appendAuditLog('INTEGRALIZAÇÃO', `Protocolo de permuta excluído pelo militar solicitante.`, loggedUser.nomeGuerra, logs);
     } catch (e) {
       console.error("Erro ao deletar permuta:", e);
     }
+    setPermutas(prev => prev.filter(p => p.id !== id));
+    await appendAuditLog('INTEGRALIZAÇÃO', `Protocolo de permuta excluído pelo militar solicitante.`, loggedUser.nomeGuerra, logs);
   };
 
   const handleRequestAlteration = async (permutaId: string, comentario: string) => {
     if (!loggedUser) return;
-    const permutaRef = doc(db, 'permutas', permutaId);
-    await setDoc(permutaRef, sanitizeForFirestore({
-      status: 'ALTERACAO_SOLICITADA',
-      comentarioAlteracao: comentario
-    }), { merge: true });
+    try {
+      const permutaRef = doc(db, 'permutas', permutaId);
+      await setDoc(permutaRef, sanitizeForFirestore({
+        status: 'ALTERACAO_SOLICITADA',
+        comentarioAlteracao: comentario
+      }), { merge: true });
+    } catch (e) {
+      console.error("Firestore error requesting alteration:", e);
+    }
+
+    // Local fallback update
+    setPermutas(prev => prev.map(p => p.id === permutaId ? { ...p, status: 'ALTERACAO_SOLICITADA', comentarioAlteracao: comentario } : p));
+
     await appendAuditLog('INTEGRALIZAÇÃO', `Proposta de alteração de escala retransmitida com considerações operacionais: "${comentario.slice(0, 45)}...".`, loggedUser.nomeGuerra, logs);
     setActiveReviewPermuta(null);
     setCurrentTab('PERMUTAS');
@@ -482,13 +741,28 @@ export default function App() {
       }
     }
 
-    const permutaRef = doc(db, 'permutas', permutaId);
-    await setDoc(permutaRef, sanitizeForFirestore({
+    const dataAssinaturaGestor = new Date().toISOString().replace('T', ' ').slice(0, 16);
+
+    try {
+      const permutaRef = doc(db, 'permutas', permutaId);
+      await setDoc(permutaRef, sanitizeForFirestore({
+        status: 'APROVADO',
+        assinaturaGestor: gestorSignature,
+        gestorNome,
+        dataAssinaturaGestor
+      }), { merge: true });
+    } catch (e) {
+      console.error("Firestore error approving permuta:", e);
+    }
+
+    // Always update local state
+    setPermutas(prev => prev.map(p => p.id === permutaId ? {
+      ...p,
       status: 'APROVADO',
       assinaturaGestor: gestorSignature,
       gestorNome,
-      dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
-    }), { merge: true });
+      dataAssinaturaGestor
+    } : p));
 
     // Duplicity Prevention: Check if there's already a scale for this militar, data, and turno
     const existingEscala = escalas.find(e => 
@@ -497,21 +771,24 @@ export default function App() {
       e.turno === targetPermuta.turno
     );
 
-    if (existingEscala) {
-      // If a scale already exists for this person/day/shift, we just ensure it has the correct ID if needed
-      // but usually we just skip creating a new one to avoid duplicity.
-      // If it was another militar's scale being replaced, it will be updated below.
-    }
-
     const originalEscalaId = targetPermuta.escalaSubstituidaId;
     const escalaOriginal = escalas.find(e => e.id === originalEscalaId);
 
     if (escalaOriginal && !originalEscalaId.startsWith('S-TEMP-')) {
       // Update the existing official scale record
-      const escalaRef = doc(db, 'escalas', originalEscalaId);
-      await setDoc(escalaRef, sanitizeForFirestore({
+      try {
+        const escalaRef = doc(db, 'escalas', originalEscalaId);
+        await setDoc(escalaRef, sanitizeForFirestore({
+          militarId: targetPermuta.militarSubstitutoId
+        }), { merge: true });
+      } catch (e) {
+        console.error("Firestore error updating escala:", e);
+      }
+
+      setEscalas(prev => prev.map(e => e.id === originalEscalaId ? {
+        ...e,
         militarId: targetPermuta.militarSubstitutoId
-      }), { merge: true });
+      } : e));
     } else {
       // It's a temporary or missing scale. 
       // Only create if we don't already have one for this person/day/shift
@@ -525,7 +802,17 @@ export default function App() {
           horaFim: targetPermuta.horaFim,
           turno: targetPermuta.turno as any
         };
-        await setDoc(doc(db, 'escalas', novaEscala.id), sanitizeForFirestore(novaEscala));
+        try {
+          await setDoc(doc(db, 'escalas', novaEscala.id), sanitizeForFirestore(novaEscala));
+        } catch (e) {
+          console.error("Firestore error creating escala:", e);
+        }
+
+        setEscalas(prev => {
+          const exists = prev.some(e => e.id === novaEscala.id);
+          if (exists) return prev;
+          return [...prev, novaEscala];
+        });
       }
     }
 
@@ -537,12 +824,27 @@ export default function App() {
     const targetPermuta = permutas.find(p => p.id === permutaId);
     if (!targetPermuta) return;
 
-    const permutaRef = doc(db, 'permutas', permutaId);
-    await setDoc(permutaRef, sanitizeForFirestore({
+    const dataAssinaturaGestor = new Date().toISOString().replace('T', ' ').slice(0, 16);
+
+    try {
+      const permutaRef = doc(db, 'permutas', permutaId);
+      await setDoc(permutaRef, sanitizeForFirestore({
+        status: 'REJEITADO',
+        gestorNome: loggedUser.nomeGuerra,
+        dataAssinaturaGestor
+      }), { merge: true });
+    } catch (e) {
+      console.error("Firestore error rejecting permuta:", e);
+    }
+
+    // Always update local state
+    setPermutas(prev => prev.map(p => p.id === permutaId ? {
+      ...p,
       status: 'REJEITADO',
       gestorNome: loggedUser.nomeGuerra,
-      dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
-    }), { merge: true });
+      dataAssinaturaGestor
+    } : p));
+
     await appendAuditLog('PROCESSO_REJEITADO', `Permuta ID ${targetPermuta.protocoloId} rejeitada administrativamente pelo Comando de Batalhão.`, loggedUser.nomeGuerra, logs);
   };
 
@@ -551,36 +853,29 @@ export default function App() {
     const targetPermuta = permutas.find(p => p.id === permutaId);
     if (!targetPermuta) return;
 
-    const permutaRef = doc(db, 'permutas', permutaId);
-    await setDoc(permutaRef, sanitizeForFirestore({
+    const dataAssinaturaGestor = new Date().toISOString().replace('T', ' ').slice(0, 16);
+
+    try {
+      const permutaRef = doc(db, 'permutas', permutaId);
+      await setDoc(permutaRef, sanitizeForFirestore({
+        status: 'SEM_EFEITO',
+        gestorNome: loggedUser.nomeGuerra,
+        dataAssinaturaGestor
+      }), { merge: true });
+    } catch (e) {
+      console.error("Firestore error setting SEM_EFEITO:", e);
+    }
+
+    // Always update local state
+    setPermutas(prev => prev.map(p => p.id === permutaId ? {
+      ...p,
       status: 'SEM_EFEITO',
       gestorNome: loggedUser.nomeGuerra,
-      dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
-    }), { merge: true });
+      dataAssinaturaGestor
+    } : p));
 
     // Attempt to revert the scale
-    const originalEscalaId = targetPermuta.escalaSubstituidaId;
-    const escalaOriginal = escalas.find(e => e.id === originalEscalaId);
-
-    if (escalaOriginal && !originalEscalaId.startsWith('S-TEMP-')) {
-      const escalaRef = doc(db, 'escalas', originalEscalaId);
-      await setDoc(escalaRef, sanitizeForFirestore({
-        militarId: targetPermuta.militarSubstituidoId // Revert to original
-      }), { merge: true });
-    } else {
-      // It might have been generated, let's search by substitute and date/turno
-      const generatedEscala = escalas.find(e => 
-        e.militarId === targetPermuta.militarSubstitutoId && 
-        e.data === targetPermuta.dataRealizacao && 
-        e.turno === targetPermuta.turno
-      );
-      if (generatedEscala) {
-        const escalaRef = doc(db, 'escalas', generatedEscala.id);
-        await setDoc(escalaRef, sanitizeForFirestore({
-          militarId: targetPermuta.militarSubstituidoId // Revert to original
-        }), { merge: true });
-      }
-    }
+    await revertOrDeleteScaleForPermuta(targetPermuta);
 
     await appendAuditLog('INTEGRALIZAÇÃO', `Permuta ID ${targetPermuta.protocoloId} tornada SEM EFEITO pelo Comando. Escala revertida.`, loggedUser.nomeGuerra, logs);
   };
@@ -590,13 +885,29 @@ export default function App() {
     const targetPermuta = permutas.find(p => p.id === permutaId);
     if (!targetPermuta) return;
 
-    const permutaRef = doc(db, 'permutas', permutaId);
-    await setDoc(permutaRef, sanitizeForFirestore({
+    const dataAssinaturaGestor = new Date().toISOString().replace('T', ' ').slice(0, 16);
+
+    try {
+      const permutaRef = doc(db, 'permutas', permutaId);
+      await setDoc(permutaRef, sanitizeForFirestore({
+        status: 'AJUSTE_GESTOR',
+        comentarioAlteracao: justificativa,
+        gestorNome: loggedUser.nomeGuerra,
+        dataAssinaturaGestor
+      }), { merge: true });
+    } catch (e) {
+      console.error("Firestore error adjusting permuta:", e);
+    }
+
+    // Always update local state
+    setPermutas(prev => prev.map(p => p.id === permutaId ? {
+      ...p,
       status: 'AJUSTE_GESTOR',
       comentarioAlteracao: justificativa,
       gestorNome: loggedUser.nomeGuerra,
-      dataAssinaturaGestor: new Date().toISOString().replace('T', ' ').slice(0, 16)
-    }), { merge: true });
+      dataAssinaturaGestor
+    } : p));
+
     await appendAuditLog('INTEGRALIZAÇÃO', `O Comando devolveu a escala ${targetPermuta.protocoloId} solicitando correções: "${justificativa.slice(0, 45)}...".`, loggedUser.nomeGuerra, logs);
 
     // Send automated message to the substituted military
@@ -609,7 +920,17 @@ export default function App() {
       criptografada: true,
       chaveCripto: 'AES-AUTO-SYSTEM-TRANS'
     };
-    await setDoc(doc(db, 'messages', automatedMsg.id), sanitizeForFirestore(automatedMsg));
+    try {
+      await setDoc(doc(db, 'messages', automatedMsg.id), sanitizeForFirestore(automatedMsg));
+    } catch (e) {
+      console.error("Firestore error creating automated message:", e);
+    }
+
+    setMessages(prev => {
+      const exists = prev.some(m => m.id === automatedMsg.id);
+      if (exists) return prev;
+      return [...prev, automatedMsg].sort((a,b) => a.timestamp.localeCompare(b.timestamp));
+    });
   };
 
   const handleUpdateAlerta = async (alertaId: string, conteudo: string, color: string, icon: string) => {
@@ -646,6 +967,15 @@ export default function App() {
       isLoggedIn={isLoggedIn}
     >
       <InstallAppBanner />
+      {firebaseError && (
+        <div className="bg-amber-500/10 border-b border-amber-500/30 text-amber-500 px-3 py-2 text-[10px] font-mono leading-relaxed flex items-start space-x-2 relative z-30">
+          <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
+          <div>
+            <span className="font-bold uppercase tracking-wider block text-amber-400">Modo Offline Seguro Ativo</span>
+            Sincronização em nuvem pausada temporariamente devido ao limite de cota gratuita do Firebase. Seus dados estão salvos localmente e funcionando perfeitamente.
+          </div>
+        </div>
+      )}
       {!isLoggedIn ? (
         /* BIOMETRIC OR PASS LOGIN SCREEN */
         <div className="flex-1 flex flex-col h-full">

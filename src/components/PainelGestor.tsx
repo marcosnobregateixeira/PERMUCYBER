@@ -24,6 +24,7 @@ import {
   AlertTriangle,
   Database,
   Upload,
+  Download,
   RefreshCw,
   FileCode,
   Key,
@@ -736,7 +737,7 @@ export default function PainelGestor({
             {isHistoricoExpanded && (
               <div className="mt-4">
                 
-                {/* Tabs de Filtro */}
+                 {/* Tabs de Filtro */}
                 <div className="flex space-x-1 border-b border-hud-border/40 pb-2 mb-3">
                   <button
                     onClick={() => setHistoricoFilter('TODAS')}
@@ -748,19 +749,19 @@ export default function PainelGestor({
                     onClick={() => setHistoricoFilter('APROVADAS')}
                     className={`px-3 py-1 text-[9px] font-bold tracking-widest font-mono rounded ${historicoFilter === 'APROVADAS' ? 'bg-cyber-green/20 text-cyber-green border border-cyber-green/30' : 'text-slate-500 hover:text-cyber-green/50'}`}
                   >
-                    APROVADAS
+                    APROVADA
                   </button>
                   <button
                     onClick={() => setHistoricoFilter('REJEITADAS')}
                     className={`px-3 py-1 text-[9px] font-bold tracking-widest font-mono rounded ${historicoFilter === 'REJEITADAS' ? 'bg-cyber-red/20 text-cyber-red border border-cyber-red/30' : 'text-slate-500 hover:text-cyber-red/50'}`}
                   >
-                    REJEITADAS
+                    REJEITADA
                   </button>
                   <button
                     onClick={() => setHistoricoFilter('SEM_EFEITO')}
                     className={`px-3 py-1 text-[9px] font-bold tracking-widest font-mono rounded ${historicoFilter === 'SEM_EFEITO' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30' : 'text-slate-500 hover:text-amber-500/50'}`}
                   >
-                    SEM EFEITO
+                    TORNAR SEM EFEITO
                   </button>
                 </div>
 
@@ -1341,7 +1342,7 @@ export default function PainelGestor({
               <span className="font-mono font-extrabold text-[#00ff66]">{backupStatusMsg || 'Cópia em nuvem estável.'}</span>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => {
@@ -1349,9 +1350,76 @@ export default function PainelGestor({
                     onCreateBackup('MANUAL');
                   }
                 }}
-                className="flex-1 bg-cyber-blue/20 hover:bg-cyber-blue/35 text-cyber-cyan border border-cyber-blue/40 py-2 rounded text-[10px] font-mono font-black uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1 cursor-pointer"
+                className="bg-cyber-blue/20 hover:bg-cyber-blue/35 text-cyber-cyan border border-cyber-blue/40 py-2 rounded text-[10px] font-mono font-black uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1 cursor-pointer"
               >
-                <span>CRIAR BACKUP MANUAL AGORA</span>
+                <span>CRIAR SNAPSHOT NUVEM</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const fullData = {
+                    id: `SNAP-LOCAL-${Date.now()}`,
+                    timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
+                    tipo: 'MANUAL',
+                    autor: userLogged?.nomeGuerra || 'SISTEMA',
+                    quantidadeMilitares: allMilitares.length,
+                    quantidadeEscalas: escalas.length,
+                    quantidadePermutas: permutas.length,
+                    militares: allMilitares,
+                    escalas: escalas,
+                    permutas: permutas,
+                    alertas: [],
+                    logs: logs
+                  };
+                  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullData, null, 2));
+                  const dlAnchor = document.createElement('a');
+                  dlAnchor.setAttribute("href", dataStr);
+                  dlAnchor.setAttribute("download", `permucyber_backup_completo_${new Date().toISOString().slice(0, 10)}.json`);
+                  document.body.appendChild(dlAnchor);
+                  dlAnchor.click();
+                  dlAnchor.remove();
+                }}
+                className="bg-cyber-green/15 hover:bg-cyber-green/30 text-cyber-green hover:text-white border border-cyber-green/40 py-2 rounded text-[10px] font-mono font-black uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1 cursor-pointer"
+              >
+                <span>EXPORTAR BANCO COMPLETO</span>
+              </button>
+            </div>
+
+            <div className="pt-1">
+              <input
+                type="file"
+                id="full-backup-file-input"
+                className="hidden"
+                accept=".json"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    try {
+                      const parsed = JSON.parse(event.target?.result as string);
+                      if (!parsed.militares || !parsed.escalas || !parsed.permutas) {
+                        alert('Erro: Arquivo JSON de backup inválido. Ele deve conter os campos militares, escalas e permutas.');
+                        return;
+                      }
+                      if (onRestoreBackup) {
+                        onRestoreBackup(parsed);
+                      }
+                    } catch (err) {
+                      alert('Erro ao ler ou processar o arquivo de backup.');
+                    }
+                  };
+                  reader.readAsText(file);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => document.getElementById('full-backup-file-input')?.click()}
+                className="w-full bg-cyber-amber/15 hover:bg-cyber-amber/30 text-cyber-amber border border-cyber-amber/40 py-2 rounded text-[10px] font-mono font-black uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1.5 cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>IMPORTAR BACKUP INTEGRAL (.JSON)</span>
               </button>
             </div>
 
@@ -1384,15 +1452,35 @@ export default function PainelGestor({
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onRestoreBackup?.(bk);
-                        }}
-                        className="bg-cyber-amber/15 hover:bg-cyber-amber/35 text-cyber-amber hover:text-white border border-cyber-amber/30 px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase transition-all cursor-pointer shrink-0"
-                      >
-                        RESTAURAR
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bk, null, 2));
+                            const dlAnchor = document.createElement('a');
+                            dlAnchor.setAttribute("href", dataStr);
+                            dlAnchor.setAttribute("download", `permucyber_backup_${bk.id}_${bk.timestamp.replace(/[:\s]/g, '-')}.json`);
+                            document.body.appendChild(dlAnchor);
+                            dlAnchor.click();
+                            dlAnchor.remove();
+                          }}
+                          className="bg-cyber-blue/15 hover:bg-cyber-blue/35 text-cyber-cyan border border-cyber-blue/30 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase transition-all cursor-pointer flex items-center gap-0.5"
+                          title="Baixar arquivo JSON deste backup para arquivo físico"
+                        >
+                          <Download className="w-2.5 h-2.5" />
+                          <span>BAIXAR</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onRestoreBackup?.(bk);
+                          }}
+                          className="bg-cyber-amber/15 hover:bg-cyber-amber/35 text-cyber-amber hover:text-white border border-cyber-amber/30 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase transition-all cursor-pointer"
+                        >
+                          RESTAURAR
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
