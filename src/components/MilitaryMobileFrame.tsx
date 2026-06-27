@@ -121,7 +121,12 @@ export default function MilitaryMobileFrame({
         {/* Bottom Hardware Bezel/Footer controls */}
         <div className="h-10 bg-[#020507] border-t border-hud-border/40 px-6 flex items-center justify-between text-cyber-blue/60 font-mono text-[10px] relative z-20">
           <div className="flex items-center space-x-1">
-            <Shield className="w-3.5 h-3.5 text-cyber-blue animate-pulse" />
+            <img
+              src="https://i.imgur.com/4IMCWbp.jpeg"
+              alt="Logo"
+              className="w-4 h-4 rounded-full mr-1 object-cover border border-cyber-cyan/30"
+              referrerPolicy="no-referrer"
+            />
             <span className="text-[9px] uppercase tracking-wider text-cyber-cyan">MODO TÁTICO ATIVO</span>
           </div>
           <div className="flex space-x-3 items-center">

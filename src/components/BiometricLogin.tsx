@@ -152,7 +152,12 @@ export default function BiometricLogin({
       {/* Brand Upper Title */}
       <div className="relative z-10 flex flex-col items-center mt-2.5 text-center">
         <div className="flex items-center space-x-2 text-cyber-blue drop-shadow-[0_0_10px_rgba(0,229,255,0.4)]">
-          <Shield className="w-7 h-7 text-cyber-blue animate-pulse" />
+          <img
+            src="https://i.imgur.com/4IMCWbp.jpeg"
+            alt="Logo"
+            className="w-8 h-8 rounded-full border border-cyber-cyan/50 shadow-[0_0_8px_rgba(0,229,255,0.4)] object-cover"
+            referrerPolicy="no-referrer"
+          />
           <h1 className="text-2xl font-black font-display tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyber-blue via-cyber-cyan to-white select-none">
             PERMUCYBER
           </h1>
