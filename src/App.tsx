@@ -1069,18 +1069,6 @@ export default function App() {
       isLoggedIn={isLoggedIn}
     >
       <InstallAppBanner />
-      {firebaseError && (
-        <div className="bg-amber-500/10 border-b border-amber-500/30 text-amber-500 px-3 py-2 text-[10px] font-mono leading-relaxed flex items-start space-x-2 relative z-30">
-          <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
-          <div>
-            <span className="font-bold uppercase tracking-wider block text-amber-400">Modo Offline Seguro Ativo</span>
-            Sincronização em nuvem pausada temporariamente devido ao limite de cota gratuita do Firebase. Seus dados estão salvos localmente e funcionando perfeitamente.
-            <div className="mt-1 text-[9px] text-amber-600 font-mono break-all bg-black/30 p-1 rounded">
-              Erro detalhado: {firebaseError}
-            </div>
-          </div>
-        </div>
-      )}
       {!isLoggedIn ? (
         /* BIOMETRIC OR PASS LOGIN SCREEN */
         <div className="flex-1 flex flex-col h-full">
