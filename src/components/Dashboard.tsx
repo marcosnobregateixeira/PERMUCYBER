@@ -42,7 +42,7 @@ interface DashboardProps {
   onApprovePermuta?: (permutaId: string, gestorNome: string, gestorSignature: string) => void;
   onRejectPermuta?: (permutaId: string) => void;
   onAdjustPermuta?: (permutaId: string, justificativa: string) => void;
-  onUpdateAlerta?: (alertaId: string, conteudo: string, color: string, icon: string) => void;
+  onUpdateAlerta?: (alertaId: string, conteudo: string, color: string, icon: string, velocidade: number, tamanho: number) => void;
 }
 
 export default function Dashboard({
@@ -81,12 +81,16 @@ export default function Dashboard({
   const [alertText, setAlertText] = useState(alertas[0]?.conteudo || "STATUS DE ATENÇÃO EXPEDIDO - COBERTURA RADAR CRÍTICA S-500 ATIVA");
   const [alertColor, setAlertColor] = useState('red');
   const [alertIcon, setAlertIcon] = useState('shield');
+  const [alertSpeed, setAlertSpeed] = useState<number>(alertas[0]?.velocidade || 3);
+  const [alertSize, setAlertSize] = useState<number>(alertas[0]?.tamanho || 12);
 
   useEffect(() => {
     if (!isEditingAlert && alertas && alertas.length > 0) {
       setAlertText(alertas[0].conteudo);
       setAlertColor(alertas[0].color || 'red');
       setAlertIcon(alertas[0].icon || 'shield');
+      setAlertSpeed(alertas[0].velocidade || 3);
+      setAlertSize(alertas[0].tamanho || 12);
     }
   }, [alertas, isEditingAlert]);
   
@@ -193,7 +197,7 @@ export default function Dashboard({
                     if (isEditingAlert) {
                       const alertId = (alertas && alertas[0] && alertas[0].id) ? alertas[0].id : 'A-01';
                       if (onUpdateAlerta) {
-                        onUpdateAlerta(alertId, alertText, alertColor, alertIcon);
+                        onUpdateAlerta(alertId, alertText, alertColor, alertIcon, alertSpeed, alertSize);
                       }
                     }
                     setIsEditingAlert(!isEditingAlert);
@@ -206,7 +210,11 @@ export default function Dashboard({
             </div>
             
             {!isEditingAlert ? (
-              <marquee className="text-xs text-slate-200 mt-1 font-mono tracking-tight" scrollamount="3">
+              <marquee 
+                className="text-slate-200 mt-1 font-mono tracking-tight" 
+                scrollamount={alertSpeed}
+                style={{ fontSize: `${alertSize}px` }}
+              >
                 {alertText}
               </marquee>
             ) : (
@@ -215,9 +223,42 @@ export default function Dashboard({
                   type="text"
                   value={alertText}
                   onChange={(e) => setAlertText(e.target.value)}
-                  className={`w-full bg-black/50 border border-cyber-${alertColor}/50 rounded p-1 text-xs text-white font-mono focus:outline-none focus:border-cyber-${alertColor}`}
+                  className={`w-full bg-black/50 border border-cyber-${alertColor}/50 rounded p-1.5 text-xs text-white font-mono focus:outline-none focus:border-cyber-${alertColor}`}
                   placeholder="Digite a mensagem do alerta..."
                 />
+                
+                {/* VELOCIDADE E TAMANHO CONTROLS */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-black/30 p-2 rounded border border-hud-border/40">
+                  <div className="flex flex-col space-y-1">
+                    <div className="flex justify-between text-[9px] font-mono text-slate-400 uppercase font-bold">
+                      <span>Velocidade</span>
+                      <span className="text-cyber-cyan">{alertSpeed}x</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="20" 
+                      value={alertSpeed} 
+                      onChange={(e) => setAlertSpeed(Number(e.target.value))}
+                      className="w-full accent-cyber-cyan cursor-pointer h-1.5 bg-slate-800 rounded-lg appearance-none"
+                    />
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <div className="flex justify-between text-[9px] font-mono text-slate-400 uppercase font-bold">
+                      <span>Tamanho da Fonte</span>
+                      <span className="text-cyber-cyan">{alertSize}px</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="9" 
+                      max="24" 
+                      value={alertSize} 
+                      onChange={(e) => setAlertSize(Number(e.target.value))}
+                      className="w-full accent-cyber-cyan cursor-pointer h-1.5 bg-slate-800 rounded-lg appearance-none"
+                    />
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
                   <div className="flex space-x-2 bg-black/40 p-1.5 rounded border border-slate-800">
                     {['red', 'amber', 'blue', 'green'].map(c => (

@@ -131,6 +131,10 @@
     "messages": {
       "schema": { "$ref": "#/entities/ChatMessage" },
       "description": "Chat messages."
+    },
+    "settings": {
+      "schema": { "type": "object" },
+      "description": "App configuration settings."
     }
   }
 }

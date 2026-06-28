@@ -143,6 +143,8 @@ export default function PainelGestor({
   const [militarSearchTerm, setMilitarSearchTerm] = useState('');
   const [credencialSearchTerm, setCredencialSearchTerm] = useState('');
   const [verificarMilitarId, setVerificarMilitarId] = useState<string>('');
+  const [selecionadoMes, setSelecionadoMes] = useState<number>(new Date().getMonth());
+  const [selecionadoAno, setSelecionadoAno] = useState<number>(new Date().getFullYear());
 
   const filteredMilitares = sortedMilitares.filter(m => 
     m.nome.toLowerCase().includes(militarSearchTerm.toLowerCase()) ||
@@ -394,9 +396,8 @@ export default function PainelGestor({
   };
 
   // Calculations for current month's permutas and selected policeman
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth(); // 0-11
+  const currentYear = selecionadoAno;
+  const currentMonth = selecionadoMes; // 0-11
   
   // All approved permutas in current month
   const permutasAprovadasMesAtual = permutas.filter(p => {
@@ -496,12 +497,12 @@ export default function PainelGestor({
 
       {/* QUICK KPI METRIC CARDS */}
       <div className="grid grid-cols-3 gap-2 mb-4 text-center">
-        <div className="bg-hud-card border border-hud-border p-2 rounded-lg flex flex-col justify-between min-h-[58px] text-left">
+        <div className="bg-hud-card border border-hud-border p-2 rounded-lg flex flex-col justify-between min-h-[58px] text-left gap-1">
           <span className="text-[7.5px] font-mono text-slate-500 block uppercase">FILA RATIF.</span>
           <select
             value={verificarMilitarId}
             onChange={(e) => setVerificarMilitarId(e.target.value)}
-            className="w-full bg-[#020507] border border-hud-border rounded px-1 py-0.5 text-white text-[10px] font-mono focus:border-cyber-blue outline-none uppercase cursor-pointer"
+            className="w-full bg-[#020507] border border-hud-border rounded px-1 py-0.5 text-white text-[10px] font-mono focus:border-cyber-blue outline-none uppercase cursor-pointer mb-0.5"
           >
             <option value="">-- SELECIONE POLICIAL --</option>
             {sortedMilitares.map(m => (
@@ -510,6 +511,35 @@ export default function PainelGestor({
               </option>
             ))}
           </select>
+          <div className="flex gap-1">
+            <select
+              value={selecionadoMes}
+              onChange={(e) => setSelecionadoMes(Number(e.target.value))}
+              className="flex-1 bg-[#020507] border border-hud-border rounded px-1 py-0.5 text-white text-[9.5px] font-mono focus:border-cyber-blue outline-none uppercase cursor-pointer"
+            >
+              <option value={0}>JANEIRO</option>
+              <option value={1}>FEVEREIRO</option>
+              <option value={2}>MARÇO</option>
+              <option value={3}>ABRIL</option>
+              <option value={4}>MAIO</option>
+              <option value={5}>JUNHO</option>
+              <option value={6}>JULHO</option>
+              <option value={7}>AGOSTO</option>
+              <option value={8}>SETEMBRO</option>
+              <option value={9}>OUTUBRO</option>
+              <option value={10}>NOVEMBRO</option>
+              <option value={11}>DEZEMBRO</option>
+            </select>
+            <select
+              value={selecionadoAno}
+              onChange={(e) => setSelecionadoAno(Number(e.target.value))}
+              className="bg-[#020507] border border-hud-border rounded px-1 py-0.5 text-white text-[9.5px] font-mono focus:border-cyber-blue outline-none uppercase cursor-pointer"
+            >
+              <option value={2025}>2025</option>
+              <option value={2026}>2026</option>
+              <option value={2027}>2027</option>
+            </select>
+          </div>
         </div>
         <div className="bg-hud-card border border-hud-border p-2 rounded-lg flex flex-col justify-between min-h-[58px] text-center">
           <span className="text-[7.5px] font-mono text-slate-500 block uppercase">CONCLUÍDAS</span>

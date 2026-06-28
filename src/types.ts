@@ -90,6 +90,8 @@ export interface Alerta {
   datahora: string;
   color?: string;
   icon?: string;
+  velocidade?: number;
+  tamanho?: number;
 }
 
 export interface BlockchainLog {

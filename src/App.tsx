@@ -1033,7 +1033,7 @@ export default function App() {
     });
   };
 
-  const handleUpdateAlerta = async (alertaId: string, conteudo: string, color: string, icon: string) => {
+  const handleUpdateAlerta = async (alertaId: string, conteudo: string, color: string, icon: string, velocidade?: number, tamanho?: number) => {
     try {
       await setDoc(doc(db, 'alertas', alertaId), sanitizeForFirestore({
         id: alertaId,
@@ -1042,6 +1042,8 @@ export default function App() {
         conteudo,
         color,
         icon,
+        velocidade: velocidade || 3,
+        tamanho: tamanho || 12,
         datahora: new Date().toISOString().replace('T', ' ').slice(0, 16)
       }), { merge: true });
       await appendAuditLog('INTEGRALIZAÇÃO', `Alerta operacional de comando atualizado: "${conteudo.slice(0, 45)}...".`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
@@ -1073,6 +1075,9 @@ export default function App() {
           <div>
             <span className="font-bold uppercase tracking-wider block text-amber-400">Modo Offline Seguro Ativo</span>
             Sincronização em nuvem pausada temporariamente devido ao limite de cota gratuita do Firebase. Seus dados estão salvos localmente e funcionando perfeitamente.
+            <div className="mt-1 text-[9px] text-amber-600 font-mono break-all bg-black/30 p-1 rounded">
+              Erro detalhado: {firebaseError}
+            </div>
           </div>
         </div>
       )}
