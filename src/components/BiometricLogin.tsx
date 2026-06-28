@@ -321,7 +321,7 @@ export default function BiometricLogin({
                     <div className="border-t border-hud-border/40 pt-2 grid grid-cols-2 gap-2 text-[8.5px] font-mono">
                       <div>
                         <span className="text-slate-500 uppercase font-black">Companhia:</span>
-                        <p className="text-slate-200 truncate h-3">{userLogged ? userLogged.companhia : '---'}</p>
+                        <p className="text-slate-200 truncate h-3">{userLogged ? (userLogged.setor || userLogged.companhia) : '---'}</p>
                       </div>
                       <div>
                         <span className="text-slate-500 uppercase font-black">Biometria:</span>

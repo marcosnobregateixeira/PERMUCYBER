@@ -1508,26 +1508,9 @@ export default function App() {
                           <p className="text-[9px] font-mono text-cyber-red uppercase tracking-widest font-extrabold">NÍVEL DE LIBERAÇÃO INSUFICIENTE</p>
                         </div>
                         
-                        <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
-                          Este setor tático exige credenciais de Oficial Superior para habilitar auditoria criptográfica de blockchain e homologação de permutas.
+                        <p className="text-xs text-cyber-red max-w-xs leading-relaxed font-bold font-mono uppercase tracking-wide border border-cyber-red/30 bg-cyber-red/5 p-3 rounded">
+                          SOMENTE COM CREDENCIAIS DE ADMINISTRADOR OU COMANDANTE
                         </p>
-
-                        {/* Quick Switch Shortcut Link */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleUserChange('M-202');
-                            alert('Acesso tático renegociado: Conectado como Ten. Bastos (Comandante).');
-                          }}
-                          className="w-full max-w-xs bg-cyber-green/10 hover:bg-cyber-green/25 text-cyber-green hover:text-white border border-cyber-green/35 py-1.5 rounded text-[10px] font-mono font-bold uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1.5 cursor-pointer mt-2"
-                        >
-                          <ShieldAlert className="w-3.5 h-3.5 text-cyber-green" />
-                          <span>Simular Logon Comandante (Ten. Bastos)</span>
-                        </button>
-
-                        <div className="text-[9px] font-mono text-slate-600 border border-hud-border/40 p-2 rounded max-w-xs w-full mt-2">
-                          DIRETRIZ DE SEGURANÇA NACIONAL: SYS-BLOCK CHANNELS ACTIVE
-                        </div>
                       </div>
                     )}
                   </div>
@@ -1561,21 +1544,6 @@ export default function App() {
               >
                 <FileCheck className="w-4 h-4" />
                 <span className="font-bold tracking-wider">PERMUTAS</span>
-              </button>
-
-              <button
-                onClick={() => setCurrentTab('CHAT')}
-                className={`flex-1 flex flex-col items-center space-y-1 focus:outline-none transition-all ${
-                  currentTab === 'CHAT' ? 'text-cyber-blue drop-shadow-[0_0_3px_rgba(0,229,255,0.4)]' : 'hover:text-slate-300'
-                }`}
-                id="tab-comms"
-              >
-                <div className="relative">
-                  <MessageSquare className="w-4 h-4" />
-                  {/* notification bubble mock dot */}
-                  <span className="absolute top-0 right-0 w-1.5 h-1.5 bg-cyber-green rounded-full animate-ping" />
-                </div>
-                <span className="font-bold tracking-wider">CHAT SEC</span>
               </button>
 
               <button

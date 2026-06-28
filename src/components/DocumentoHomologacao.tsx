@@ -146,7 +146,7 @@ export default function DocumentoHomologacao({
                 Nome: <span className="text-slate-200">{substituido?.nome || '—'}</span>
               </div>
               <div className="text-[9px] text-slate-500 font-mono uppercase tracking-tight">
-                Comp: {substituido?.companhia || '—'}
+                Comp/Setor: {substituido?.setor || substituido?.companhia || '—'}
               </div>
               <div className="text-[9px] text-slate-500 font-mono tracking-tighter truncate">
                 ID/CHAVE: {substituido?.id || '—'}
@@ -173,7 +173,7 @@ export default function DocumentoHomologacao({
                 Nome: <span className="text-slate-200">{substituto?.nome || '—'}</span>
               </div>
               <div className="text-[9px] text-slate-500 font-mono uppercase tracking-tight">
-                Comp: {substituto?.companhia || '—'}
+                Comp/Setor: {substituto?.setor || substituto?.companhia || '—'}
               </div>
               <div className="text-[9px] text-slate-500 font-mono tracking-tighter truncate">
                 ID/CHAVE: {substituto?.id || '—'}
