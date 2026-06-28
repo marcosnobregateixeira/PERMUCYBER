@@ -197,76 +197,110 @@ export default function App() {
 
   useEffect(() => {
     const handleFirebaseError = (error: any) => {
-      console.warn("Firebase limit or connectivity issue, activating secure offline mode:", error);
-      setFirebaseError(error.message || "Quota Exceeded");
-      setBackupStatusMsg("AVISO: Cota diária gratuita do Firebase excedida. Modo Offline Seguro Ativo.");
-      setIsLoading(false);
+      console.warn("Instabilidade de rede ou limite de cota temporário detectado. Mantendo sincronização ativa via cache:", error);
+      if (error?.message?.includes("Quota exceeded") || error?.message?.includes("quota")) {
+        setFirebaseError("Cota Excedida");
+        setBackupStatusMsg("AVISO: Cota diária do Firebase excedida. Modo redundante ativo.");
+      }
     };
 
-    // Seed data if missing
-    seedInitialData(MILITARES, ESCALAS_INICIAIS, PERMUTAS_INICIAIS, ALERTAS_INICIAIS, LOGS_INICIAIS, CHATS_INICIAIS)
-      .then(() => {
-        // Setup real-time listeners with safety callbacks
-        const unsubMilitares = onSnapshot(collection(db, 'militares'), (snap) => {
-          const list = snap.docs.map(d => {
-            const data = d.data() as Militar;
-            return { ...data, id: d.id }; // Garantir que o ID do objeto seja o ID do documento Firestore
-          });
-          setMilitares(list.sort(sortMilitarByPatente));
-        }, handleFirebaseError);
-
-        const unsubEscalas = onSnapshot(collection(db, 'escalas'), (snap) => {
-          setEscalas(snap.docs.map(d => ({ ...d.data() as Escala, id: d.id })));
-        }, handleFirebaseError);
-
-        const unsubAlertas = onSnapshot(collection(db, 'alertas'), (snap) => {
-          setAlertas(snap.docs.map(d => ({ ...d.data() as Alerta, id: d.id })));
-        }, handleFirebaseError);
-
-        const unsubPermutas = onSnapshot(collection(db, 'permutas'), (snap) => {
-          setPermutas(snap.docs.map(d => ({ ...d.data() as Permuta, id: d.id })));
-        }, handleFirebaseError);
-
-        const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => {
-          setLogs(snap.docs.map(d => ({ ...d.data() as BlockchainLog, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
-        }, handleFirebaseError);
-
-        const unsubMessages = onSnapshot(collection(db, 'messages'), (snap) => {
-          setMessages(snap.docs.map(d => ({ ...d.data() as ChatMessage, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
-        }, handleFirebaseError);
-
-        const unsubBackups = onSnapshot(collection(db, 'backups'), (snap) => {
-          setBackups(snap.docs.map(d => ({ ...d.data() as any as BackupSnapshot, id: d.id })).sort((a,b) => b.timestamp.localeCompare(a.timestamp)));
-        }, handleFirebaseError);
-
-        const unsubConfig = onSnapshot(doc(db, 'settings', 'config'), (snap) => {
-          if (snap.exists()) {
-            const data = snap.data() as AppConfig;
-            setConfig(data);
-            try {
-              localStorage.setItem('permucyber_config', JSON.stringify(data));
-            } catch (e) {
-              console.error("Local save error for config:", e);
-            }
-          }
-        }, handleFirebaseError);
-        
-        setIsLoading(false);
-
-        return () => {
-          unsubMilitares();
-          unsubEscalas();
-          unsubAlertas();
-          unsubPermutas();
-          unsubLogs();
-          unsubMessages();
-          unsubBackups();
-          unsubConfig();
-        };
-      })
-      .catch((error) => {
-        handleFirebaseError(error);
+    // 1. Registra IMEDIATAMENTE os listeners em tempo real para sincronização instantânea
+    const unsubMilitares = onSnapshot(collection(db, 'militares'), (snap) => {
+      setFirebaseError(null);
+      const list = snap.docs.map(d => {
+        const data = d.data() as Militar;
+        return { ...data, id: d.id }; // Garantir que o ID do objeto seja o ID do documento Firestore
       });
+      if (list.length > 0) {
+        setMilitares(list.sort(sortMilitarByPatente));
+      }
+      setIsLoading(false);
+    }, handleFirebaseError);
+
+    const unsubEscalas = onSnapshot(collection(db, 'escalas'), (snap) => {
+      setFirebaseError(null);
+      const list = snap.docs.map(d => ({ ...d.data() as Escala, id: d.id }));
+      if (list.length > 0) {
+        setEscalas(list);
+      }
+      setIsLoading(false);
+    }, handleFirebaseError);
+
+    const unsubAlertas = onSnapshot(collection(db, 'alertas'), (snap) => {
+      setFirebaseError(null);
+      const list = snap.docs.map(d => ({ ...d.data() as Alerta, id: d.id }));
+      if (list.length > 0) {
+        setAlertas(list);
+      }
+    }, handleFirebaseError);
+
+    const unsubPermutas = onSnapshot(collection(db, 'permutas'), (snap) => {
+      setFirebaseError(null);
+      const list = snap.docs.map(d => ({ ...d.data() as Permuta, id: d.id }));
+      if (list.length > 0) {
+        setPermutas(list);
+      }
+    }, handleFirebaseError);
+
+    const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => {
+      setFirebaseError(null);
+      const list = snap.docs.map(d => ({ ...d.data() as BlockchainLog, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
+      if (list.length > 0) {
+        setLogs(list);
+      }
+    }, handleFirebaseError);
+
+    const unsubMessages = onSnapshot(collection(db, 'messages'), (snap) => {
+      setFirebaseError(null);
+      const list = snap.docs.map(d => ({ ...d.data() as ChatMessage, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
+      if (list.length > 0) {
+        setMessages(list);
+      }
+    }, handleFirebaseError);
+
+    const unsubBackups = onSnapshot(collection(db, 'backups'), (snap) => {
+      setFirebaseError(null);
+      const list = snap.docs.map(d => ({ ...d.data() as any as BackupSnapshot, id: d.id })).sort((a,b) => b.timestamp.localeCompare(a.timestamp));
+      if (list.length > 0) {
+        setBackups(list);
+      }
+    }, handleFirebaseError);
+
+    const unsubConfig = onSnapshot(doc(db, 'settings', 'config'), (snap) => {
+      setFirebaseError(null);
+      if (snap.exists()) {
+        const data = snap.data() as AppConfig;
+        setConfig(data);
+        try {
+          localStorage.setItem('permucyber_config', JSON.stringify(data));
+        } catch (e) {
+          console.error("Local save error for config:", e);
+        }
+      }
+    }, handleFirebaseError);
+
+    // 2. Dispara a semeadura em background de forma silenciosa e paralela
+    seedInitialData(MILITARES, ESCALAS_INICIAIS, PERMUTAS_INICIAIS, ALERTAS_INICIAIS, LOGS_INICIAIS, CHATS_INICIAIS)
+      .catch((error) => {
+        console.warn("Aviso silencioso de semeadura em background:", error);
+      });
+
+    // Fallback de Loading para garantir que o usuário não fique preso na tela inicial em caso de lentidão de rede
+    const fallbackTimer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1200);
+
+    return () => {
+      clearTimeout(fallbackTimer);
+      unsubMilitares();
+      unsubEscalas();
+      unsubAlertas();
+      unsubPermutas();
+      unsubLogs();
+      unsubMessages();
+      unsubBackups();
+      unsubConfig();
+    };
   }, []);
 
   const handleRefreshAll = () => {

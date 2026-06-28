@@ -48,36 +48,36 @@ export const seedInitialData = async (
   logs: BlockchainLog[],
   messages: ChatMessage[]
 ) => {
-  // Only seed if collections are completely empty to allow permanent deletions
-  const militaresSnap = await getDocs(collections.militares);
-  if (militaresSnap.empty) {
-    for (const m of militares) {
-      await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
+  try {
+    // Only check if 'militares' is empty as the primary source of truth.
+    // If it is populated, it means the database is already seeded and we skip other checks,
+    // saving up to 5 complete collection getDocs operations per load!
+    const militaresSnap = await getDocs(collections.militares);
+    if (militaresSnap.empty) {
+      console.log("Banco Firestore vazio detectado. Semeando dados iniciais para sincronização...");
+      for (const m of militares) {
+        await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
+      }
+      for (const e of escalas) {
+        await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e));
+      }
+      for (const p of permutas) {
+        await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore(p));
+      }
+      for (const a of alertas) {
+        await setDoc(doc(db, 'alertas', a.id), sanitizeForFirestore(a));
+      }
+      for (const l of logs) {
+        await setDoc(doc(db, 'logs', l.id), sanitizeForFirestore(l));
+      }
+      for (const chat of messages) {
+        await setDoc(doc(db, 'messages', chat.id), sanitizeForFirestore(chat));
+      }
+      console.log("Semeadura inicial concluída com sucesso.");
+    } else {
+      console.log("Banco de dados já possui registros ativos. Sincronização em tempo real operacional.");
     }
-  }
-
-  const escalasSnap = await getDocs(collections.escalas);
-  if (escalasSnap.empty) {
-    for (const e of escalas) { await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e)); }
-  }
-
-  const permutasSnap = await getDocs(collections.permutas);
-  if (permutasSnap.empty) {
-    for (const p of permutas) { await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore(p)); }
-  }
-
-  const alertasSnap = await getDocs(collections.alertas);
-  if (alertasSnap.empty) {
-    for (const a of alertas) { await setDoc(doc(db, 'alertas', a.id), sanitizeForFirestore(a)); }
-  }
-
-  const logsSnap = await getDocs(collections.logs);
-  if (logsSnap.empty) {
-    for (const l of logs) { await setDoc(doc(db, 'logs', l.id), sanitizeForFirestore(l)); }
-  }
-
-  const messagesSnap = await getDocs(collections.messages);
-  if (messagesSnap.empty) {
-    for (const chat of messages) { await setDoc(doc(db, 'messages', chat.id), sanitizeForFirestore(chat)); }
+  } catch (err) {
+    console.warn("Aviso de rede: Falha temporária ao checar/semear dados ( offline ou limite de cota). Prosseguindo via cache:", err);
   }
 };
