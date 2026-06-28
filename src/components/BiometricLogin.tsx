@@ -382,16 +382,13 @@ export default function BiometricLogin({
                     </span>
                   </button>
 
-                  <div className="mt-4 flex flex-col items-center text-center">
-                    <p className="text-[10px] text-slate-400 max-w-[270px]">
-                      Pressione a biometria holográfica para iniciar a liberação satelital.
-                    </p>
-                    {errorText && (
-                      <div className="mt-2 text-[9px] font-mono text-cyber-red animate-pulse flex items-center bg-cyber-red/10 border border-cyber-red/35 px-2.5 py-1 rounded">
+                  {errorText && (
+                    <div className="mt-4 flex flex-col items-center text-center">
+                      <div className="text-[9px] font-mono text-cyber-red animate-pulse flex items-center bg-cyber-red/10 border border-cyber-red/35 px-2.5 py-1 rounded">
                         <AlertTriangle className="w-3.5 h-3.5 mr-1" /> {errorText}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -640,15 +637,6 @@ export default function BiometricLogin({
         </div>
       )}
 
-      {/* Footer Info */}
-      <div className="relative z-10 text-center border-t border-hud-border/40 pt-3 pb-0.5">
-        <p className="text-[9px] font-mono text-slate-400">
-          CONEXÃO DIGITAL REGIMENTAL CRIPTOGRAFADA
-        </p>
-        <p className="text-[7.5px] font-mono text-[#00b0ff]/40 mt-0.5">
-          STATION: BRAVO-3000 // AES SECURE PORT-3000
-        </p>
-      </div>
     </div>
   );
 }
