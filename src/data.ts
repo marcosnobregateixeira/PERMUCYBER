@@ -265,26 +265,7 @@ const genesisHash = '0xSHA256_GENESIS_BLOCK_ROOT_99AA88EE';
 const b1Hash = generateSimpleHash('Sgto Mendes logado com sucesso de Terminal Bioterra', genesisHash);
 const b2Hash = generateSimpleHash('Criação do Protocolo Inicial PERMUCYBER', b1Hash);
 
-export const LOGS_INICIAIS: BlockchainLog[] = [
-  {
-    id: 'L-01',
-    timestamp: '2026-06-20 08:14:22',
-    tipoEvento: 'INTEGRALIZAÇÃO',
-    evento: 'Distribuição dos nós primários de redundância tática no datacenter de defesa.',
-    militarEnvolvido: 'SISTEMA-ROOT',
-    hashAnterior: '0x00000000000000000000000000000000',
-    hashAtual: genesisHash
-  },
-  {
-    id: 'L-02',
-    timestamp: '2026-06-20 09:15:01',
-    tipoEvento: 'LOGIN',
-    evento: 'Sgto. Mendes autenticado com Biometria Multimodal e 2FA Ativo.',
-    militarEnvolvido: 'Sgto. Mendes',
-    hashAnterior: genesisHash,
-    hashAtual: b1Hash
-  }
-];
+export const LOGS_INICIAIS: BlockchainLog[] = [];
 
 export const PERMUTAS_INICIAIS: Permuta[] = [];
 

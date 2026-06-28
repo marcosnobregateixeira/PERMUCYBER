@@ -59,6 +59,7 @@ interface PainelGestorProps {
   onAddMilitar?: (m: Militar) => void;
   onDeleteMilitar?: (id: string) => void;
   onClearLogs?: () => void;
+  onDeleteLog?: (id: string) => void;
   onToggleBiometria?: (id: string) => void;
   onUserSwitch?: (userId: string) => void;
   backups?: any[];
@@ -101,6 +102,7 @@ export default function PainelGestor({
   onAddMilitar,
   onDeleteMilitar,
   onClearLogs,
+  onDeleteLog,
   onToggleBiometria,
   onUserSwitch,
   backups,
@@ -1092,13 +1094,25 @@ export default function PainelGestor({
               return (
                 <div 
                   key={log.id}
-                  className="bg-hud-card border border-hud-border rounded-xl p-3 space-y-2 text-xs relative overflow-hidden"
+                  className="bg-hud-card border border-hud-border rounded-xl p-3 space-y-2 text-xs relative overflow-hidden group"
                 >
                   <div className="flex justify-between items-start">
-                    <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border uppercase font-bold ${typeColor}`}>
-                      {log.tipoEvento}
-                    </span>
-                    <span className="text-[9px] font-mono text-slate-500">{log.timestamp}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border uppercase font-bold ${typeColor}`}>
+                        {log.tipoEvento}
+                      </span>
+                      <span className="text-[9px] font-mono text-slate-500">{log.timestamp}</span>
+                    </div>
+                    {onDeleteLog && (userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteLog(log.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-all text-cyber-red hover:text-red-500 p-0.5 rounded hover:bg-cyber-red/10 cursor-pointer"
+                        title="Excluir este registro"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
 
                   <p className="font-mono text-slate-200 text-[11px] leading-snug">{log.evento}</p>

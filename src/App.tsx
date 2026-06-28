@@ -753,19 +753,25 @@ export default function App() {
 
   const handleClearAllLogs = async () => {
     if (!loggedUser || (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN')) return;
-    if (!window.confirm("CONFIRMAR OPERAÇÃO: Deseja realmente excluir permanentemente todos os logs de auditoria do sistema?")) {
-      return;
-    }
+    
     try {
       for (const log of logs) {
         await deleteDoc(doc(db, 'logs', log.id));
       }
       setLogs([]);
       await appendAuditLog('INTEGRALIZAÇÃO', `Todos os logs de auditoria anteriores foram excluídos permanentemente por comando de ${loggedUser.nomeGuerra}.`, loggedUser.nomeGuerra, []);
-      alert("Sucesso: Livro de auditoria limpo com sucesso!");
     } catch (e) {
       console.error("Erro ao limpar logs:", e);
-      alert("Erro ao excluir logs.");
+    }
+  };
+
+  const handleDeleteLog = async (logId: string) => {
+    if (!loggedUser || (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN')) return;
+    try {
+      await deleteDoc(doc(db, 'logs', logId));
+      setLogs(prev => prev.filter(l => l.id !== logId));
+    } catch (e) {
+      console.error("Erro ao deletar registro de auditoria:", e);
     }
   };
 
@@ -1536,6 +1542,7 @@ export default function App() {
                         onAddMilitar={handleAddMilitarIndividual}
                         onDeleteMilitar={handleDeleteMilitar}
                         onClearLogs={handleClearAllLogs}
+                        onDeleteLog={handleDeleteLog}
                         onToggleBiometria={handleToggleBiometria}
                         onRefreshData={handleRefreshAll}
                         onImportMilitaresJSON={handleImportMilitaresJSON}
