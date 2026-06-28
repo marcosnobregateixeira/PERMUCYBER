@@ -35,6 +35,7 @@ export interface Militar {
   matriculaFuncional?: string;
   numero?: string;
   setor?: string;
+  turno?: 'TURNO A' | 'TURNO B' | '24H' | 'EXPEDIENTE';
   afastamentos?: Afastamento[];
 }
 
@@ -45,7 +46,7 @@ export interface Escala {
   data: string; // YYYY-MM-DD
   horaInicio: string; // HH:MM
   horaFim: string; // HH:MM
-  turno: 'TURNO A' | 'TURNO B' | '24H';
+  turno: 'TURNO A' | 'TURNO B' | '24H' | 'EXPEDIENTE';
 }
 export type PermutaStatus = 
   | 'PENDENTE_SUBSTITUTO' 
@@ -66,7 +67,7 @@ export interface Permuta {
   dataRealizacao: string; // YYYY-MM-DD
   horaInicio: string;
   horaFim: string;
-  turno: 'TURNO A' | 'TURNO B' | '24H';
+  turno: 'TURNO A' | 'TURNO B' | '24H' | 'EXPEDIENTE';
   postoServico: string;
   comentarioAlteracao?: string;
   status: PermutaStatus;

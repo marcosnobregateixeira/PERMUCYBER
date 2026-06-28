@@ -110,7 +110,52 @@ export default function Dashboard({
     (p) => (p.militarSubstituidoId === userLogged?.id || p.militarSubstitutoId === userLogged?.id)
   );
 
+  const getDynamicMilitarStatus = (m: any) => {
+    if (!m) return null;
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (m.afastamentos && m.afastamentos.length > 0) {
+      const sortedAf = [...m.afastamentos].sort((a, b) => b.dataFim.localeCompare(a.dataFim));
+      
+      const active = sortedAf.find(a => todayStr >= a.dataInicio && todayStr <= a.dataFim);
+      if (active) {
+        return {
+          type: 'AFASTADO',
+          label: `AFASTADO TATICAMENTE (${active.motivo})`,
+          detail: `Período: ${active.dataInicio.split('-').reverse().join('/')} até ${active.dataFim.split('-').reverse().join('/')}`,
+          color: 'text-cyber-red bg-cyber-red/10 border-cyber-red/35'
+        };
+      }
+      
+      const future = sortedAf.find(a => a.dataInicio > todayStr);
+      if (future) {
+        return {
+          type: 'AGENDADO',
+          label: `APTO / AGENDADO (${future.motivo})`,
+          detail: `Início: ${future.dataInicio.split('-').reverse().join('/')}`,
+          color: 'text-cyber-amber bg-cyber-amber/10 border-cyber-amber/35'
+        };
+      }
+      
+      const past = sortedAf.find(a => todayStr > a.dataFim);
+      if (past) {
+        return {
+          type: 'RETORNADO',
+          label: `APTO / RETORNADO AUTOMATICAMENTE`,
+          detail: `${past.motivo} concluído em ${past.dataFim.split('-').reverse().join('/')}`,
+          color: 'text-cyber-green bg-cyber-green/10 border-cyber-green/35'
+        };
+      }
+    }
+    return {
+      type: 'PRONTO',
+      label: 'APTO / PRONTO OPERACIONAL',
+      detail: 'Escala e permutas ativas',
+      color: 'text-cyber-cyan bg-cyber-cyan/10 border-cyber-cyan/35'
+    };
+  };
+
   const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO'>(realMonth as any);
+  const [selectedTurnoFilter, setSelectedTurnoFilter] = useState<'TODOS' | 'TURNO A' | 'TURNO B' | '24H' | 'EXPEDIENTE'>('TODOS');
 
   // Full Month configuration for Maio, Junho, and Julho 2026
   const monthConfigs = {
@@ -143,7 +188,12 @@ export default function Dashboard({
   const getDayScale = (day: number | null) => {
     if (!day) return null;
     const dateStr = `2026-${currentMonthConfig.monthCode}-${day.toString().padStart(2, '0')}`;
-    return escalas.find((e) => e.militarId === userLogged?.id && e.data === dateStr);
+    const scale = escalas.find((e) => e.militarId === userLogged?.id && e.data === dateStr);
+    if (!scale) return null;
+    if (selectedTurnoFilter !== 'TODOS' && scale.turno !== selectedTurnoFilter) {
+      return null;
+    }
+    return scale;
   };
 
   const handleMonthChange = (month: 'MAIO' | 'JUNHO' | 'JULHO') => {
@@ -302,6 +352,16 @@ export default function Dashboard({
             <div className="text-[9.5px] font-sans text-slate-400 truncate">
               {userLogged?.nome}
             </div>
+            {(() => {
+              const mStatus = getDynamicMilitarStatus(userLogged);
+              if (!mStatus) return null;
+              return (
+                <div className={`mt-1 inline-flex flex-col px-1.5 py-0.5 rounded border text-[8px] font-mono leading-tight ${mStatus.color}`}>
+                  <span className="font-bold uppercase tracking-wider">{mStatus.label}</span>
+                  <span className="text-[7.5px] opacity-85 font-sans mt-0.5">{mStatus.detail}</span>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -582,6 +642,31 @@ export default function Dashboard({
           </div>
         </div>
 
+        {/* TURN TABS - ABAS DE TURNO */}
+        <div className="flex items-center space-x-1 mb-3 bg-[#02090c]/80 p-1 rounded-lg border border-hud-border/45 w-full overflow-x-auto scrollbar-none">
+          <span className="text-[8.5px] font-mono font-bold text-slate-400 uppercase px-2 py-1 shrink-0 flex items-center border-r border-hud-border/30">
+            <Clock className="w-3.5 h-3.5 text-cyber-blue mr-1 animate-pulse" /> TURNO:
+          </span>
+          {['TODOS', 'TURNO A', 'TURNO B', '24H', 'EXPEDIENTE'].map((turnoOption) => {
+            const label = turnoOption === '24H' ? 'TURNO 24H' : turnoOption;
+            const isSelected = selectedTurnoFilter === turnoOption;
+            return (
+              <button
+                key={turnoOption}
+                type="button"
+                onClick={() => setSelectedTurnoFilter(turnoOption as any)}
+                className={`flex-1 min-w-[70px] text-center px-2 py-1 rounded text-[9px] font-mono font-black tracking-wide transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-cyber-blue/20 text-[#00e5ff] border border-cyber-cyan/35 shadow-[0_0_6px_rgba(0,229,255,0.25)]'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40 border border-transparent'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Day-of-week headers */}
         <div className="grid grid-cols-7 gap-1 text-center mb-1 text-[8px] font-mono font-bold text-slate-400">
           <div>DOM</div>
@@ -724,14 +809,17 @@ export default function Dashboard({
                 <button
                   onClick={() => {
                     if (!userLogged) return;
+                    const defaultTurno = selectedTurnoFilter === 'TODOS' ? 'TURNO A' : selectedTurnoFilter;
+                    const defaultHoraInicio = defaultTurno === 'TURNO B' ? '18:00' : defaultTurno === 'EXPEDIENTE' ? '08:00' : '06:00';
+                    const defaultHoraFim = (defaultTurno === 'TURNO B' || defaultTurno === '24H') ? '06:00' : defaultTurno === 'EXPEDIENTE' ? '17:00' : '18:00';
                     const simulatedScale: Escala = {
                       id: `S-TEMP-${Date.now()}`,
                       militarId: userLogged.id,
                       postoServico: 'SERVIÇO DE GUARDA DO QUARTEL',
                       data: dateStr,
-                      horaInicio: '08:00',
-                      horaFim: '20:00',
-                      turno: 'TURNO A'
+                      horaInicio: defaultHoraInicio,
+                      horaFim: defaultHoraFim,
+                      turno: defaultTurno as any
                     };
                     onStartPermutaFlow(simulatedScale);
                   }}

@@ -64,8 +64,8 @@ export default function PermutaFlow({
   // Custom hours for shift trade
   const [customHoraInicio, setCustomHoraInicio] = useState<string>(escala.horaInicio);
   const [customHoraFim, setCustomHoraFim] = useState<string>(escala.horaFim);
-  const [customTurno, setCustomTurno] = useState<'TURNO A' | 'TURNO B' | '24H'>(
-    ['TURNO A', 'TURNO B', '24H'].includes(escala.turno) ? (escala.turno as any) : 'TURNO A'
+  const [customTurno, setCustomTurno] = useState<'TURNO A' | 'TURNO B' | '24H' | 'EXPEDIENTE'>(
+    ['TURNO A', 'TURNO B', '24H', 'EXPEDIENTE'].includes(escala.turno) ? (escala.turno as any) : 'TURNO A'
   );
   
   // Signature pad states
@@ -657,12 +657,29 @@ export default function PermutaFlow({
                 <label className="text-[8px] text-slate-400 block uppercase font-mono">Regime de Turno</label>
                 <select
                   value={customTurno}
-                  onChange={(e) => setCustomTurno(e.target.value as any)}
+                  onChange={(e) => {
+                    const nextTurno = e.target.value as any;
+                    setCustomTurno(nextTurno);
+                    if (nextTurno === 'TURNO B') {
+                      setCustomHoraInicio('18:00');
+                      setCustomHoraFim('06:00');
+                    } else if (nextTurno === '24H') {
+                      setCustomHoraInicio('06:00');
+                      setCustomHoraFim('06:00');
+                    } else if (nextTurno === 'EXPEDIENTE') {
+                      setCustomHoraInicio('08:00');
+                      setCustomHoraFim('17:00');
+                    } else {
+                      setCustomHoraInicio('06:00');
+                      setCustomHoraFim('18:00');
+                    }
+                  }}
                   className="w-full bg-[#020709] border border-hud-border hover:border-cyber-cyan/50 focus:border-cyber-blue focus:outline-none rounded-lg px-2 py-1 text-xs text-cyber-blue font-bold font-mono"
                 >
                   <option value="TURNO A">TURNO A</option>
                   <option value="TURNO B">TURNO B</option>
                   <option value="24H">24H</option>
+                  <option value="EXPEDIENTE">EXPEDIENTE</option>
                 </select>
               </div>
             </div>

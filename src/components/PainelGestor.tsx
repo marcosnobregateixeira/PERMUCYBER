@@ -112,7 +112,7 @@ export default function PainelGestor({
 }: PainelGestorProps) {
   const sortedMilitares = [...allMilitares].sort(sortMilitarByPatenteG);
   const [activeSubTab, setActiveSubTab] = useState<'PEDIDOS' | 'AUDITORIA' | 'RELATORIOS' | 'COMANDO' | 'SISTEMA' | 'EXCLUSAO' | 'ACESSOS'>('PEDIDOS');
-  const [newMilitarForm, setNewMilitarForm] = useState<Partial<Militar>>({ nome: '', nomeGuerra: '', patente: 'SD', funcao: 'ADM', quadro: 'QPPM', pinSegurança: '1234', numero: '', matriculaFuncional: '' });
+  const [newMilitarForm, setNewMilitarForm] = useState<Partial<Militar>>({ nome: '', nomeGuerra: '', patente: 'SD', funcao: 'ADM', quadro: 'QPPM', pinSegurança: '1234', numero: '', matriculaFuncional: '', turno: 'TURNO A' });
   const [militarIdToDelete, setMilitarIdToDelete] = useState<string | null>(null);
   const [editingMilitar, setEditingMilitar] = useState<Militar | null>(null);
   const [editPolicialTab, setEditPolicialTab] = useState<'GERAL' | 'AFASTAMENTOS'>('GERAL');
@@ -132,6 +132,50 @@ export default function PainelGestor({
     if (v.length > 2) v = v.replace(/^(\d{2})(\d)/, '$1.$2');
     return v;
   };
+  const getDynamicMilitarStatus = (m: any) => {
+    if (!m) return null;
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (m.afastamentos && m.afastamentos.length > 0) {
+      const sortedAf = [...m.afastamentos].sort((a, b) => b.dataFim.localeCompare(a.dataFim));
+      
+      const active = sortedAf.find(a => todayStr >= a.dataInicio && todayStr <= a.dataFim);
+      if (active) {
+        return {
+          type: 'AFASTADO',
+          label: `AFASTADO (${active.motivo})`,
+          detail: `Fim: ${active.dataFim.split('-').reverse().join('/')}`,
+          color: 'text-cyber-red bg-cyber-red/10 border-cyber-red/30'
+        };
+      }
+      
+      const future = sortedAf.find(a => a.dataInicio > todayStr);
+      if (future) {
+        return {
+          type: 'AGENDADO',
+          label: `APTO / AGENDADO: ${future.motivo}`,
+          detail: `Início: ${future.dataInicio.split('-').reverse().join('/')}`,
+          color: 'text-cyber-amber bg-cyber-amber/10 border-cyber-amber/30'
+        };
+      }
+      
+      const past = sortedAf.find(a => todayStr > a.dataFim);
+      if (past) {
+        return {
+          type: 'RETORNADO',
+          label: `APTO (RETORNADO AUTOMATICAMENTE)`,
+          detail: `${past.motivo} concluído em ${past.dataFim.split('-').reverse().join('/')}`,
+          color: 'text-cyber-green bg-cyber-green/10 border-cyber-green/30'
+        };
+      }
+    }
+    return {
+      type: 'PRONTO',
+      label: 'APTO / PRONTO',
+      detail: 'Operacional regular',
+      color: 'text-cyber-cyan bg-cyber-cyan/10 border-cyber-cyan/30'
+    };
+  };
+
   const [reportTipo, setReportTipo] = useState<'GERAL' | 'INDIVIDUAL' | 'FUNCAO' | 'SETOR'>('GERAL');
   const [reportMilitarId, setReportMilitarId] = useState<string>('');
   const [reportFuncao, setReportFuncao] = useState<string>('');
@@ -222,7 +266,7 @@ export default function PainelGestor({
       doc.text("TURNOS:", 40, tempY);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
-      doc.text("TURNO A: 06H às 18H | TURNO B: 18H às 06H | 24H: 06H às 06H", 40, tempY + 12);
+      doc.text("TURNO A: 06H às 18H | TURNO B: 18H às 06H | 24H: 06H às 06H | EXPEDIENTE", 40, tempY + 12);
       
       const startY = tempY + 25;
 
@@ -1736,6 +1780,13 @@ export default function PainelGestor({
                     <option value="SOBREAVISO">SOBREAVISO (Assistente Social, Psicólogo)</option>
                 </select>
 
+                <select value={newMilitarForm.turno || 'TURNO A'} onChange={e => setNewMilitarForm({...newMilitarForm, turno: e.target.value as any})} className="bg-[#03090b] p-2 rounded border border-hud-border text-white col-span-2 uppercase font-mono">
+                    <option value="TURNO A">TURNO A (06:00 ÀS 18:00)</option>
+                    <option value="TURNO B">TURNO B (18:00 ÀS 06:00)</option>
+                    <option value="24H">TURNO 24H (06:00 ÀS 06:00)</option>
+                    <option value="EXPEDIENTE">EXPEDIENTE</option>
+                </select>
+
                 {/* DYNAMIC DIAGNOSTIC DUPLICITY SYSTEM */}
                 {(() => {
                   const duplicateByNumero = newMilitarForm.numero && newMilitarForm.numero.trim() !== ''
@@ -1794,7 +1845,7 @@ export default function PainelGestor({
                                     chaveDigital: `KEY-${Date.now()}`,
                                     biometriaAtiva: true
                                 });
-                                setNewMilitarForm({ nome: '', nomeGuerra: '', patente: 'SD', funcao: 'ADM', pinSegurança: '1234', numero: '', matriculaFuncional: '' });
+                                setNewMilitarForm({ nome: '', nomeGuerra: '', patente: 'SD', funcao: 'ADM', pinSegurança: '1234', numero: '', matriculaFuncional: '', turno: 'TURNO A' });
                             }
                         }}
                         disabled={isDuplicate || !newMilitarForm.nome || !newMilitarForm.nomeGuerra}
@@ -1915,6 +1966,28 @@ export default function PainelGestor({
                           <div>
                             <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold">Policial Registrado</span>
                             <span className="text-[11px] font-bold text-white uppercase">{u.nome} ({u.patente}) {u.funcao ? `- ${u.funcao}` : ''}</span>
+                            
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              <span className="text-[7.5px] font-mono font-bold uppercase bg-cyber-blue/10 text-cyber-cyan border border-cyber-cyan/30 px-1 py-0.2 rounded">
+                                TURNO: {u.turno || 'TURNO A'}
+                              </span>
+                              {u.setor && (
+                                <span className="text-[7.5px] font-mono font-bold uppercase bg-slate-900 text-slate-400 border border-slate-700/40 px-1 py-0.2 rounded">
+                                  SETOR: {u.setor}
+                                </span>
+                              )}
+                            </div>
+
+                            {(() => {
+                              const mStatus = getDynamicMilitarStatus(u);
+                              if (!mStatus) return null;
+                              return (
+                                <div className={`mt-1 inline-flex flex-col px-1.5 py-0.5 rounded border text-[8px] font-mono leading-tight ${mStatus.color}`}>
+                                  <span className="font-bold uppercase tracking-wider">{mStatus.label}</span>
+                                  <span className="text-[7.5px] opacity-80 mt-0.5">{mStatus.detail}</span>
+                                </div>
+                              );
+                            })()}
                           </div>
                           <div>
                             <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold">Nome de Guerra (Editável)</span>
@@ -2136,6 +2209,20 @@ export default function PainelGestor({
                 </select>
               </div>
 
+              <div className="flex flex-col space-y-1 col-span-1">
+                <label className="text-[8.5px] font-mono text-slate-400 uppercase tracking-wider font-bold">Turno de Trabalho</label>
+                <select
+                  value={editingMilitar.turno || 'TURNO A'}
+                  onChange={e => setEditingMilitar({...editingMilitar, turno: e.target.value as any})}
+                  className="bg-[#03090b] p-2 rounded border border-hud-border text-white text-xs uppercase font-mono"
+                >
+                  <option value="TURNO A">TURNO A (06H às 18H)</option>
+                  <option value="TURNO B">TURNO B (18H às 06H)</option>
+                  <option value="24H">24H (06H às 06H)</option>
+                  <option value="EXPEDIENTE">EXPEDIENTE</option>
+                </select>
+              </div>
+
               <div className="flex flex-col space-y-1">
                 <label className="text-[8.5px] font-mono text-slate-400 uppercase tracking-wider font-bold">PIN de Segurança (2FA)</label>
                 <input
@@ -2246,13 +2333,31 @@ export default function PainelGestor({
                   <p className="text-[10px] text-slate-500 italic py-2 text-center">Nenhum afastamento registrado.</p>
                 ) : (
                   <div className="flex flex-col space-y-2">
-                    {editingMilitar.afastamentos.map(af => (
-                      <div key={af.id} className="bg-slate-900/50 border border-slate-700/50 p-2 rounded flex justify-between items-center">
-                        <div className="flex flex-col">
-                          <span className="text-cyber-amber font-bold text-[10px] uppercase">{af.motivo}</span>
-                          <span className="text-slate-400 text-[9px] font-mono">{af.dataInicio.split('-').reverse().join('/')} até {af.dataFim.split('-').reverse().join('/')}</span>
-                        </div>
-                        <button
+                    {editingMilitar.afastamentos.map(af => {
+                      const todayStr = new Date().toISOString().split('T')[0];
+                      let statusLabel = 'AGENDADO';
+                      let statusClass = 'text-cyber-amber bg-cyber-amber/10 border-cyber-amber/30';
+                      
+                      if (todayStr >= af.dataInicio && todayStr <= af.dataFim) {
+                        statusLabel = 'ATIVO (BLOQUEADO)';
+                        statusClass = 'text-cyber-red bg-cyber-red/10 border-cyber-red/30';
+                      } else if (todayStr > af.dataFim) {
+                        statusLabel = 'CONCLUÍDO (RETORNADO AUTOMATICAMENTE)';
+                        statusClass = 'text-cyber-green bg-cyber-green/10 border-cyber-green/30';
+                      }
+                      
+                      return (
+                        <div key={af.id} className="bg-slate-900/50 border border-slate-700/50 p-2 rounded flex justify-between items-center">
+                          <div className="flex flex-col space-y-1">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-cyber-amber font-bold text-[10px] uppercase">{af.motivo}</span>
+                              <span className={`text-[7.5px] font-mono px-1 rounded border font-bold ${statusClass}`}>
+                                {statusLabel}
+                              </span>
+                            </div>
+                            <span className="text-slate-400 text-[9px] font-mono">{af.dataInicio.split('-').reverse().join('/')} até {af.dataFim.split('-').reverse().join('/')}</span>
+                          </div>
+                          <button
                           type="button"
                           onClick={() => {
                             const updated = editingMilitar.afastamentos!.filter(a => a.id !== af.id);
@@ -2266,7 +2371,8 @@ export default function PainelGestor({
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

@@ -19,7 +19,8 @@ export const MILITARES: Militar[] = [
     statusProntidao: 'FOLGA',
     chaveDigital: 'SECURE-NODE-MENDES-12DF89',
     biometriaAtiva: true,
-    pinSegurança: '2048'
+    pinSegurança: '2048',
+    turno: 'TURNO A'
   },
   {
     id: 'M-103',
@@ -34,7 +35,8 @@ export const MILITARES: Militar[] = [
     statusProntidao: 'PRONTO',
     chaveDigital: 'SECURE-NODE-RODRIGUES-44PQ92',
     biometriaAtiva: true,
-    pinSegurança: '5112'
+    pinSegurança: '5112',
+    turno: 'TURNO B'
   },
   {
     id: 'M-104',
@@ -49,7 +51,8 @@ export const MILITARES: Militar[] = [
     statusProntidao: 'PRONTO',
     chaveDigital: 'SECURE-NODE-TOLEDO-33WE01',
     biometriaAtiva: false,
-    pinSegurança: '8890'
+    pinSegurança: '8890',
+    turno: '24H'
   },
   {
     id: 'M-202',
@@ -64,7 +67,8 @@ export const MILITARES: Militar[] = [
     statusProntidao: 'PRONTO',
     chaveDigital: 'COMMAND-NODE-BASTOS-00ALPHA',
     biometriaAtiva: true,
-    pinSegurança: '0300'
+    pinSegurança: '0300',
+    turno: 'TURNO A'
   },
   {
     id: 'M-301',
@@ -79,7 +83,8 @@ export const MILITARES: Militar[] = [
     statusProntidao: 'FOLGA',
     chaveDigital: 'SECURE-NODE-FONTES-77GH77',
     biometriaAtiva: true,
-    pinSegurança: '4321'
+    pinSegurança: '4321',
+    turno: 'TURNO A'
   },
   {
     id: 'M-302',
@@ -94,7 +99,8 @@ export const MILITARES: Militar[] = [
     statusProntidao: 'PRONTO',
     chaveDigital: 'SECURE-NODE-CASTRO-22WE99',
     biometriaAtiva: true,
-    pinSegurança: '2233'
+    pinSegurança: '2233',
+    turno: 'TURNO B'
   },
   {
     id: 'M-303',
@@ -109,7 +115,8 @@ export const MILITARES: Militar[] = [
     statusProntidao: 'PRONTO',
     chaveDigital: 'SECURE-NODE-SOUZA-64KF29',
     biometriaAtiva: true,
-    pinSegurança: '4455'
+    pinSegurança: '4455',
+    turno: 'TURNO A'
   },
   {
     id: 'M-304',
@@ -124,7 +131,8 @@ export const MILITARES: Militar[] = [
     statusProntidao: 'PRONTO',
     chaveDigital: 'SECURE-NODE-NEVES-81LH03',
     biometriaAtiva: true,
-    pinSegurança: '6677'
+    pinSegurança: '6677',
+    turno: 'TURNO B'
   },
   {
     id: 'M-305',
@@ -139,7 +147,8 @@ export const MILITARES: Militar[] = [
     statusProntidao: 'PRONTO',
     chaveDigital: 'SECURE-NODE-LIMA-19AA42',
     biometriaAtiva: true,
-    pinSegurança: '8899'
+    pinSegurança: '8899',
+    turno: 'TURNO A'
   },
   {
     id: 'M-ADMIN-1',
@@ -154,7 +163,8 @@ export const MILITARES: Militar[] = [
     statusProntidao: 'PRONTO',
     chaveDigital: 'ADMIN-NODE-NOBREGA-12345',
     biometriaAtiva: true,
-    pinSegurança: '0000'
+    pinSegurança: '0000',
+    turno: 'TURNO A'
   }
 ];
 
