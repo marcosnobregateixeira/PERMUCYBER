@@ -134,7 +134,17 @@ export default function App() {
     return CHATS_INICIAIS;
   });
   const [backups, setBackups] = useState<BackupSnapshot[]>([]);
-  const [config, setConfig] = useState<AppConfig>({ id: 'main', brasaoEsquerdoUrl: '', brasaoDireitoUrl: '' });
+  const [config, setConfig] = useState<AppConfig>(() => {
+    try {
+      const saved = localStorage.getItem('permucyber_config');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error("Local load error for config:", e);
+    }
+    return { id: 'main', brasaoEsquerdoUrl: '', brasaoDireitoUrl: '' };
+  });
   const [backupStatusMsg, setBackupStatusMsg] = useState<string>('Sincronização em nuvem e backups estão ativos.');
 
   const [currentTab, setCurrentTab] = useState<'DASHBOARD' | 'PERMUTAS' | 'CHAT' | 'GESTAO'>('DASHBOARD');
@@ -231,7 +241,13 @@ export default function App() {
 
         const unsubConfig = onSnapshot(doc(db, 'settings', 'config'), (snap) => {
           if (snap.exists()) {
-            setConfig(snap.data() as AppConfig);
+            const data = snap.data() as AppConfig;
+            setConfig(data);
+            try {
+              localStorage.setItem('permucyber_config', JSON.stringify(data));
+            } catch (e) {
+              console.error("Local save error for config:", e);
+            }
           }
         }, handleFirebaseError);
         
@@ -492,8 +508,15 @@ export default function App() {
   };
 
   const handleUpdateConfig = async (newConfig: Partial<AppConfig>) => {
+    const updated = { ...config, ...newConfig };
+    setConfig(updated);
     try {
-      await setDoc(doc(db, 'settings', 'config'), sanitizeForFirestore({ ...config, ...newConfig }));
+      localStorage.setItem('permucyber_config', JSON.stringify(updated));
+    } catch (e) {
+      console.error("Local save error for config:", e);
+    }
+    try {
+      await setDoc(doc(db, 'settings', 'config'), sanitizeForFirestore(updated));
     } catch (e) {
       console.error("Error updating config:", e);
     }

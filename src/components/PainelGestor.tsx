@@ -229,21 +229,21 @@ export default function PainelGestor({
       doc.text(titleLine1, pageWidth/2, 50, { align: 'center' });
       doc.text(titleLine2, pageWidth/2, 68, { align: 'center' });
 
-      // Logos (Sized and positioned to avoid overlap)
+      // Logos (Sized and positioned to avoid overlap) with robust fallback defaults when database has quota issues
       const logoSize = 55;
-      if (config.brasaoEsquerdoUrl) {
-        try {
-          doc.addImage(config.brasaoEsquerdoUrl, 'PNG', 45, 20, logoSize, logoSize); 
-        } catch (e) {
-          console.warn("Left logo link fail or CORS issue", e);
-        }
+      const leftLogo = config.brasaoEsquerdoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Coat_of_arms_of_Brazil.svg/200px-Coat_of_arms_of_Brazil.svg.png';
+      const rightLogo = config.brasaoDireitoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Star_of_life2.svg/200px-Star_of_life2.svg.png';
+
+      try {
+        doc.addImage(leftLogo, 'PNG', 45, 20, logoSize, logoSize); 
+      } catch (e) {
+        console.warn("Left logo link fail or CORS issue", e);
       }
-      if (config.brasaoDireitoUrl) {
-        try {
-          doc.addImage(config.brasaoDireitoUrl, 'PNG', pageWidth - 45 - logoSize, 20, logoSize, logoSize); 
-        } catch (e) {
-          console.warn("Right logo link fail or CORS issue", e);
-        }
+
+      try {
+        doc.addImage(rightLogo, 'PNG', pageWidth - 45 - logoSize, 20, logoSize, logoSize); 
+      } catch (e) {
+        console.warn("Right logo link fail or CORS issue", e);
       }
       
       // Subinfo
@@ -1192,7 +1192,12 @@ export default function PainelGestor({
             <div className="relative flex justify-between items-center mb-8 pb-4">
                {/* Left Logo */}
                <div className="w-24 h-24 flex items-center justify-center">
-                 {config.brasaoEsquerdoUrl && <img src={config.brasaoEsquerdoUrl} alt="Logo Esq" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />}
+                 <img 
+                   src={config.brasaoEsquerdoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Coat_of_arms_of_Brazil.svg/200px-Coat_of_arms_of_Brazil.svg.png'} 
+                   alt="Logo Esq" 
+                   className="max-w-full max-h-full object-contain" 
+                   referrerPolicy="no-referrer" 
+                 />
                </div>
                
                {/* Center Title */}
@@ -1205,7 +1210,12 @@ export default function PainelGestor({
                
                {/* Right Logo */}
                <div className="w-24 h-24 flex items-center justify-center">
-                 {config.brasaoDireitoUrl && <img src={config.brasaoDireitoUrl} alt="Logo Dir" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />}
+                 <img 
+                   src={config.brasaoDireitoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Star_of_life2.svg/200px-Star_of_life2.svg.png'} 
+                   alt="Logo Dir" 
+                   className="max-w-full max-h-full object-contain" 
+                   referrerPolicy="no-referrer" 
+                 />
                </div>
                
                {/* Stylish decorative lines */}
