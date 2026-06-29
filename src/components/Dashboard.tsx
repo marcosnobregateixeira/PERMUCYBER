@@ -703,8 +703,6 @@ export default function Dashboard({
                     ? 'bg-cyber-blue/15 border-cyber-blue text-white shadow-[0_0_8px_rgba(0,229,255,0.25)] font-bold'
                     : isTodayActual
                     ? 'bg-cyber-green/5 border-cyber-green/40 text-cyber-green'
-                    : hasScale
-                    ? 'bg-cyber-cyan/5 border-cyber-cyan/40 text-[#00e5ff] font-semibold hover:bg-cyber-cyan/15 hover:border-cyber-cyan'
                     : 'bg-[#03090b]/40 border-hud-border/40 text-slate-500 hover:border-hud-border/70 hover:bg-hud-card/50'
                 }`}
               >
@@ -713,11 +711,6 @@ export default function Dashboard({
                 {/* Simulated 'Today' border accent */}
                 {isTodayActual && (
                   <div className="absolute top-0 left-0 w-1.5 h-1.5 bg-cyber-green rounded-br" title="Hoje" />
-                )}
-
-                {/* Dot marker indicating active duty on this day */}
-                {hasScale && (
-                  <span className="w-1 h-1 rounded-full bg-cyber-amber mt-0.5 animate-pulse" />
                 )}
               </button>
             );

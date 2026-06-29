@@ -121,9 +121,16 @@ export default function PermutaFlow({
   );
 
   const candidatesWithAI = militaresDisponiveis.map((c) => {
-    // Check conflicts: Has scale on target day and shift?
+    // Check conflicts: Has scale on target day?
     const hasConflictScale = escalas.some(
       (e) => e.militarId === c.id && e.data === selectedDate
+    );
+
+    // Check if they already have an active/approved permuta on this date
+    const hasActivePermuta = permutas.some(p => 
+      p.dataRealizacao === selectedDate &&
+      !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status) &&
+      (p.militarSubstituidoId === c.id || p.militarSubstitutoId === c.id)
     );
     
     let score = 95;
@@ -143,10 +150,10 @@ export default function PermutaFlow({
       score = 0;
       reason = `AFASTAMENTO ATIVO: ${afastamento.motivo} (${afastamento.dataInicio.split('-').reverse().join('/')} a ${afastamento.dataFim.split('-').reverse().join('/')}). PROIBIDO PERMUTAR.`;
       status = 'BLOCKED';
-    } else if (hasConflictScale) {
-      score = 45;
-      reason = 'ATENÇÃO: Possui escala designada nesta data (alerta de choque/descanso). Habilitado para solicitação.';
-      status = 'COMPATIBLE';
+    } else if (hasConflictScale || hasActivePermuta) {
+      score = 0;
+      reason = "Não pode, porque este policial já está de serviço nesse dia.";
+      status = 'BLOCKED';
     } else if (userLogged) {
       if (c.patente === userLogged.patente) {
         if (c.especialidade === 'MÉDICO' || c.especialidade === 'ENFERMEIRO' || c.especialidade === 'TEC. ENFERMAGEM') {
@@ -213,9 +220,9 @@ export default function PermutaFlow({
       }
     }
 
-    // Verify if either the requester or the substitute already has a permuta on this date and shift
+    // Verify if either the requester or the substitute already has an active or approved permuta on this date
     const hasConflict = permutas.some(p => {
-      if (p.dataRealizacao === selectedDate && p.turno === customTurno && p.status !== 'REJEITADO') {
+      if (p.dataRealizacao === selectedDate && !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status)) {
         if (p.militarSubstituidoId === userLogged.id || p.militarSubstitutoId === userLogged.id) return true;
         if (p.militarSubstituidoId === selectedSubstituteId || p.militarSubstitutoId === selectedSubstituteId) return true;
       }
@@ -223,7 +230,14 @@ export default function PermutaFlow({
     });
 
     if (hasConflict) {
-      alert("CONFLITO DETECTADO: Você ou o substituto já possuem uma permuta registrada para este mesmo dia e turno.");
+      alert("CONFLITO DETECTADO: Você ou o substituto já possuem uma solicitação de permuta ativa ou homologada registrada para esta mesma data. Não é permitido solicitar duas vezes para o mesmo dia.");
+      return;
+    }
+
+    // Verify if the substitute is already scheduled (escalado) on the selected date
+    const isSubstituteEscalado = escalas.some(e => e.militarId === selectedSubstituteId && e.data === selectedDate);
+    if (isSubstituteEscalado) {
+      alert("PROIBIDO: O substituto selecionado já está escalado de serviço oficial nesta data. Ele não pode aceitar outra escala para o mesmo dia.");
       return;
     }
 
@@ -431,8 +445,7 @@ export default function PermutaFlow({
             const isTodayActual = isToday;
             
             const isSelected = selectedDate === dateStr;
-            const hasScale = getDayScale(day);
-
+            
             return (
               <button
                 key={`day-${day}`}
@@ -444,17 +457,12 @@ export default function PermutaFlow({
                     ? 'bg-hud-bg/10 border-transparent text-slate-700 cursor-not-allowed grayscale'
                     : isSelected
                     ? 'bg-cyber-blue/15 border-cyber-blue text-white shadow-[0_0_8px_rgba(0,229,255,0.25)] font-bold cursor-pointer'
-                    : hasScale
-                    ? 'bg-cyber-cyan/5 border-cyber-cyan/35 text-[#00e5ff] font-semibold hover:bg-cyber-cyan/15 hover:border-cyber-cyan cursor-pointer'
                     : 'bg-[#03090b]/40 border-hud-border/40 text-slate-500 hover:border-hud-border/70 hover:bg-hud-card/50 cursor-pointer'
                 }`}
               >
                 <span className="z-10">{day}</span>
                 {isToday && (
                   <div className="absolute top-0 left-0 w-1.5 h-1.5 bg-cyber-green rounded-br" />
-                )}
-                {hasScale && (
-                  <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isDisabled ? 'bg-slate-600' : 'bg-cyber-amber'}`} />
                 )}
               </button>
             );
@@ -538,8 +546,8 @@ export default function PermutaFlow({
                     item.militar.patente.toLowerCase().includes(searchTerm.toLowerCase());
                   
                   if (useAIAdvice) {
-                    // Only high compatibility scores when AI suggestions are active
-                    return matchSearch && item.score >= 80;
+                    // Show recommended/compatible candidates with score >= 80, OR candidates that are BLOCKED so they can see why they cannot select them
+                    return matchSearch && (item.score >= 80 || item.status === 'BLOCKED');
                   }
                   return matchSearch;
                 });

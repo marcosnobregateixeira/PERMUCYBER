@@ -491,6 +491,42 @@ export default function App() {
     }
   };
 
+  const handleClearAllPermutas = async () => {
+    try {
+      for (const p of permutas) {
+        await deleteDoc(doc(db, 'permutas', p.id));
+      }
+      setPermutas([]);
+      await appendAuditLog('INTEGRALIZAÇÃO', 'Todas as solicitações de permutas foram excluídas permanentemente do banco de dados.', loggedUser?.nomeGuerra || 'SISTEMA', logs);
+      alert('Todas as permutas de teste foram excluídas com sucesso!');
+    } catch (e) {
+      console.error("Erro ao limpar permutas:", e);
+      alert('Erro ao excluir as permutas.');
+    }
+  };
+
+  const handleClearAllMilitares = async () => {
+    try {
+      const activeUser = loggedUser || militares.find(m => m.role === 'COMANDANTE') || militares[0];
+      for (const m of militares) {
+        if (activeUser && m.id === activeUser.id) {
+          continue; // Keep the active user to prevent lockout
+        }
+        await deleteDoc(doc(db, 'militares', m.id));
+      }
+      if (activeUser) {
+        setMilitares([activeUser]);
+      } else {
+        setMilitares([]);
+      }
+      await appendAuditLog('INTEGRALIZAÇÃO', `O efetivo ativo foi limpo do banco de dados, preservando o oficial ativo (${activeUser?.nomeGuerra || 'Gestor'}).`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+      alert('Efetivo limpo com sucesso! Apenas o oficial logado foi mantido para evitar bloqueio de acesso.');
+    } catch (e) {
+      console.error("Erro ao limpar efetivo:", e);
+      alert('Erro ao limpar o efetivo.');
+    }
+  };
+
   const handleToggleBiometria = async (id: string) => {
     const m = militares.find(x => x.id === id);
     if(m) {
@@ -644,6 +680,25 @@ export default function App() {
       return;
     }
 
+    // Verify if the substitute is already scheduled (escalado) on the target date
+    const isSubstituteEscalado = escalas.some(e => e.militarId === loggedUser.id && e.data === targetPermuta.dataRealizacao);
+    if (isSubstituteEscalado) {
+      alert("CONFLITO DETECTADO: Você já está escalado de serviço oficial nesta data e não pode aceitar outra permuta para o mesmo dia.");
+      return;
+    }
+
+    // Verify if either side already has another active permuta on that same date
+    const hasAnotherActive = permutas.some(p => 
+      p.id !== permutaId &&
+      p.dataRealizacao === targetPermuta.dataRealizacao &&
+      !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status) &&
+      (p.militarSubstituidoId === loggedUser.id || p.militarSubstitutoId === loggedUser.id || p.militarSubstituidoId === targetPermuta.militarSubstituidoId || p.militarSubstitutoId === targetPermuta.militarSubstituidoId)
+    );
+    if (hasAnotherActive) {
+      alert("CONFLITO DETECTADO: Você ou o solicitante já possuem outra solicitação de permuta ativa ou homologada registrada para esta mesma data. Não é permitido duas permutas para o mesmo dia.");
+      return;
+    }
+
     const substituido = militares.find(m => m.id === targetPermuta.militarSubstituidoId);
     if (substituido) {
       const substituidoAfastamento = substituido.afastamentos?.find(a => 
@@ -668,7 +723,7 @@ export default function App() {
     // Local fallback update
     setPermutas(prev => prev.map(p => p.id === permutaId ? { ...p, status: 'PENDENTE_GESTOR', assinaturaSubstituta: peerSignature } : p));
 
-    await appendAuditLog('PERMUTA_ACEITA', `Sgt. Mendes assinou digitalmente aceitando a permuta ref. protocolo ${targetPermuta.protocoloId}. Encaminhado ao conselho operacional.`, loggedUser.nomeGuerra, logs);
+    await appendAuditLog('PERMUTA_ACEITA', `${loggedUser.patente} ${loggedUser.nomeGuerra} assinou digitalmente aceitando a permuta ref. protocolo ${targetPermuta.protocoloId}. Encaminhado ao conselho operacional.`, loggedUser.nomeGuerra, logs);
     setActiveReviewPermuta(null);
     setCurrentTab('PERMUTAS');
   };
@@ -979,7 +1034,7 @@ export default function App() {
       }
     }
 
-    await appendAuditLog('PROCESSO_APROVADO', `Homologação oficial ativada pelo Tenente Bastos para protocolo ${targetPermuta.protocoloId}. Escala atualizada. Vias digitais autenticadas.`, gestorNome, logs);
+    await appendAuditLog('PROCESSO_APROVADO', `Homologação oficial ativada por ${gestorNome} para protocolo ${targetPermuta.protocoloId}. Escala atualizada. Vias digitais autenticadas.`, gestorNome, logs);
   };
 
   const handleRejectPermutaGestor = async (permutaId: string) => {
@@ -1544,6 +1599,8 @@ export default function App() {
                         onClearLogs={handleClearAllLogs}
                         onDeleteLog={handleDeleteLog}
                         onToggleBiometria={handleToggleBiometria}
+                        onClearAllPermutas={handleClearAllPermutas}
+                        onClearAllMilitares={handleClearAllMilitares}
                         onRefreshData={handleRefreshAll}
                         onImportMilitaresJSON={handleImportMilitaresJSON}
                         onUpdateMilitarNomeGuerra={handleUpdateMilitarNomeGuerra}

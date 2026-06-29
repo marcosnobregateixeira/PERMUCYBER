@@ -76,6 +76,13 @@ export const seedInitialData = async (
       console.log("Semeadura inicial concluída com sucesso.");
     } else {
       console.log("Banco de dados já possui registros ativos. Sincronização em tempo real operacional.");
+      try {
+        await deleteDoc(doc(db, 'militares', 'M-102'));
+        await deleteDoc(doc(db, 'militares', 'M-202'));
+        await deleteDoc(doc(db, 'escalas', 'E-05'));
+      } catch (e) {
+        console.warn("Erro ao tentar limpar registros antigos das nuvens:", e);
+      }
     }
   } catch (err) {
     console.warn("Aviso de rede: Falha temporária ao checar/semear dados ( offline ou limite de cota). Prosseguindo via cache:", err);

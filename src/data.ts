@@ -7,36 +7,20 @@ import { Militar, Escala, Alerta, BlockchainLog, ChatMessage, Permuta } from './
 
 export const MILITARES: Militar[] = [
   {
-    id: 'M-102',
-    nome: 'Thiago Mendes',
-    nomeGuerra: 'Sgto. Mendes',
-    patente: '3ºSGT',
-    quadro: 'QPPM',
-    role: 'USUARIO',
-    funcao: 'PSICOLOGO',
-    companhia: 'Setor de Saúde Mental',
-    especialidade: 'PSICÓLOGO',
-    statusProntidao: 'FOLGA',
-    chaveDigital: 'SECURE-NODE-MENDES-12DF89',
-    biometriaAtiva: true,
-    pinSegurança: '2048',
-    turno: 'TURNO A'
-  },
-  {
     id: 'M-103',
     nome: 'Douglas Rodrigues',
-    nomeGuerra: 'Sgto. Rodrigues',
-    patente: '3ºSGT',
-    quadro: 'QPPM',
-    role: 'USUARIO',
+    nomeGuerra: 'Ten. Rodrigues',
+    patente: '1ºTEN',
+    quadro: 'QOPM',
+    role: 'COMANDANTE',
     funcao: 'ADM',
-    companhia: 'Regimento de Infantaria',
-    especialidade: 'SOBREAVISO',
+    companhia: 'Comando Geral Regional',
+    especialidade: 'ADMINISTRATIVO',
     statusProntidao: 'PRONTO',
-    chaveDigital: 'SECURE-NODE-RODRIGUES-44PQ92',
+    chaveDigital: 'COMMAND-NODE-RODRIGUES-00ALPHA',
     biometriaAtiva: true,
     pinSegurança: '5112',
-    turno: 'TURNO B'
+    turno: 'TURNO A'
   },
   {
     id: 'M-104',
@@ -53,22 +37,6 @@ export const MILITARES: Militar[] = [
     biometriaAtiva: false,
     pinSegurança: '8890',
     turno: '24H'
-  },
-  {
-    id: 'M-202',
-    nome: 'Carlos Bastos',
-    nomeGuerra: 'Ten. Bastos',
-    patente: '1ºTEN',
-    quadro: 'QOPM',
-    role: 'COMANDANTE',
-    funcao: 'ADM',
-    companhia: 'Comando Geral Regional',
-    especialidade: 'ADMINISTRATIVO',
-    statusProntidao: 'PRONTO',
-    chaveDigital: 'COMMAND-NODE-BASTOS-00ALPHA',
-    biometriaAtiva: true,
-    pinSegurança: '0300',
-    turno: 'TURNO A'
   },
   {
     id: 'M-301',
@@ -219,7 +187,7 @@ export const ESCALAS_INICIAIS: Escala[] = [
   },
   {
     id: 'E-05',
-    militarId: 'M-102', // Sgto Mendes
+    militarId: 'M-301', // Cb. Pontes
     postoServico: 'AMBULÂNCIA',
     data: '2026-06-21',
     horaInicio: '06:00',
@@ -262,7 +230,7 @@ export function generateSimpleHash(content: string, previousHash: string = ''): 
 
 // Block 0, Block 1, Block 2 for simulation
 const genesisHash = '0xSHA256_GENESIS_BLOCK_ROOT_99AA88EE';
-const b1Hash = generateSimpleHash('Sgto Mendes logado com sucesso de Terminal Bioterra', genesisHash);
+const b1Hash = generateSimpleHash('Cb. Pontes logado com sucesso de Terminal Bioterra', genesisHash);
 const b2Hash = generateSimpleHash('Criação do Protocolo Inicial PERMUCYBER', b1Hash);
 
 export const LOGS_INICIAIS: BlockchainLog[] = [];
