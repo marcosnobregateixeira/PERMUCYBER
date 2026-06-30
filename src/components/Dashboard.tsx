@@ -68,7 +68,7 @@ export default function Dashboard({
   };
   const realMonth = monthNames[today.getMonth()] || 'JUNHO';
 
-  const [selectedCalendarDay, setSelectedCalendarDay] = useState<number>(realDay); 
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<number | null>(null); 
   const [expandedHomologationId, setExpandedHomologationId] = useState<string | null>(null);
   const [showAjusteParaId, setShowAjusteParaId] = useState<string | null>(null);
   const [justificativaAjuste, setJustificativaAjuste] = useState('');
@@ -718,15 +718,23 @@ export default function Dashboard({
         </div>
 
         {/* Selected day header in standard format: 00-00-0000 */}
-        <div className="mt-3 bg-hud-bg/85 border border-hud-border/60 p-2.5 rounded-lg">
+        <div className="mt-3 bg-hud-bg/85 border border-hud-border/60 p-2.5 rounded-lg min-h-[92px]">
           <div className="text-xs font-mono text-slate-400 mb-1.5 flex justify-between items-center">
             <span className="tracking-wider">DATA SELECIONADA:</span>
             <span className="text-cyber-cyan font-bold text-base tracking-widest">
-              {formatarDataBR(`2026-${currentMonthConfig.monthCode}-${selectedCalendarDay.toString().padStart(2, '0')}`)}
+              {selectedCalendarDay ? formatarDataBR(`2026-${currentMonthConfig.monthCode}-${selectedCalendarDay.toString().padStart(2, '0')}`) : 'SELECIONE O DIA'}
             </span>
           </div>
 
           {(() => {
+            if (selectedCalendarDay === null) {
+              return (
+                 <div className="flex items-center space-x-2 text-[10px] text-slate-500 font-mono uppercase mt-4 opacity-70 justify-center">
+                    <span>Aguardando seleção tática no calendário...</span>
+                 </div>
+              );
+            }
+
             const todayStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
             const actualToday = new Date(todayStr);
             actualToday.setHours(0, 0, 0, 0);
