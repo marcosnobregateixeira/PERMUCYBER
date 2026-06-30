@@ -100,7 +100,7 @@ export default function MilitaryMobileFrame({
               className="w-4 h-4 rounded-full mr-1 object-cover border border-cyber-cyan/30"
               referrerPolicy="no-referrer"
             />
-            <span className="text-[9px] uppercase tracking-wider text-cyber-cyan">MODO TÁTICO ATIVO</span>
+            <span className="text-[9px] uppercase tracking-wider text-cyber-cyan">Diretoria de Saúde</span>
           </div>
           <div className="flex space-x-3 items-center">
             <span className="text-[9px]">ENCRYPTED SECURE FEED</span>
