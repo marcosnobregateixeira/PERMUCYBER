@@ -87,7 +87,16 @@ export default function BiometricLogin({
     if (userLogged?.role === 'ADMIN' || userLogged?.role === 'COMANDANTE') {
       console.warn('Admin/Comandante biometric override bypass.');
       setScanState('GRANTED');
-      setStage('PIN_2FA');
+      const isFirstTime = !userLogged?.pinSegurança || userLogged.pinSegurança === '1234';
+      if (isFirstTime) {
+        setTimeout(() => {
+          setShowFirstTimeSuccessPopup(true);
+          setActiveTab('CUSTOM_TOKEN');
+          setScanState('IDLE');
+        }, 500);
+      } else {
+        setStage('PIN_2FA');
+      }
       return;
     }
 
@@ -615,7 +624,7 @@ export default function BiometricLogin({
             
             <div className="space-y-1">
               <h3 className="text-[12.5px] font-extrabold text-white uppercase tracking-wider">
-                BIOMETRIA RECONHECIDA!
+                TOKEN CRIPTOGRÁFICO VALIDADO!
               </h3>
               <p className="text-[8px] font-mono text-cyber-green uppercase tracking-widest leading-none">
                 Primeiro Acesso Detectado
@@ -623,7 +632,7 @@ export default function BiometricLogin({
             </div>
 
             <p className="text-[10px] text-slate-400 leading-snug">
-              Seu registro biométrico foi autenticado com sucesso. Para sua segurança, é necessário configurar um PIN pessoal (2FA) exclusivo e secreto.
+              Sua credencial foi autenticada com sucesso. Para sua segurança, é necessário configurar um PIN pessoal (2FA) exclusivo e secreto.
             </p>
 
             <button

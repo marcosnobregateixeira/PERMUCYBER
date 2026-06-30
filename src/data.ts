@@ -19,7 +19,7 @@ export const MILITARES: Militar[] = [
     statusProntidao: 'PRONTO',
     chaveDigital: 'COMMAND-NODE-RODRIGUES-00ALPHA',
     biometriaAtiva: true,
-    pinSegurança: '5112',
+    pinSegurança: '1234',
     turno: 'TURNO A'
   },
   {
