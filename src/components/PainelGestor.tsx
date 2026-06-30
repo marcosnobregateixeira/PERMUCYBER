@@ -582,7 +582,18 @@ export default function PainelGestor({
           </div>
         </div>
         <div className="bg-hud-card border border-hud-border p-2 rounded-lg flex flex-col justify-between min-h-[58px] text-center">
-          <span className="text-[7.5px] font-mono text-slate-500 block uppercase">CONCLUÍDAS</span>
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-[7.5px] font-mono text-slate-500 block uppercase">CONCLUÍDAS</span>
+            <select
+              className="bg-[#020507] border border-hud-border rounded px-1 py-0.5 text-white text-[9px] font-mono focus:border-cyber-blue outline-none cursor-pointer max-w-[80px]"
+              title="Datas das Permutas"
+            >
+              <option value="">DATAS</option>
+              {datasMesAtual.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
           <span className="text-xs font-black font-mono text-cyber-green uppercase leading-loose truncate">
             {verificarMilitarId ? (
               `${permutasMilitarMesAtual.length} TROCAS`
