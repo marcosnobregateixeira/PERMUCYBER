@@ -86,33 +86,6 @@ export default function MilitaryMobileFrame({
           </div>
         </div>
 
-        {/* Top Phone Notch / Camera Bar */}
-        <div className="h-7 bg-[#040c0f] border-b border-hud-border/40 px-5 flex items-center justify-between text-[11px] font-mono text-cyber-blue/80 relative z-30">
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-1">
-              <Command className="w-3.5 h-3.5 text-cyber-blue" />
-              <input
-                type="text"
-                defaultValue="DIRETORIA DE SAÚDE/PMCE"
-                className="font-bold text-cyber-cyan text-[8px] md:text-xs bg-transparent border-none outline-none focus:ring-0 focus:bg-cyber-blue/10 p-0 m-0 w-44 uppercase transition-all rounded px-1"
-                title="Editar Nome do Comando"
-              />
-            </div>
-          </div>
-          
-          {/* Dynamic Laser Camera Simulation */}
-          <div className="absolute left-1/2 transform -translate-x-1/2 w-20 h-4 bg-[#020507] rounded-b-xl border-x border-b border-hud-border/50 flex justify-center items-center">
-            <div className="w-1.5 h-1.5 rounded-full bg-cyber-red animate-pulse" />
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <span className="text-[10px] text-cyber-cyan bg-cyber-cyan/10 px-1 border border-cyber-cyan/30 rounded uppercase font-bold tracking-tighter" title={`Acesso: ${userLogged?.role || '---'}`}>
-              [{userLogged?.role || '---'}] {userLogged ? `${userLogged.patente.slice(0, 3)}. ${userLogged.nomeGuerra.split(' ')[1] || userLogged.nomeGuerra}` : 'TERMINAL AGUARDANDO'}
-            </span>
-            <span className="w-2 h-2 rounded-full bg-cyber-green animate-ping" />
-          </div>
-        </div>
-
         {/* Core Screen Space with Custom military background */}
         <div className="flex-1 flex flex-col items-stretch overflow-y-auto relative bg-[#040d11]/95 text-slate-100 p-0">
           {children}

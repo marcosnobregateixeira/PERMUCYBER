@@ -1637,48 +1637,6 @@ export default function PainelGestor({
             </div>
           </div>
 
-          {/* Danger Zone / Zona de Risco */}
-          <div className="bg-hud-card border border-cyber-red/30 p-3.5 rounded-xl flex flex-col space-y-3 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-cyber-red/50" />
-            <div>
-              <span className="text-[9px] font-mono text-cyber-red uppercase tracking-wider block font-extrabold flex items-center">
-                <ShieldAlert className="w-3.5 h-3.5 mr-1.5 text-cyber-red animate-pulse" />
-                ZONA DE RISCO OPERACIONAL
-              </span>
-              <p className="text-[10.5px] text-slate-400 mt-1 leading-snug">
-                Estas ações removem dados permanentemente das nuvens em tempo real. Proceda com máxima cautela.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3.5 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  if (onClearAllPermutas) {
-                    onClearAllPermutas();
-                  }
-                }}
-                className="bg-cyber-red/10 hover:bg-cyber-red/30 text-cyber-red hover:text-white border border-cyber-red/40 py-2 rounded text-[9.5px] font-mono font-extrabold uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1.5 cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-cyber-red" />
-                <span>EXCLUIR TODAS AS PERMUTAS</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (onClearAllMilitares) {
-                    onClearAllMilitares();
-                  }
-                }}
-                className="bg-cyber-red/10 hover:bg-cyber-red/30 text-cyber-red hover:text-white border border-cyber-red/40 py-2 rounded text-[9.5px] font-mono font-extrabold uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1.5 cursor-pointer"
-              >
-                <Users className="w-3.5 h-3.5 text-cyber-red" />
-                <span>EXCLUIR TODO O EFETIVO</span>
-              </button>
-            </div>
-          </div>
-
           {/* User management list (Setor de Credenciais) */}
           <div className="bg-hud-card border border-hud-border/80 rounded-xl p-3.5 space-y-4">
             <div className="flex items-center justify-between border-b border-hud-border/30 pb-3">

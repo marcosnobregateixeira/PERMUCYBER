@@ -37,7 +37,8 @@ import {
   ShieldAlert,
   PlusCircle,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 
 import { db, auth } from './firebase';
@@ -1215,32 +1216,6 @@ export default function App() {
         /* LOGGED IN CORE TACTICAL EXPERIENCE */
         <div className="flex-1 flex flex-col justify-between h-full bg-hud-bg relative">
           
-          {/* Tab Header Banner */}
-          <div className="h-10 border-b border-hud-border/50 px-4 flex items-center justify-between bg-hud-board/60 text-xs font-mono">
-            <span className="text-[#00e5ff] font-bold tracking-widest uppercase flex items-center">
-              <span className="w-1.5 h-1.5 bg-cyber-blue rounded-full mr-2 animate-pulse" />
-              {currentTab === 'DASHBOARD' && 'ÁREA DE OPERAÇÕES'}
-              {currentTab === 'PERMUTAS' && 'CENTRAL DE TROCAS'}
-              {currentTab === 'CHAT' && 'COMUNICAÇÃO AES-256'}
-              {currentTab === 'GESTAO' && 'COMANDO REGIMENTAL'}
-            </span>
-            <div className="flex items-center space-x-2">
-              <span className="text-slate-500 text-[9px] font-mono uppercase font-bold text-shadow">
-                ID: {loggedUser?.id || '---'}
-              </span>
-              <button
-                onClick={() => {
-                  setIsLoggedIn(false);
-                  setCurrentTab('DASHBOARD');
-                }}
-                className="text-cyber-red hover:text-white bg-cyber-red/15 hover:bg-cyber-red/30 border border-cyber-red/35 hover:border-cyber-red/60 px-2 py-0.5 rounded text-[8.5px] font-mono font-bold transition-all uppercase cursor-pointer"
-                title="Encerrar Sessão Militar"
-              >
-                SAIR
-              </button>
-            </div>
-          </div>
-
           {/* Scrolling Pane viewports */}
           <div className="flex-1 overflow-y-auto">
             
@@ -1688,6 +1663,18 @@ export default function App() {
               >
                 <ShieldCheck className="w-4 h-4" />
                 <span className="font-bold tracking-wider">COMANDO</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsLoggedIn(false);
+                  setCurrentTab('DASHBOARD');
+                }}
+                className="flex-1 flex flex-col items-center space-y-1 focus:outline-none transition-all text-cyber-red/80 hover:text-cyber-red hover:drop-shadow-[0_0_3px_rgba(255,0,51,0.4)]"
+                title="Encerrar Sessão Militar"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="font-bold tracking-wider">SAIR</span>
               </button>
 
             </div>

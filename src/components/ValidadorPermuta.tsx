@@ -88,7 +88,7 @@ export default function ValidadorPermuta({
             <div className="flex items-start space-x-3 relative z-10">
               <div className="w-16 text-right shrink-0">
                 <span className="text-[8px] text-slate-500 block uppercase">SUBSTITUÍDO</span>
-                <span className="text-[10px] font-bold text-[#ffb300] leading-none block mt-0.5">
+                <span className="text-xs font-bold text-[#ffb300] leading-none block mt-0.5">
                   {militarSubstituido?.nomeGuerra}
                 </span>
               </div>
@@ -113,7 +113,7 @@ export default function ValidadorPermuta({
             <div className="flex items-start space-x-3 relative z-10">
               <div className="w-16 text-right shrink-0">
                 <span className="text-[8px] text-slate-500 block uppercase font-mono">SUBSTITUTO</span>
-                <span className="text-[10px] font-bold text-cyber-green leading-none block mt-0.5">
+                <span className="text-xs font-bold text-cyber-green leading-none block mt-0.5">
                   {militarSubstituto?.nomeGuerra}
                 </span>
               </div>

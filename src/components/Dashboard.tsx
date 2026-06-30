@@ -468,7 +468,7 @@ export default function Dashboard({
                         {subsBy?.patente} {subsBy?.nomeGuerra} deseja permutar com você
                       </p>
                       <p className="text-xs text-slate-400 font-mono mt-1">
-                        Dia do Serviço: <strong className="text-white">{formatarDataBR(p.dataRealizacao)}</strong>
+                        DATA: <strong className="text-white text-base ml-1">{formatarDataBR(p.dataRealizacao)}</strong>
                       </p>
                     </div>
                     
@@ -534,7 +534,7 @@ export default function Dashboard({
                           </span>
                         </div>
                       </div>
-                      <p className="text-[10px] text-slate-400 font-mono mt-3 mb-1">Dia do Serviço: <strong className="text-white">{formatarDataBR(p.dataRealizacao)}</strong></p>
+                      <p className="text-[10px] text-slate-400 font-mono mt-3 mb-1">DATA: <strong className="text-white text-sm ml-1 tracking-wider">{formatarDataBR(p.dataRealizacao)}</strong></p>
                     </div>
 
                     <div className="flex flex-col justify-end min-w-[200px] shrink-0">
@@ -719,9 +719,9 @@ export default function Dashboard({
 
         {/* Selected day header in standard format: 00-00-0000 */}
         <div className="mt-3 bg-hud-bg/85 border border-hud-border/60 p-2.5 rounded-lg">
-          <div className="text-[9px] font-mono text-slate-400 mb-1.5 flex justify-between">
-            <span>DATA SELECIONADA:</span>
-            <span className="text-cyber-cyan font-bold">
+          <div className="text-xs font-mono text-slate-400 mb-1.5 flex justify-between items-center">
+            <span className="tracking-wider">DATA SELECIONADA:</span>
+            <span className="text-cyber-cyan font-bold text-base tracking-widest">
               {formatarDataBR(`2026-${currentMonthConfig.monthCode}-${selectedCalendarDay.toString().padStart(2, '0')}`)}
             </span>
           </div>
