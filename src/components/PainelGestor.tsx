@@ -536,7 +536,7 @@ export default function PainelGestor({
       </div>
 
       {/* QUICK KPI METRIC CARDS */}
-      <div className="grid grid-cols-3 gap-2 mb-4 text-center">
+      <div className="grid grid-cols-2 gap-2 mb-4 text-center">
         <div className="bg-hud-card border border-hud-border p-2 rounded-lg flex flex-col justify-between min-h-[58px] text-left gap-1">
           <span className="text-[7.5px] font-mono text-slate-500 block uppercase">FILA RATIF.</span>
           <select
@@ -590,16 +590,6 @@ export default function PainelGestor({
               `${permutasAprovadasMesAtual.length} TROCAS (GERAL)`
             )}
           </span>
-        </div>
-        <div className="bg-hud-card border border-hud-border p-2 rounded-lg flex flex-col justify-between min-h-[58px] text-center justify-center">
-          <span className="text-[7.5px] font-mono text-slate-500 block uppercase">CADASTRO AUDITADO</span>
-          {datasMesAtual.length > 0 ? (
-            <div className="overflow-x-auto whitespace-nowrap text-[10px] font-mono font-black text-cyber-blue py-1 scrollbar-none">
-              {datasMesAtual.join(' • ')}
-            </div>
-          ) : (
-            <span className="text-[10px] font-mono text-slate-500 leading-loose">NENHUMA DATA</span>
-          )}
         </div>
       </div>
 
