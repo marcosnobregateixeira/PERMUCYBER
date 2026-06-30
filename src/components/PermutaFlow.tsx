@@ -220,17 +220,25 @@ export default function PermutaFlow({
       }
     }
 
-    // Verify if either the requester or the substitute already has an active or approved permuta on this date
-    const hasConflict = permutas.some(p => {
-      if (p.dataRealizacao === selectedDate && !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status)) {
-        if (p.militarSubstituidoId === userLogged.id || p.militarSubstitutoId === userLogged.id) return true;
-        if (p.militarSubstituidoId === selectedSubstituteId || p.militarSubstitutoId === selectedSubstituteId) return true;
-      }
-      return false;
-    });
+    // Verify if the requester already has an active or approved permuta on this date
+    const requesterConflict = permutas.some(p => 
+      p.dataRealizacao === selectedDate && 
+      !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status) &&
+      (p.militarSubstituidoId === userLogged.id || p.militarSubstitutoId === userLogged.id)
+    );
+    if (requesterConflict) {
+      alert("CONFLITO DETECTADO: Você já possui uma solicitação de permuta ativa ou homologada registrada para esta mesma data.");
+      return;
+    }
 
-    if (hasConflict) {
-      alert("CONFLITO DETECTADO: Você ou o substituto já possuem uma solicitação de permuta ativa ou homologada registrada para esta mesma data. Não é permitido solicitar duas vezes para o mesmo dia.");
+    // Verify if the substitute already has an active or approved permuta on this date
+    const substituteConflict = permutas.some(p => 
+      p.dataRealizacao === selectedDate && 
+      !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status) &&
+      (p.militarSubstituidoId === selectedSubstituteId || p.militarSubstitutoId === selectedSubstituteId)
+    );
+    if (substituteConflict) {
+      alert("Não pode, porque este policial já está de serviço nesse dia.");
       return;
     }
 
@@ -580,7 +588,7 @@ export default function PermutaFlow({
                       <div className="flex justify-between items-start">
                         <div className="flex items-center space-x-2.5">
                           <div className="w-8 h-8 rounded-full bg-cyber-cyan/15 border border-cyber-cyan/35 flex items-center justify-center font-bold text-xs text-cyber-cyan">
-                            {item.militar.nomeGuerra.split('.')[1]?.slice(0, 3).trim().toUpperCase() || 'SGT'}
+                            {item.militar.nomeGuerra.split(' ').pop()?.slice(0, 3).toUpperCase()}
                           </div>
                           <div>
                             <h5 className="text-xs font-bold text-white mb-0.5">

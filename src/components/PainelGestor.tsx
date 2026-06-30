@@ -117,7 +117,7 @@ export default function PainelGestor({
   onUpdateConfig
 }: PainelGestorProps) {
   const sortedMilitares = [...allMilitares].sort(sortMilitarByPatenteG);
-  const [activeSubTab, setActiveSubTab] = useState<'PEDIDOS' | 'AUDITORIA' | 'RELATORIOS' | 'COMANDO' | 'SISTEMA' | 'EXCLUSAO' | 'ACESSOS'>('PEDIDOS');
+  const [activeSubTab, setActiveSubTab] = useState<'PEDIDOS' | 'AUDITORIA' | 'RELATORIOS' | 'SISTEMA' | 'EXCLUSAO' | 'ACESSOS'>('PEDIDOS');
   const [newMilitarForm, setNewMilitarForm] = useState<Partial<Militar>>({ nome: '', nomeGuerra: '', patente: 'SD', funcao: 'ADM', quadro: 'QPPM', pinSegurança: '1234', numero: '', matriculaFuncional: '', turno: 'TURNO A' });
   const [militarIdToDelete, setMilitarIdToDelete] = useState<string | null>(null);
   const [editingMilitar, setEditingMilitar] = useState<Militar | null>(null);
@@ -491,7 +491,7 @@ export default function PainelGestor({
       )}
 
       {/* COMPACT SUB TABS CONTROLS */}
-      <div className="grid grid-cols-5 gap-1 bg-[#061217] p-1 rounded-lg border border-hud-border/70 mb-4 text-[10px] font-mono">
+      <div className="grid grid-cols-4 gap-1 bg-[#061217] p-1 rounded-lg border border-hud-border/70 mb-4 text-[10px] font-mono">
         <button
           onClick={() => setActiveSubTab('PEDIDOS')}
           className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
@@ -522,16 +522,6 @@ export default function PainelGestor({
           }`}
         >
           RELATÓRIOS
-        </button>
-        <button
-          onClick={() => setActiveSubTab('COMANDO')}
-          className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
-            activeSubTab === 'COMANDO'
-              ? 'bg-cyber-blue text-[#03080a]'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          COMANDO
         </button>
         <button
           onClick={() => setActiveSubTab('SISTEMA')}
@@ -1372,100 +1362,7 @@ export default function PainelGestor({
 
 
 
-      {/* COMMANDER SETTINGS */}
-      {activeSubTab === 'COMANDO' && (
-        <div className="space-y-4 animate-fade-in font-sans">
-          <div className="bg-[#051115] border border-cyber-cyan/35 p-3.5 rounded-xl flex flex-col space-y-1.5 shadow-md">
-            <span className="text-[10px] font-mono text-cyber-cyan uppercase tracking-wider font-extrabold flex items-center">
-              <User className="w-3.5 h-3.5 mr-2 text-cyber-cyan" />
-              CONFIGURAÇÕES DO COMANDO REGIMENTAL
-            </span>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              Defina a Matrícula Funcional (M.F) do Comandante e Administradores para emissão nativa em relatórios e espelhos oficiais.
-            </p>
-          </div>
 
-          <div className="bg-hud-card border border-hud-border p-4 rounded-xl space-y-3">
-             <div className="space-y-4">
-              {sortedMilitares.filter(m => m.role === 'COMANDANTE' || m.role === 'ADMIN').map(comandante => (
-                <div key={comandante.id} className="flex flex-col space-y-2 p-3 bg-[#03090b] rounded border border-hud-border/50">
-                  <span className="text-xs font-bold font-mono text-slate-300">{comandante.patente} {comandante.nome} ({comandante.role})</span>
-                  <div className="flex flex-col space-y-1">
-                    <label className="text-[10px] text-slate-500 uppercase">Matrícula Funcional (M.F)</label>
-                    <input 
-                      type="text" 
-                      placeholder="000.000-0-0"
-                      className="bg-[#020507] border border-hud-border rounded px-3 py-2 text-white text-xs font-mono"
-                      value={comandante.matriculaFuncional || ''}
-                      onChange={(e) => {
-                         let val = maskMF(e.target.value);
-                         if (onUpdateMilitarMF) onUpdateMilitarMF(comandante.id, val);
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-              {sortedMilitares.filter(m => m.role === 'COMANDANTE' || m.role === 'ADMIN').length === 0 && (
-                <div className="text-xs text-cyber-red">Nenhum militar com permissão de 'COMANDANTE' ou 'ADMIN' encontrado no sistema. Vá em ACESSOS para promover um policial a Comandante.</div>
-              )}
-             </div>
-          </div>
-
-          <div className="bg-[#051115] border border-cyber-cyan/35 p-3.5 rounded-xl flex flex-col space-y-1.5 shadow-md mt-6">
-            <span className="text-[10px] font-mono text-cyber-cyan uppercase tracking-wider font-extrabold flex items-center">
-              <Users className="w-3.5 h-3.5 mr-2 text-cyber-cyan" />
-              REGISTRO DE POLICIAIS
-            </span>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              Atualize a numeração (Nº) e a Matrícula Funcional (M.F) do efetivo. Oficiais não possuem número.
-            </p>
-          </div>
-
-          <div className="bg-hud-card border border-hud-border p-4 rounded-xl space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
-             <div className="space-y-4">
-              {sortedMilitares.map(m => {
-                const isOficial = ['CEL', 'TC', 'MAJ', 'CAP', '1ºTEN', '2ºTEN', 'ASP. OF', 'AL. OF'].includes(m.patente);
-                return (
-                  <div key={m.id} className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-4 p-3 bg-[#03090b] rounded border border-hud-border/50">
-                    <span className="text-xs font-bold font-mono text-slate-300 min-w-[200px]">{m.patente} {m.nome}</span>
-                    <div className="grid grid-cols-2 gap-4 flex-1">
-                        <div className="flex flex-col space-y-1">
-                            <label className="text-[10px] text-slate-500 uppercase">Nº {isOficial && '(N/A)'}</label>
-                            <input 
-                            type="text" 
-                            placeholder={isOficial ? "" : "00.000"}
-                            disabled={isOficial}
-                            className="bg-[#020507] border border-hud-border rounded px-3 py-1.5 text-white text-xs font-mono disabled:opacity-50"
-                            value={m.numero || ''}
-                            onChange={(e) => {
-                                let val = maskNumeral(e.target.value);
-                                if (onUpdateMilitarNumero) onUpdateMilitarNumero(m.id, val);
-                            }}
-                            />
-                        </div>
-                        <div className="flex flex-col space-y-1">
-                            <label className="text-[10px] text-slate-500 uppercase">M.F</label>
-                            <input 
-                            type="text" 
-                            placeholder="000.000-0-0"
-                            className="bg-[#020507] border border-hud-border rounded px-3 py-1.5 text-white text-xs font-mono"
-                            value={m.matriculaFuncional || ''}
-                            onChange={(e) => {
-                                let val = maskMF(e.target.value);
-                                if (onUpdateMilitarMF) onUpdateMilitarMF(m.id, val);
-                            }}
-                            />
-                        </div>
-                    </div>
-                  </div>
-                );
-              })}
-             </div>
-          </div>
-        </div>
-      )}
-
-      {/* SYSTEM ADMINISTRATIVE MANAGEMENT OPTIONS */}
       {activeSubTab === 'SISTEMA' && (
         <div className="space-y-4 animate-fade-in font-sans">
           

@@ -687,15 +687,27 @@ export default function App() {
       return;
     }
 
-    // Verify if either side already has another active permuta on that same date
-    const hasAnotherActive = permutas.some(p => 
+    // Verify if the accepting user already has another active permuta on that same date
+    const hasAnotherActiveSelf = permutas.some(p => 
       p.id !== permutaId &&
       p.dataRealizacao === targetPermuta.dataRealizacao &&
       !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status) &&
-      (p.militarSubstituidoId === loggedUser.id || p.militarSubstitutoId === loggedUser.id || p.militarSubstituidoId === targetPermuta.militarSubstituidoId || p.militarSubstitutoId === targetPermuta.militarSubstituidoId)
+      (p.militarSubstituidoId === loggedUser.id || p.militarSubstitutoId === loggedUser.id)
     );
-    if (hasAnotherActive) {
-      alert("CONFLITO DETECTADO: Você ou o solicitante já possuem outra solicitação de permuta ativa ou homologada registrada para esta mesma data. Não é permitido duas permutas para o mesmo dia.");
+    if (hasAnotherActiveSelf) {
+      alert("Não pode, porque você já está envolvido em outra permuta nesse dia.");
+      return;
+    }
+
+    // Verify if the requesting user already has another active permuta on that same date
+    const hasAnotherActiveRequester = permutas.some(p => 
+      p.id !== permutaId &&
+      p.dataRealizacao === targetPermuta.dataRealizacao &&
+      !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status) &&
+      (p.militarSubstituidoId === targetPermuta.militarSubstituidoId || p.militarSubstitutoId === targetPermuta.militarSubstituidoId)
+    );
+    if (hasAnotherActiveRequester) {
+      alert("Não pode, porque o solicitante já está de serviço (outra permuta ativa) nesse dia.");
       return;
     }
 
