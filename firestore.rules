@@ -21,51 +21,51 @@ service cloud.firestore {
     match /militares/{militarId} {
       allow read: if true;
       allow write: if isValidId(militarId) 
-        && request.resource.data.id == militarId
+        && (request.method == 'delete' || (request.resource.data.id == militarId
         && isValidString(request.resource.data.nome, 2, 100)
-        && isValidString(request.resource.data.nomeGuerra, 2, 50);
+        && isValidString(request.resource.data.nomeGuerra, 2, 50)));
     }
 
     // Escalas collection
     match /escalas/{escalaId} {
       allow read: if true;
       allow write: if isValidId(escalaId)
-        && request.resource.data.id == escalaId
+        && (request.method == 'delete' || (request.resource.data.id == escalaId
         && isValidString(request.resource.data.militarId, 2, 128)
-        && isValidString(request.resource.data.postoServico, 2, 100);
+        && isValidString(request.resource.data.postoServico, 2, 100)));
     }
 
     // Permutas collection
     match /permutas/{permutaId} {
       allow read: if true;
       allow write: if isValidId(permutaId)
-        && request.resource.data.id == permutaId
+        && (request.method == 'delete' || (request.resource.data.id == permutaId
         && isValidString(request.resource.data.militarSubstituidoId, 2, 128)
-        && isValidString(request.resource.data.militarSubstitutoId, 2, 128);
+        && isValidString(request.resource.data.militarSubstitutoId, 2, 128)));
     }
 
     // Alertas collection
     match /alertas/{alertaId} {
       allow read: if true;
       allow write: if isValidId(alertaId)
-        && request.resource.data.id == alertaId
-        && isValidString(request.resource.data.conteudo, 1, 500);
+        && (request.method == 'delete' || (request.resource.data.id == alertaId
+        && isValidString(request.resource.data.conteudo, 1, 500)));
     }
 
     // Logs collection
     match /logs/{logId} {
       allow read: if true;
       allow write: if isValidId(logId)
-        && request.resource.data.id == logId
-        && isValidString(request.resource.data.evento, 2, 1000);
+        && (request.method == 'delete' || (request.resource.data.id == logId
+        && isValidString(request.resource.data.evento, 2, 1000)));
     }
 
     // Messages collection (Chats)
     match /messages/{messageId} {
       allow read: if true;
       allow write: if isValidId(messageId)
-        && request.resource.data.id == messageId
-        && isValidString(request.resource.data.conteudo, 1, 2048);
+        && (request.method == 'delete' || (request.resource.data.id == messageId
+        && isValidString(request.resource.data.conteudo, 1, 2048)));
     }
 
     // Settings collection

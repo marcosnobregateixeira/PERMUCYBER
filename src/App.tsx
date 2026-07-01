@@ -43,7 +43,7 @@ import {
 
 import { db, auth } from './firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { seedInitialData, sanitizeForFirestore } from './firebaseUtils';
+import { sanitizeForFirestore } from './firebaseUtils';
 
 const PATENTE_ORDER: Record<string, number> = {
   'CEL': 1, 'TC': 2, 'MAJ': 3, 'CAP': 4, '1ºTEN': 5, '2ºTEN': 6, 'ASP. OF': 7, 
@@ -267,12 +267,6 @@ export default function App() {
       }
     }, handleFirebaseError);
 
-    // 2. Dispara a semeadura em background de forma silenciosa e paralela
-    seedInitialData(MILITARES, ESCALAS_INICIAIS, PERMUTAS_INICIAIS, ALERTAS_INICIAIS, LOGS_INICIAIS, CHATS_INICIAIS)
-      .catch((error) => {
-        console.warn("Aviso silencioso de semeadura em background:", error);
-      });
-
     // Fallback de Loading para garantir que o usuário não fique preso na tela inicial em caso de lentidão de rede
     const fallbackTimer = setTimeout(() => {
       setIsLoading(false);
@@ -455,11 +449,14 @@ export default function App() {
   const handleAddMilitarIndividual = async (militar: Militar) => {
     try {
       await setDoc(doc(db, 'militares', militar.id), sanitizeForFirestore(militar));
-    } catch (e) { console.error("Error saving militar:", e); }
-    const updated = [...militares, militar];
-    setMilitares(updated);
-    await appendAuditLog('INTEGRALIZAÇÃO', `Militar ${militar.nomeGuerra} adicionado à base de dados.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
-    await generateBackup('AUTO', loggedUser?.nomeGuerra || 'SISTEMA', updated);
+      const updated = [...militares, militar];
+      setMilitares(updated);
+      await appendAuditLog('INTEGRALIZAÇÃO', `Militar ${militar.nomeGuerra} adicionado à base de dados.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+      await generateBackup('AUTO', loggedUser?.nomeGuerra || 'SISTEMA', updated);
+    } catch (e) { 
+      console.error("Error saving militar:", e);
+      alert("Erro ao salvar o policial no banco de dados. " + (e as Error).message);
+    }
   };
 
   const handleDeleteMilitar = async (id: string) => {
@@ -473,9 +470,9 @@ export default function App() {
       
       await appendAuditLog('INTEGRALIZAÇÃO', `Militar com ID ${id} removido da base de dados.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
       await generateBackup('AUTO', loggedUser?.nomeGuerra || 'SISTEMA', updated);
-    } catch (e) {
+    } catch(e) {
       console.error("Erro ao deletar militar:", e);
-      alert(`Erro crítico ao remover policial do banco de dados: ${e instanceof Error ? e.message : 'Verifique a conexão ou permissões.'}`);
+      alert("Erro ao excluir. " + (e as Error).message);
     }
   };
 
@@ -529,28 +526,36 @@ export default function App() {
         nomeGuerra: newNome, 
         nome: newNome.replace(/^(Sgto\.|Ten\.|Cb\.|Sd\.)\s*/i, '') 
       });
-    } catch(e){}
-    setMilitares(prev => prev.map(p => p.id === id ? { ...p, nomeGuerra: newNome, nome: newNome.replace(/^(Sgto\.|Ten\.|Cb\.|Sd\.)\s*/i, '') } : p));
+      setMilitares(prev => prev.map(p => p.id === id ? { ...p, nomeGuerra: newNome, nome: newNome.replace(/^(Sgto\.|Ten\.|Cb\.|Sd\.)\s*/i, '') } : p));
+    } catch(e) {
+      console.error("Erro ao atualizar nome de guerra:", e);
+      alert("Erro ao atualizar nome: " + (e as Error).message);
+    }
   };
 
   const handleUpdateMilitar = async (id: string, updatedFields: Partial<Militar>) => {
     try {
       await updateDoc(doc(db, 'militares', id), sanitizeForFirestore(updatedFields));
+      setMilitares(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
+      await appendAuditLog('INTEGRALIZAÇÃO', `Cadastro de ${updatedFields.patente || ''} ${updatedFields.nomeGuerra || ''} foi atualizado no sistema de banco de dados.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
     } catch(e) {
       console.error("Error updating militar:", e);
+      alert("Erro ao atualizar policial. " + (e as Error).message);
     }
-    setMilitares(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
-    await appendAuditLog('INTEGRALIZAÇÃO', `Cadastro de ${updatedFields.patente || ''} ${updatedFields.nomeGuerra || ''} foi atualizado no sistema de banco de dados.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
   };
 
   const handleUpdateMilitarMF = async (id: string, newMF: string) => {
-    try { await updateDoc(doc(db, 'militares', id), { matriculaFuncional: newMF }); } catch(e){}
-    setMilitares(prev => prev.map(p => p.id === id ? { ...p, matriculaFuncional: newMF } : p));
+    try { 
+      await updateDoc(doc(db, 'militares', id), { matriculaFuncional: newMF }); 
+      setMilitares(prev => prev.map(p => p.id === id ? { ...p, matriculaFuncional: newMF } : p));
+    } catch(e) { alert("Erro ao atualizar MF. " + (e as Error).message); }
   };
 
   const handleUpdateMilitarNumero = async (id: string, numero: string) => {
-    try { await updateDoc(doc(db, 'militares', id), { numero }); } catch(e){}
-    setMilitares(prev => prev.map(p => p.id === id ? { ...p, numero } : p));
+    try { 
+      await updateDoc(doc(db, 'militares', id), { numero }); 
+      setMilitares(prev => prev.map(p => p.id === id ? { ...p, numero } : p));
+    } catch(e){ alert("Erro ao atualizar número. " + (e as Error).message); }
   };
 
   const handleUpdateMilitarPin = async (id: string, newPin: string, email?: string) => {
@@ -560,15 +565,17 @@ export default function App() {
     }
     try { 
       await updateDoc(doc(db, 'militares', id), updates); 
-    } catch(e){}
-    setMilitares(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-    await appendAuditLog('INTEGRALIZAÇÃO', `Militar ID ${id} atualizou seu token / PIN de segurança criptográfica pessoal e e-mail (${email || 'não informado'}). Acesso bloqueado aguardando liberação do administrador.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+      setMilitares(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+      await appendAuditLog('INTEGRALIZAÇÃO', `Militar ID ${id} atualizou seu token / PIN de segurança criptográfica pessoal e e-mail (${email || 'não informado'}). Acesso bloqueado aguardando liberação do administrador.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+    } catch(e) { alert("Erro ao modificar PIN: " + (e as Error).message); }
   };
 
   const handleUpdateMilitarRole = async (id: string, role: Role) => {
-    try { await updateDoc(doc(db, 'militares', id), { role }); } catch(e){}
-    setMilitares(prev => prev.map(p => p.id === id ? { ...p, role } : p));
-    await appendAuditLog('INTEGRALIZAÇÃO', `Papel do militar ${id} alterado para ${role}.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+    try { 
+      await updateDoc(doc(db, 'militares', id), { role }); 
+      setMilitares(prev => prev.map(p => p.id === id ? { ...p, role } : p));
+      await appendAuditLog('INTEGRALIZAÇÃO', `Papel do militar ${id} alterado para ${role}.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+    } catch(e) { alert("Erro ao atualizar papel: " + (e as Error).message); }
   };
 
   const handleUpdateConfig = async (newConfig: Partial<AppConfig>) => {
