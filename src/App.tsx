@@ -1319,12 +1319,12 @@ export default function App() {
                             const dest = militares.find(m => m.id === p.militarSubstitutoId);
                             
                             let badgeStyle = 'bg-cyber-blue/15 text-cyber-blue border-cyber-blue/30';
-                            let stateLabel = 'Aguardando Colega';
+                            let stateLabel = 'Aguardando Substituto';
                             let isHighlighted = false;
                             
                             if (p.status === 'PENDENTE_SUBSTITUTO') {
                               badgeStyle = 'bg-cyber-blue/20 text-cyber-cyan border-cyber-cyan/50 shadow-[0_0_10px_rgba(0,229,255,0.2)]';
-                              stateLabel = 'Aguardando Colega';
+                              stateLabel = 'Aguardando Substituto';
                               if (p.militarSubstituidoId === loggedUser?.id) {
                                 isHighlighted = true;
                               }
