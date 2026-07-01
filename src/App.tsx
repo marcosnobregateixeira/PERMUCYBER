@@ -143,6 +143,17 @@ export default function App() {
     // 1. Registra IMEDIATAMENTE os listeners em tempo real para sincronização instantânea
     const unsubMilitares = onSnapshot(collection(db, 'militares'), (snap) => {
       setFirebaseError(null);
+      if (snap.empty) {
+        console.log("Seeding default militares into empty Firestore collection...");
+        MILITARES.forEach(async (m) => {
+          try {
+            await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
+          } catch (e) {
+            console.error("Error auto-seeding militar:", e);
+          }
+        });
+        return;
+      }
       const list = snap.docs.map(d => {
         const data = d.data() as Militar;
         return { ...data, id: d.id }; // Garantir que o ID do objeto seja o ID do documento Firestore
@@ -153,6 +164,17 @@ export default function App() {
 
     const unsubEscalas = onSnapshot(collection(db, 'escalas'), (snap) => {
       setFirebaseError(null);
+      if (snap.empty) {
+        console.log("Seeding default escalas into empty Firestore collection...");
+        ESCALAS_INICIAIS.forEach(async (e) => {
+          try {
+            await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e));
+          } catch (err) {
+            console.error("Error auto-seeding escala:", err);
+          }
+        });
+        return;
+      }
       const list = snap.docs.map(d => ({ ...d.data() as Escala, id: d.id }));
       setEscalas(list);
       setIsLoading(false);
@@ -160,6 +182,17 @@ export default function App() {
 
     const unsubAlertas = onSnapshot(collection(db, 'alertas'), (snap) => {
       setFirebaseError(null);
+      if (snap.empty) {
+        console.log("Seeding default alertas into empty Firestore collection...");
+        ALERTAS_INICIAIS.forEach(async (a) => {
+          try {
+            await setDoc(doc(db, 'alertas', a.id), sanitizeForFirestore(a));
+          } catch (err) {
+            console.error("Error auto-seeding alerta:", err);
+          }
+        });
+        return;
+      }
       const list = snap.docs.map(d => ({ ...d.data() as Alerta, id: d.id }));
       setAlertas(list);
     }, handleFirebaseError);
