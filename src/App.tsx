@@ -305,7 +305,8 @@ export default function App() {
 
   const handleRestoreBackup = async (snapshot: BackupSnapshot) => {
     try {
-      setBackupStatusMsg(`⌛ Reconciliando imagens... Revertendo para o backup ${snapshot.id}...`);
+      const backupId = snapshot.id || `LOCAL-${Date.now()}`;
+      setBackupStatusMsg(`⌛ Reconciliando imagens... Revertendo para o backup ${backupId}...`);
       
       for (const m of militares) {
         if (!snapshot.militares.some(sm => sm.id === m.id)) {
@@ -364,9 +365,9 @@ export default function App() {
       if (snapshot.alertas) setAlertas(snapshot.alertas);
       if (snapshot.logs) setLogs(snapshot.logs);
 
-      await appendAuditLog('INTEGRALIZAÇÃO', `Restauração pontual efetuada com sucesso: ${snapshot.id}.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
-      alert(`SUCESSO! O banco de dados foi totalmente restaurado para a imagem de segurança ${snapshot.id}.`);
-      setBackupStatusMsg(`✓ Restauro concluído com sucesso para o backup ${snapshot.id}.`);
+      await appendAuditLog('INTEGRALIZAÇÃO', `Restauração pontual efetuada com sucesso: ${backupId}.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+      alert(`SUCESSO! O banco de dados foi totalmente restaurado para a imagem de segurança ${backupId}.`);
+      setBackupStatusMsg(`✓ Restauro concluído com sucesso para o backup ${backupId}.`);
     } catch (err) {
       console.error("Restore failed:", err);
       // Fallback local updates if anything failed during local operations

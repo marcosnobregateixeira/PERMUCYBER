@@ -1481,12 +1481,13 @@ export default function PainelGestor({
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
+                  e.target.value = ''; // Reset input to allow selecting the same file
                   const reader = new FileReader();
                   reader.onload = (event) => {
                     try {
                       const parsed = JSON.parse(event.target?.result as string);
-                      if (!parsed.militares || !parsed.escalas || !parsed.permutas) {
-                        alert('Erro: Arquivo JSON de backup inválido. Ele deve conter os campos militares, escalas e permutas.');
+                      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.militares) || !Array.isArray(parsed.escalas) || !Array.isArray(parsed.permutas)) {
+                        alert('Erro: Arquivo JSON de backup inválido. Ele deve conter os campos militares, escalas e permutas (como listas).');
                         return;
                       }
                       if (onRestoreBackup) {
