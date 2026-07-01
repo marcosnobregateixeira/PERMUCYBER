@@ -66,7 +66,7 @@ interface PainelGestorProps {
   onClearAllMilitares?: () => void;
   backups?: any[];
   backupStatusMsg?: string;
-  onCreateBackup?: (tipo: 'AUTO' | 'MANUAL') => void;
+  onCreateBackup?: (tipo: 'AUTO' | 'MANUAL') => Promise<any>;
   onRestoreBackup?: (bk: any) => void;
   config: import('../types').AppConfig;
   onUpdateConfig: (cfg: Partial<import('../types').AppConfig>) => void;
@@ -1443,8 +1443,13 @@ export default function PainelGestor({
 
               <button
                 type="button"
-                onClick={() => {
-                  const fullData = {
+                onClick={async () => {
+                  let backupData;
+                  if (onCreateBackup) {
+                    backupData = await onCreateBackup('MANUAL');
+                  }
+                  
+                  const fullData = backupData || {
                     id: `SNAP-LOCAL-${Date.now()}`,
                     timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
                     tipo: 'MANUAL',

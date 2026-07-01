@@ -258,7 +258,7 @@ export default function App() {
     await setDoc(doc(db, 'logs', nextLog.id), sanitizeForFirestore(nextLog));
   };
 
-  const generateBackup = async (tipo: 'AUTO' | 'MANUAL', autor: string, forcedMilitares?: Militar[], forcedEscalas?: Escala[], forcedPermutas?: Permuta[]) => {
+  const generateBackup = async (tipo: 'AUTO' | 'MANUAL', autor: string, forcedMilitares?: Militar[], forcedEscalas?: Escala[], forcedPermutas?: Permuta[]): Promise<BackupSnapshot | null> => {
     try {
       const activeMilitares = forcedMilitares || militares;
       const activeEscalas = forcedEscalas || escalas;
@@ -296,10 +296,12 @@ export default function App() {
           `• Status: Sincronizado e persistido com redundância no Firestore Cloud de forma segura.`
         );
       }
+      return newSnapshot;
     } catch (err) {
       console.error("Backup failed:", err);
       setBackupStatusMsg("⚠️ Falha crítica ao transcrever backup para a nuvem.");
       alert("⚠️ Erro crítico: Não foi possível salvar o backup nas nuvens. Verifique sua conexão com a rede.");
+      return null;
     }
   };
 
