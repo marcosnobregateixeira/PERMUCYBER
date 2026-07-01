@@ -162,7 +162,17 @@ export default function Dashboard({
     };
   };
 
-  const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO'>(realMonth as any);
+  const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO'>(() => {
+    const saved = localStorage.getItem('tactical_selected_month');
+    if (saved && ['MAIO', 'JUNHO', 'JULHO', 'AGOSTO'].includes(saved)) {
+      return saved as any;
+    }
+    return realMonth;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('tactical_selected_month', selectedMonth);
+  }, [selectedMonth]);
   const [selectedTurnoFilter, setSelectedTurnoFilter] = useState<'TODOS' | 'TURNO A' | 'TURNO B' | '24H' | 'EXPEDIENTE'>('TODOS');
 
   // Full Month configuration for Maio, Junho, Julho, and Agosto 2026

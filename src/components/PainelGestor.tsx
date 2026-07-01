@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
@@ -193,8 +193,22 @@ export default function PainelGestor({
   const [militarSearchTerm, setMilitarSearchTerm] = useState('');
   const [credencialSearchTerm, setCredencialSearchTerm] = useState('');
   const [verificarMilitarId, setVerificarMilitarId] = useState<string>('');
-  const [selecionadoMes, setSelecionadoMes] = useState<number>(new Date().getMonth());
-  const [selecionadoAno, setSelecionadoAno] = useState<number>(new Date().getFullYear());
+  const [selecionadoMes, setSelecionadoMes] = useState<number>(() => {
+    const saved = localStorage.getItem('painel_selecionado_mes');
+    return saved !== null ? Number(saved) : new Date().getMonth();
+  });
+  const [selecionadoAno, setSelecionadoAno] = useState<number>(() => {
+    const saved = localStorage.getItem('painel_selecionado_ano');
+    return saved !== null ? Number(saved) : new Date().getFullYear();
+  });
+
+  useEffect(() => {
+    localStorage.setItem('painel_selecionado_mes', String(selecionadoMes));
+  }, [selecionadoMes]);
+
+  useEffect(() => {
+    localStorage.setItem('painel_selecionado_ano', String(selecionadoAno));
+  }, [selecionadoAno]);
 
   const filteredMilitares = sortedMilitares.filter(m => 
     m.nome.toLowerCase().includes(militarSearchTerm.toLowerCase()) ||
