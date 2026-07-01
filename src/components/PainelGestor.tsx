@@ -2011,7 +2011,7 @@ export default function PainelGestor({
 
                     <div className="flex items-center justify-between border-t border-hud-border/30 pt-2 text-[9.5px] font-mono">
                       <span className="text-slate-400">
-                        PIN / 2FA: <span className="font-bold text-cyber-green">****</span>
+                        PIN / 2FA: <span className="font-bold text-cyber-green">{u.pinSegurança || 'N/A'}</span>
                       </span>
                       
                       {!isSelected && onUserSwitch && (

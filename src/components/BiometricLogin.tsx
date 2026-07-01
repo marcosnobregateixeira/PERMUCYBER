@@ -274,28 +274,27 @@ export default function BiometricLogin({
                 <button
                   type="button"
                   onClick={() => {
-                    const verified = userLogged ? verifiedIds.includes(userLogged.id) : false;
-                    if (verified) {
+                    if (userLogged) {
                       setActiveTab('CUSTOM_TOKEN');
                     } else {
-                      setErrorText('Acesso negado! Realize a validação biométrica preventiva no scanner para liberar a aba.');
+                      setErrorText('Selecione um usuário primeiro.');
                       setTimeout(() => setErrorText(null), 3000);
                     }
                   }}
                   className={`flex-1 py-1.5 text-[9.5px] font-mono uppercase font-bold tracking-wider transition-all border-b-2 flex items-center justify-center space-x-1 relative ${
                     activeTab === 'CUSTOM_TOKEN'
                       ? 'border-cyber-green text-white bg-cyber-green/5'
-                      : (userLogged && verifiedIds.includes(userLogged.id))
-                      ? 'border-transparent text-[#00ff66]/80 hover:text-[#00ff66]'
+                      : userLogged
+                      ? 'border-transparent text-[#00ff66]/80 hover:text-[#00ff66] cursor-pointer'
                       : 'border-transparent text-slate-600 cursor-not-allowed'
                   }`}
                 >
-                  <Lock className={`w-3.5 h-3.5 ${(userLogged && verifiedIds.includes(userLogged.id)) ? 'text-cyber-green' : 'text-slate-600'}`} />
+                  <Lock className={`w-3.5 h-3.5 ${userLogged ? 'text-cyber-green' : 'text-slate-600'}`} />
                   <span>2. Modificar Token</span>
-                  {(!userLogged || !verifiedIds.includes(userLogged.id)) && (
+                  {!userLogged && (
                     <span className="absolute top-1.5 right-1 px-1 bg-cyber-red/20 text-cyber-red border border-cyber-red/35 rounded-sm text-[6.5px] scale-90">Bloqueado</span>
                   )}
-                  {(userLogged && verifiedIds.includes(userLogged.id)) && (
+                  {userLogged && (
                     <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-cyber-green rounded-full animate-ping" />
                   )}
                 </button>

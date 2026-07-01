@@ -206,8 +206,6 @@ export default function App() {
       }
     };
 
-    let isDbSeeded = false;
-
     // 1. Registra IMEDIATAMENTE os listeners em tempo real para sincronização instantânea
     const unsubMilitares = onSnapshot(collection(db, 'militares'), (snap) => {
       setFirebaseError(null);
@@ -215,62 +213,45 @@ export default function App() {
         const data = d.data() as Militar;
         return { ...data, id: d.id }; // Garantir que o ID do objeto seja o ID do documento Firestore
       });
-      if (list.length > 0) {
-        isDbSeeded = true;
-        setMilitares(list.sort(sortMilitarByPatente));
-      } else if (isDbSeeded) {
-        setMilitares([]);
-      }
+      setMilitares(list.sort(sortMilitarByPatente));
       setIsLoading(false);
     }, handleFirebaseError);
 
     const unsubEscalas = onSnapshot(collection(db, 'escalas'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as Escala, id: d.id }));
-      if (list.length > 0 || isDbSeeded) {
-        setEscalas(list);
-      }
+      setEscalas(list);
       setIsLoading(false);
     }, handleFirebaseError);
 
     const unsubAlertas = onSnapshot(collection(db, 'alertas'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as Alerta, id: d.id }));
-      if (list.length > 0 || isDbSeeded) {
-        setAlertas(list);
-      }
+      setAlertas(list);
     }, handleFirebaseError);
 
     const unsubPermutas = onSnapshot(collection(db, 'permutas'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as Permuta, id: d.id }));
-      if (list.length > 0 || isDbSeeded) {
-        setPermutas(list);
-      }
+      setPermutas(list);
     }, handleFirebaseError);
 
     const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as BlockchainLog, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
-      if (list.length > 0 || isDbSeeded) {
-        setLogs(list);
-      }
+      setLogs(list);
     }, handleFirebaseError);
 
     const unsubMessages = onSnapshot(collection(db, 'messages'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as ChatMessage, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
-      if (list.length > 0 || isDbSeeded) {
-        setMessages(list);
-      }
+      setMessages(list);
     }, handleFirebaseError);
 
     const unsubBackups = onSnapshot(collection(db, 'backups'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as any as BackupSnapshot, id: d.id })).sort((a,b) => b.timestamp.localeCompare(a.timestamp));
-      if (list.length > 0 || isDbSeeded) {
-        setBackups(list);
-      }
+      setBackups(list);
     }, handleFirebaseError);
 
     const unsubConfig = onSnapshot(doc(db, 'settings', 'config'), (snap) => {
