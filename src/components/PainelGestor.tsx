@@ -1905,6 +1905,37 @@ export default function PainelGestor({
                               )}
                             </div>
 
+                            {u.email && (
+                              <div className="text-[9px] font-mono text-slate-300 mt-1.5 flex items-center space-x-1">
+                                <span className="text-slate-500 font-bold uppercase">E-mail:</span>
+                                <span className="text-cyber-cyan truncate">{u.email}</span>
+                              </div>
+                            )}
+
+                            <div className="text-[9.5px] font-mono mt-1.5 flex items-center space-x-2 flex-wrap gap-y-1">
+                              <span className="text-slate-500 font-bold uppercase">Acesso:</span>
+                              {u.acessoLiberado === false ? (
+                                <span className="bg-cyber-red/15 text-cyber-red border border-cyber-red/35 px-1.5 py-0.2 rounded text-[7.5px] font-mono font-black uppercase tracking-wider animate-pulse">⚠️ BLOQUEADO</span>
+                              ) : (
+                                <span className="bg-cyber-green/15 text-cyber-green border border-cyber-green/35 px-1.5 py-0.2 rounded text-[7.5px] font-mono font-black uppercase tracking-wider">✓ LIBERADO</span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (onUpdateMilitar) {
+                                    const nextStatus = u.acessoLiberado === false ? true : false;
+                                    onUpdateMilitar(u.id, { acessoLiberado: nextStatus });
+                                    alert(`Acesso do policial ${u.nomeGuerra} foi ${nextStatus ? 'LIBERADO' : 'BLOQUEADO'} com sucesso.`);
+                                  }
+                                }}
+                                className={`text-[8.5px] font-bold uppercase underline hover:text-white cursor-pointer ${
+                                  u.acessoLiberado === false ? 'text-cyber-green' : 'text-cyber-amber'
+                                }`}
+                              >
+                                [{u.acessoLiberado === false ? 'Liberar Acesso' : 'Bloquear'}]
+                              </button>
+                            </div>
+
                             {(() => {
                               const mStatus = getDynamicMilitarStatus(u);
                               if (!mStatus) return null;
@@ -2175,6 +2206,17 @@ export default function PainelGestor({
                 </select>
               </div>
 
+              <div className="flex flex-col space-y-1 col-span-2">
+                <label className="text-[8.5px] font-mono text-slate-400 uppercase tracking-wider font-bold">E-mail de Contato / Corporativo</label>
+                <input
+                  type="email"
+                  value={editingMilitar.email || ''}
+                  onChange={e => setEditingMilitar({...editingMilitar, email: e.target.value})}
+                  className="bg-[#03090b] p-2 rounded border border-hud-border text-white text-xs"
+                  placeholder="exemplo@pm.gov.br"
+                />
+              </div>
+
               <div className="col-span-2 p-2 rounded border border-hud-border bg-[#020709] flex justify-between items-center text-[11px] font-sans">
                 <span className="text-slate-300">Biometria Facial / Segurança Ativa:</span>
                 <button
@@ -2187,6 +2229,21 @@ export default function PainelGestor({
                   }`}
                 >
                   {editingMilitar.biometriaAtiva ? 'Sim (Habilitado)' : 'Não (Inativo)'}
+                </button>
+              </div>
+
+              <div className="col-span-2 p-2 rounded border border-hud-border bg-[#020709] flex justify-between items-center text-[11px] font-sans">
+                <span className="text-slate-300">Autorização de Acesso (Administrador):</span>
+                <button
+                  type="button"
+                  onClick={() => setEditingMilitar({...editingMilitar, acessoLiberado: editingMilitar.acessoLiberado === false ? true : false})}
+                  className={`px-3 py-1 rounded text-[9px] font-mono font-bold uppercase transition-all border ${
+                    editingMilitar.acessoLiberado !== false 
+                      ? 'bg-cyber-green/10 text-cyber-green border-cyber-green/30' 
+                      : 'bg-cyber-red/10 text-cyber-red border-cyber-red/30'
+                  }`}
+                >
+                  {editingMilitar.acessoLiberado !== false ? '✓ Acesso Liberado' : '⚠️ Acesso Bloqueado'}
                 </button>
               </div>
             </div>

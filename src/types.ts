@@ -32,6 +32,8 @@ export interface Militar {
   chaveDigital: string;
   biometriaAtiva: boolean;
   pinSegurança: string;
+  email?: string;
+  acessoLiberado?: boolean;
   matriculaFuncional?: string;
   numero?: string;
   setor?: string;

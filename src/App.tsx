@@ -566,10 +566,16 @@ export default function App() {
     setMilitares(prev => prev.map(p => p.id === id ? { ...p, numero } : p));
   };
 
-  const handleUpdateMilitarPin = async (id: string, newPin: string) => {
-    try { await updateDoc(doc(db, 'militares', id), { pinSegurança: newPin }); } catch(e){}
-    setMilitares(prev => prev.map(p => p.id === id ? { ...p, pinSegurança: newPin } : p));
-    await appendAuditLog('INTEGRALIZAÇÃO', `Militar ID ${id} atualizou seu token / PIN de segurança criptográfica pessoal com sucesso.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+  const handleUpdateMilitarPin = async (id: string, newPin: string, email?: string) => {
+    const updates: any = { pinSegurança: newPin, acessoLiberado: false };
+    if (email) {
+      updates.email = email;
+    }
+    try { 
+      await updateDoc(doc(db, 'militares', id), updates); 
+    } catch(e){}
+    setMilitares(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    await appendAuditLog('INTEGRALIZAÇÃO', `Militar ID ${id} atualizou seu token / PIN de segurança criptográfica pessoal e e-mail (${email || 'não informado'}). Acesso bloqueado aguardando liberação do administrador.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
   };
 
   const handleUpdateMilitarRole = async (id: string, role: Role) => {

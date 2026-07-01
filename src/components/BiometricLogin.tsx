@@ -25,7 +25,7 @@ interface BiometricLoginProps {
   allUsers: Militar[];
   onUserSelect: (userId: string) => void;
   onLoginSuccess: () => void;
-  onUpdateMilitarPin?: (userId: string, newPin: string) => void;
+  onUpdateMilitarPin?: (userId: string, newPin: string, email?: string) => void;
 }
 
 export default function BiometricLogin({ 
@@ -58,6 +58,8 @@ export default function BiometricLogin({
   });
 
   const [customTokenInput, setCustomTokenInput] = useState<string>('');
+  const [customEmailInput, setCustomEmailInput] = useState<string>('');
+  const [customSubTab, setCustomSubTab] = useState<'PIN' | 'EMAIL'>('PIN');
   const [tokenSuccessMsg, setTokenSuccessMsg] = useState<string | null>(null);
   const [tokenErrorMsg, setTokenErrorMsg] = useState<string | null>(null);
   const [showFirstTimeSuccessPopup, setShowFirstTimeSuccessPopup] = useState<boolean>(false);
@@ -67,6 +69,8 @@ export default function BiometricLogin({
     setTokenErrorMsg(null);
     setTokenSuccessMsg(null);
     setCustomTokenInput('');
+    setCustomEmailInput(userLogged?.email || '');
+    setCustomSubTab('PIN');
   }, [userLogged]);
 
   // Autocomplete suggestions filter (min 1 letter)
@@ -133,6 +137,10 @@ export default function BiometricLogin({
 
     // Default or personalized pin security code check
     if (pin === userLogged?.pinSegurança) {
+      if (userLogged?.acessoLiberado === false) {
+        setErrorText('SUA CREDENCIAL FOI SALVA, MAS O SEU ACESSO ESTÁ BLOQUEADO AGUARDANDO LIBERAÇÃO DO ADMINISTRADOR.');
+        return;
+      }
       setStage('SUCCESS');
       setTimeout(() => {
         onLoginSuccess();
@@ -421,23 +429,75 @@ export default function BiometricLogin({
                   </div>
 
                   <div className="space-y-3 font-sans">
-                    <div className="flex flex-col space-y-1">
-                      <label className="text-[8.5px] font-bold font-mono text-slate-300 uppercase">
-                        Inserir Novo PIN de Segurança (4 dígitos numéricos):
-                      </label>
-                      <input
-                        type="password"
-                        maxLength={4}
-                        value={customTokenInput}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, '');
-                          setCustomTokenInput(val);
-                          setTokenErrorMsg(null);
-                        }}
-                        placeholder="••••"
-                        className="w-full bg-[#051319] border border-cyber-green/35 text-xs font-mono text-white p-2 text-center rounded-md outline-none focus:border-cyber-green focus:shadow-[0_0_8px_rgba(0,255,102,0.15)] transition-all tracking-[0.4em]"
-                      />
+                    {/* Sub tabs for customization */}
+                    <div className="flex space-x-1 bg-[#041116] p-1 rounded-lg border border-cyber-green/20 text-[9px] font-mono">
+                      <button
+                        type="button"
+                        onClick={() => setCustomSubTab('PIN')}
+                        className={`flex-1 py-1 rounded font-bold uppercase transition-all text-center cursor-pointer ${
+                          customSubTab === 'PIN'
+                            ? 'bg-cyber-green text-black font-black'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        1. Token / PIN
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCustomSubTab('EMAIL')}
+                        className={`flex-1 py-1 rounded font-bold uppercase transition-all text-center cursor-pointer ${
+                          customSubTab === 'EMAIL'
+                            ? 'bg-cyber-green text-black font-black'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        2. E-mail de Contato
+                      </button>
                     </div>
+
+                    {customSubTab === 'PIN' && (
+                      <div className="flex flex-col space-y-1">
+                        <label className="text-[8.5px] font-bold font-mono text-slate-300 uppercase">
+                          Inserir Novo PIN de Segurança (4 dígitos numéricos):
+                        </label>
+                        <input
+                          type="password"
+                          maxLength={4}
+                          value={customTokenInput}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            setCustomTokenInput(val);
+                            setTokenErrorMsg(null);
+                          }}
+                          placeholder="••••"
+                          className="w-full bg-[#051319] border border-cyber-green/35 text-xs font-mono text-white p-2 text-center rounded-md outline-none focus:border-cyber-green focus:shadow-[0_0_8px_rgba(0,255,102,0.15)] transition-all tracking-[0.4em]"
+                        />
+                        <p className="text-[8px] text-slate-500 font-mono">
+                          Esse PIN de 4 dígitos será solicitado como autenticação de duplo fator.
+                        </p>
+                      </div>
+                    )}
+
+                    {customSubTab === 'EMAIL' && (
+                      <div className="flex flex-col space-y-1">
+                        <label className="text-[8.5px] font-bold font-mono text-slate-300 uppercase">
+                          Inserir E-mail de Contato:
+                        </label>
+                        <input
+                          type="email"
+                          value={customEmailInput}
+                          onChange={(e) => {
+                            setCustomEmailInput(e.target.value);
+                            setTokenErrorMsg(null);
+                          }}
+                          placeholder="exemplo@pm.gov.br"
+                          className="w-full bg-[#051319] border border-cyber-green/35 text-xs font-mono text-white p-2 rounded-md outline-none focus:border-cyber-green focus:shadow-[0_0_8px_rgba(0,255,102,0.15)] transition-all"
+                        />
+                        <p className="text-[8px] text-slate-500 font-mono">
+                          E-mail corporativo ou pessoal para liberação de acesso e auditoria de segurança.
+                        </p>
+                      </div>
+                    )}
 
                     {tokenErrorMsg && (
                       <p className="text-[9px] text-cyber-red font-mono bg-cyber-red/10 border border-cyber-red/35 px-2 py-1 rounded">
@@ -446,7 +506,7 @@ export default function BiometricLogin({
                     )}
 
                     {tokenSuccessMsg && (
-                      <p className="text-[9px] text-cyber-green font-mono bg-cyber-green/10 border border-cyber-green/35 px-2 py-1 rounded">
+                      <p className="text-[9px] text-cyber-green font-mono bg-cyber-green/10 border border-cyber-green/35 px-2 py-1.5 rounded leading-normal">
                         ✓ {tokenSuccessMsg}
                       </p>
                     )}
@@ -456,20 +516,33 @@ export default function BiometricLogin({
                         type="button"
                         onClick={() => {
                           if (customTokenInput.length !== 4) {
-                            setTokenErrorMsg('Preencha exatamente os 4 dígitos numéricos.');
+                            setTokenErrorMsg('Preencha os 4 dígitos do PIN na aba Token.');
+                            setCustomSubTab('PIN');
+                            return;
+                          }
+                          const emailTrimmed = customEmailInput.trim();
+                          if (!emailTrimmed) {
+                            setTokenErrorMsg('Preencha seu e-mail de contato na aba E-mail.');
+                            setCustomSubTab('EMAIL');
+                            return;
+                          }
+                          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                          if (!emailRegex.test(emailTrimmed)) {
+                            setTokenErrorMsg('Insira um endereço de e-mail válido.');
+                            setCustomSubTab('EMAIL');
                             return;
                           }
                           if (userLogged) {
-                            onUpdateMilitarPin?.(userLogged.id, customTokenInput);
-                            setTokenSuccessMsg('Token salvo individualmente com sucesso!');
+                            onUpdateMilitarPin?.(userLogged.id, customTokenInput, emailTrimmed);
+                            setTokenSuccessMsg('Credencial gravada! Aguardando liberação do administrador para realizar login.');
                           }
                           setCustomTokenInput('');
+                          setCustomEmailInput('');
                           setTimeout(() => {
                             setTokenSuccessMsg(null);
-                            // Set direct access to biometric login proceed screen
-                            setStage('PIN_2FA');
+                            setStage('BIOMETRIC');
                             setActiveTab('BIOMETRY');
-                          }, 1600);
+                          }, 3500);
                         }}
                         className="bg-cyber-green text-black hover:bg-cyber-green/90 border border-transparent rounded py-2 text-[10px] font-black font-mono uppercase transition-all tracking-wider text-center cursor-pointer shadow-[0_0_10px_rgba(0,255,102,0.2)]"
                       >
