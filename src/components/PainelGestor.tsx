@@ -1463,13 +1463,15 @@ export default function PainelGestor({
                     alertas: [],
                     logs: logs
                   };
-                  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullData, null, 2));
+                  const blob = new Blob([JSON.stringify(fullData, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
                   const dlAnchor = document.createElement('a');
-                  dlAnchor.setAttribute("href", dataStr);
+                  dlAnchor.setAttribute("href", url);
                   dlAnchor.setAttribute("download", `permucyber_backup_completo_${new Date().toISOString().slice(0, 10)}.json`);
                   document.body.appendChild(dlAnchor);
                   dlAnchor.click();
-                  dlAnchor.remove();
+                  document.body.removeChild(dlAnchor);
+                  URL.revokeObjectURL(url);
                 }}
                 className="bg-cyber-green/15 hover:bg-cyber-green/30 text-cyber-green hover:text-white border border-cyber-green/40 py-2 rounded text-[10px] font-mono font-black uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1 cursor-pointer"
               >
@@ -1548,13 +1550,15 @@ export default function PainelGestor({
                         <button
                           type="button"
                           onClick={() => {
-                            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bk, null, 2));
+                            const blob = new Blob([JSON.stringify(bk, null, 2)], { type: 'application/json' });
+                            const url = URL.createObjectURL(blob);
                             const dlAnchor = document.createElement('a');
-                            dlAnchor.setAttribute("href", dataStr);
+                            dlAnchor.setAttribute("href", url);
                             dlAnchor.setAttribute("download", `permucyber_backup_${bk.id}_${bk.timestamp.replace(/[:\s]/g, '-')}.json`);
                             document.body.appendChild(dlAnchor);
                             dlAnchor.click();
-                            dlAnchor.remove();
+                            document.body.removeChild(dlAnchor);
+                            URL.revokeObjectURL(url);
                           }}
                           className="bg-cyber-blue/15 hover:bg-cyber-blue/35 text-cyber-cyan border border-cyber-blue/30 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase transition-all cursor-pointer flex items-center gap-0.5"
                           title="Baixar arquivo JSON deste backup para arquivo físico"
@@ -1595,25 +1599,33 @@ export default function PainelGestor({
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
+                  e.target.value = '';
 
                   const reader = new FileReader();
                   reader.onload = (event) => {
                     try {
                       const parsed = JSON.parse(event.target?.result as string);
-                      if (!Array.isArray(parsed)) {
-                        alert('Erro: O arquivo JSON deve conter um array (lista) de policiais.');
+                      let dataToImport = null;
+                      if (Array.isArray(parsed)) {
+                        dataToImport = parsed;
+                      } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.militares)) {
+                        dataToImport = parsed.militares;
+                      }
+
+                      if (!dataToImport) {
+                        alert('Erro: O arquivo JSON deve conter um array (lista) de policiais ou ser um backup integral com a lista de militares.');
                         return;
                       }
 
-                      const isValid = parsed.every(m => m.id && m.nome && m.nomeGuerra && m.patente);
+                      const isValid = dataToImport.every((m: any) => m.id && m.nome && m.nomeGuerra && m.patente);
                       if (!isValid) {
                         alert('Erro: Cada policial no JSON precisa dos campos obrigatórios: id, nome, nomeGuerra, patente.');
                         return;
                       }
 
                       if (onImportMilitaresJSON) {
-                        onImportMilitaresJSON(parsed);
-                        alert(`Sucesso! ${parsed.length} policiais militares importados.`);
+                        onImportMilitaresJSON(dataToImport);
+                        alert(`Sucesso! ${dataToImport.length} policiais militares importados.`);
                       }
                     } catch (err) {
                       alert('Erro: Arquivo JSON corrompido ou formato incompatível.');
