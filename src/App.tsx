@@ -67,7 +67,7 @@ export default function App() {
     } catch (e) {
       console.error("Local load error for militares:", e);
     }
-    return [...MILITARES].sort(sortMilitarByPatente);
+    return [];
   });
   const [selectedMilitarId, setSelectedMilitarId] = useState<string>('');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
@@ -85,7 +85,7 @@ export default function App() {
     } catch (e) {
       console.error("Local load error for escalas:", e);
     }
-    return ESCALAS_INICIAIS;
+    return [];
   });
   const [alertas, setAlertas] = useState<Alerta[]>(() => {
     try {
@@ -97,7 +97,7 @@ export default function App() {
     } catch (e) {
       console.error("Local load error for alertas:", e);
     }
-    return ALERTAS_INICIAIS;
+    return [];
   });
   const [permutas, setPermutas] = useState<Permuta[]>(() => {
     try {
@@ -109,7 +109,7 @@ export default function App() {
     } catch (e) {
       console.error("Local load error for permutas:", e);
     }
-    return PERMUTAS_INICIAIS;
+    return [];
   });
   const [logs, setLogs] = useState<BlockchainLog[]>(() => {
     try {
@@ -121,7 +121,7 @@ export default function App() {
     } catch (e) {
       console.error("Local load error for logs:", e);
     }
-    return LOGS_INICIAIS;
+    return [];
   });
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     try {
@@ -133,7 +133,7 @@ export default function App() {
     } catch (e) {
       console.error("Local load error for messages:", e);
     }
-    return CHATS_INICIAIS;
+    return [];
   });
   const [backups, setBackups] = useState<BackupSnapshot[]>([]);
   const [config, setConfig] = useState<AppConfig>(() => {
