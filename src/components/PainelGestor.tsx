@@ -1468,7 +1468,7 @@ export default function PainelGestor({
                 }}
                 className="bg-cyber-green/15 hover:bg-cyber-green/30 text-cyber-green hover:text-white border border-cyber-green/40 py-2 rounded text-[10px] font-mono font-black uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1 cursor-pointer"
               >
-                <span>EXPORTAR BANCO COMPLETO</span>
+                <span>EXPORTAR BACKUP (.JSON)</span>
               </button>
             </div>
 
