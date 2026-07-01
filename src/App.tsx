@@ -69,20 +69,9 @@ export default function App() {
     }
     return [...MILITARES].sort(sortMilitarByPatente);
   });
-  const [selectedMilitarId, setSelectedMilitarId] = useState<string>(() => {
-    return localStorage.getItem('permucyber_logged_id') || '';
-  });
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    return localStorage.getItem('permucyber_is_logged') === 'true';
-  });
+  const [selectedMilitarId, setSelectedMilitarId] = useState<string>('');
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
-  useEffect(() => {
-    localStorage.setItem('permucyber_logged_id', selectedMilitarId);
-  }, [selectedMilitarId]);
-
-  useEffect(() => {
-    localStorage.setItem('permucyber_is_logged', isLoggedIn ? 'true' : 'false');
-  }, [isLoggedIn]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   
@@ -160,17 +149,7 @@ export default function App() {
   });
   const [backupStatusMsg, setBackupStatusMsg] = useState<string>('Sincronização em nuvem e backups estão ativos.');
 
-  const [currentTab, setCurrentTab] = useState<'DASHBOARD' | 'PERMUTAS' | 'CHAT' | 'GESTAO'>(() => {
-    const saved = localStorage.getItem('permucyber_current_tab');
-    if (saved && ['DASHBOARD', 'PERMUTAS', 'CHAT', 'GESTAO'].includes(saved)) {
-      return saved as any;
-    }
-    return 'DASHBOARD';
-  });
-
-  useEffect(() => {
-    localStorage.setItem('permucyber_current_tab', currentTab);
-  }, [currentTab]);
+  const [currentTab, setCurrentTab] = useState<'DASHBOARD' | 'PERMUTAS' | 'CHAT' | 'GESTAO'>('DASHBOARD');
   const [activeSwapScale, setActiveSwapScale] = useState<Escala | null>(null);
   const [activeReviewPermuta, setActiveReviewPermuta] = useState<Permuta | null>(null);
   const [showApproved, setShowApproved] = useState<boolean>(false);
