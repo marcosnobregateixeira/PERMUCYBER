@@ -2108,7 +2108,7 @@ export default function PainelGestor({
               </div>
 
               <div className="flex flex-col space-y-1">
-                <label className="text-[8.5px] font-mono text-slate-400 uppercase tracking-wider font-bold">Posto / Patente</label>
+                <label className="text-[8.5px] font-mono text-slate-400 uppercase tracking-wider font-bold">Post/Grad</label>
                 <select
                   value={editingMilitar.patente || 'SD'}
                   onChange={e => setEditingMilitar({...editingMilitar, patente: e.target.value as any})}

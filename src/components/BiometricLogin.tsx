@@ -327,7 +327,7 @@ export default function BiometricLogin({
                         </div>
                         <div className="text-[8.5px] font-mono text-slate-400 h-4">
                           {userLogged ? (
-                            <>ID: <span className="text-cyber-green font-bold">{userLogged.id}</span> • PATENTE: <span className="text-white uppercase font-bold">{userLogged.patente}</span></>
+                            <>ID: <span className="text-cyber-green font-bold">{userLogged.id}</span> • POST/GRAD: <span className="text-white uppercase font-bold">{userLogged.patente}</span></>
                           ) : (
                             <span className="text-[7px] text-slate-600 opacity-40 uppercase tracking-tighter italic">Selecione um Terminal Militar...</span>
                           )}

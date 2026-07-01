@@ -535,7 +535,7 @@ export default function PermutaFlow({
           <div className="relative">
             <input
               type="text"
-              placeholder="Digite o nome, patente ou especialidade para pesquisar..."
+              placeholder="Digite o nome, posto/grad ou especialidade para pesquisar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-[#020709] border border-hud-border/80 focus:border-cyber-blue focus:outline-none rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 font-mono"

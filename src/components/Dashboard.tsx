@@ -64,9 +64,17 @@ export default function Dashboard({
   const monthNames: Record<number, string> = {
     4: 'MAIO',
     5: 'JUNHO',
-    6: 'JULHO'
+    6: 'JULHO',
+    7: 'AGOSTO'
   };
   const realMonth = monthNames[today.getMonth()] || 'JUNHO';
+
+  const prevMonthIndex = today.getMonth() - 1;
+  const nextMonthIndex = today.getMonth() + 1;
+
+  const prevMonthName = (monthNames[prevMonthIndex] || 'JUNHO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO';
+  const currentMonthName = (monthNames[today.getMonth()] || 'JULHO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO';
+  const nextMonthName = (monthNames[nextMonthIndex] || 'AGOSTO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO';
 
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<number | null>(null); 
   const [expandedHomologationId, setExpandedHomologationId] = useState<string | null>(null);
@@ -154,10 +162,10 @@ export default function Dashboard({
     };
   };
 
-  const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO'>(realMonth as any);
+  const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO'>(realMonth as any);
   const [selectedTurnoFilter, setSelectedTurnoFilter] = useState<'TODOS' | 'TURNO A' | 'TURNO B' | '24H' | 'EXPEDIENTE'>('TODOS');
 
-  // Full Month configuration for Maio, Junho, and Julho 2026
+  // Full Month configuration for Maio, Junho, Julho, and Agosto 2026
   const monthConfigs = {
     MAIO: {
       name: 'MAIO 2026',
@@ -176,6 +184,12 @@ export default function Dashboard({
       totalDays: 31,
       blanksCount: 3,
       monthCode: '07'
+    },
+    AGOSTO: {
+      name: 'AGOSTO 2026',
+      totalDays: 31,
+      blanksCount: 6,
+      monthCode: '08'
     }
   };
 
@@ -196,7 +210,7 @@ export default function Dashboard({
     return scale;
   };
 
-  const handleMonthChange = (month: 'MAIO' | 'JUNHO' | 'JULHO') => {
+  const handleMonthChange = (month: 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO') => {
     setSelectedMonth(month);
     // If Day 31 is selected but selected month only has 30 days, clip to 30.
     if (selectedCalendarDay === 31 && month === 'JUNHO') {
@@ -617,28 +631,20 @@ export default function Dashboard({
           
           {/* Month selector controls */}
           <div className="flex items-center space-x-1.5 bg-[#030d11] p-1 rounded-lg border border-hud-border/50 shrink-0">
-            <button
-              onClick={() => handleMonthChange('JUNHO')}
-              className={`px-2.5 py-1 rounded text-[9.5px] font-mono font-bold tracking-wide transition-all cursor-pointer ${
-                selectedMonth === 'JUNHO'
-                  ? 'bg-cyber-blue/20 text-[#00e5ff] border border-cyber-cyan/35 shadow-[0_0_6px_rgba(0,229,255,0.2)]'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/40 border border-transparent'
-              }`}
-              title="Mês Atual Simulador (Junho 2026)"
-            >
-              JUNHO
-            </button>
-            <button
-              onClick={() => handleMonthChange('JULHO')}
-              className={`px-2.5 py-1 rounded text-[9.5px] font-mono font-bold tracking-wide transition-all cursor-pointer ${
-                selectedMonth === 'JULHO'
-                  ? 'bg-cyber-blue/20 text-[#00e5ff] border border-cyber-cyan/35 shadow-[0_0_6px_rgba(0,229,255,0.2)]'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/40 border border-transparent'
-              }`}
-              title="Ver Próximo Mês (Julho 2026)"
-            >
-              JULHO
-            </button>
+            {[prevMonthName, currentMonthName, nextMonthName].map((mName) => (
+              <button
+                key={mName}
+                onClick={() => handleMonthChange(mName)}
+                className={`px-2.5 py-1 rounded text-[9.5px] font-mono font-bold tracking-wide transition-all cursor-pointer ${
+                  selectedMonth === mName
+                    ? 'bg-cyber-blue/20 text-[#00e5ff] border border-cyber-cyan/35 shadow-[0_0_6px_rgba(0,229,255,0.2)]'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40 border border-transparent'
+                }`}
+                title={mName === currentMonthName ? "Mês Atual" : mName === prevMonthName ? "Mês Anterior" : "Próximo Mês"}
+              >
+                {mName}
+              </button>
+            ))}
           </div>
         </div>
 
