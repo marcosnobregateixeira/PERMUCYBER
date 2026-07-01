@@ -206,6 +206,8 @@ export default function App() {
       }
     };
 
+    let isDbSeeded = false;
+
     // 1. Registra IMEDIATAMENTE os listeners em tempo real para sincronização instantânea
     const unsubMilitares = onSnapshot(collection(db, 'militares'), (snap) => {
       setFirebaseError(null);
@@ -214,7 +216,10 @@ export default function App() {
         return { ...data, id: d.id }; // Garantir que o ID do objeto seja o ID do documento Firestore
       });
       if (list.length > 0) {
+        isDbSeeded = true;
         setMilitares(list.sort(sortMilitarByPatente));
+      } else if (isDbSeeded) {
+        setMilitares([]);
       }
       setIsLoading(false);
     }, handleFirebaseError);
@@ -222,7 +227,7 @@ export default function App() {
     const unsubEscalas = onSnapshot(collection(db, 'escalas'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as Escala, id: d.id }));
-      if (list.length > 0) {
+      if (list.length > 0 || isDbSeeded) {
         setEscalas(list);
       }
       setIsLoading(false);
@@ -231,7 +236,7 @@ export default function App() {
     const unsubAlertas = onSnapshot(collection(db, 'alertas'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as Alerta, id: d.id }));
-      if (list.length > 0) {
+      if (list.length > 0 || isDbSeeded) {
         setAlertas(list);
       }
     }, handleFirebaseError);
@@ -239,7 +244,7 @@ export default function App() {
     const unsubPermutas = onSnapshot(collection(db, 'permutas'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as Permuta, id: d.id }));
-      if (list.length > 0) {
+      if (list.length > 0 || isDbSeeded) {
         setPermutas(list);
       }
     }, handleFirebaseError);
@@ -247,7 +252,7 @@ export default function App() {
     const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as BlockchainLog, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
-      if (list.length > 0) {
+      if (list.length > 0 || isDbSeeded) {
         setLogs(list);
       }
     }, handleFirebaseError);
@@ -255,7 +260,7 @@ export default function App() {
     const unsubMessages = onSnapshot(collection(db, 'messages'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as ChatMessage, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
-      if (list.length > 0) {
+      if (list.length > 0 || isDbSeeded) {
         setMessages(list);
       }
     }, handleFirebaseError);
@@ -263,7 +268,7 @@ export default function App() {
     const unsubBackups = onSnapshot(collection(db, 'backups'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as any as BackupSnapshot, id: d.id })).sort((a,b) => b.timestamp.localeCompare(a.timestamp));
-      if (list.length > 0) {
+      if (list.length > 0 || isDbSeeded) {
         setBackups(list);
       }
     }, handleFirebaseError);
