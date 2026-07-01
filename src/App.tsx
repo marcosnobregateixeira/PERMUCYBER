@@ -57,84 +57,18 @@ const sortMilitarByPatente = (a: Militar, b: Militar) => {
 };
 
 export default function App() {
-  const [militares, setMilitares] = useState<Militar[]>(() => {
-    try {
-      const saved = localStorage.getItem('permucyber_militares');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed.sort(sortMilitarByPatente);
-      }
-    } catch (e) {
-      console.error("Local load error for militares:", e);
-    }
-    return [];
-  });
+  const [militares, setMilitares] = useState<Militar[]>([]);
   const [selectedMilitarId, setSelectedMilitarId] = useState<string>('');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   
-  const [escalas, setEscalas] = useState<Escala[]>(() => {
-    try {
-      const saved = localStorage.getItem('permucyber_escalas');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error("Local load error for escalas:", e);
-    }
-    return [];
-  });
-  const [alertas, setAlertas] = useState<Alerta[]>(() => {
-    try {
-      const saved = localStorage.getItem('permucyber_alertas');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error("Local load error for alertas:", e);
-    }
-    return [];
-  });
-  const [permutas, setPermutas] = useState<Permuta[]>(() => {
-    try {
-      const saved = localStorage.getItem('permucyber_permutas');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error("Local load error for permutas:", e);
-    }
-    return [];
-  });
-  const [logs, setLogs] = useState<BlockchainLog[]>(() => {
-    try {
-      const saved = localStorage.getItem('permucyber_logs');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error("Local load error for logs:", e);
-    }
-    return [];
-  });
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    try {
-      const saved = localStorage.getItem('permucyber_messages');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error("Local load error for messages:", e);
-    }
-    return [];
-  });
+  const [escalas, setEscalas] = useState<Escala[]>([]);
+  const [alertas, setAlertas] = useState<Alerta[]>([]);
+  const [permutas, setPermutas] = useState<Permuta[]>([]);
+  const [logs, setLogs] = useState<BlockchainLog[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [backups, setBackups] = useState<BackupSnapshot[]>([]);
   const [config, setConfig] = useState<AppConfig>(() => {
     try {
