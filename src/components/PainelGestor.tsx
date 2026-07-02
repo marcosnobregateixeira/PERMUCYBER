@@ -68,6 +68,7 @@ interface PainelGestorProps {
   backupStatusMsg?: string;
   onCreateBackup?: (tipo: 'AUTO' | 'MANUAL') => Promise<any>;
   onRestoreBackup?: (bk: any) => void;
+  onForceSyncToCloud?: () => Promise<void>;
   config: import('../types').AppConfig;
   onUpdateConfig: (cfg: Partial<import('../types').AppConfig>) => void;
 }
@@ -113,6 +114,7 @@ export default function PainelGestor({
   backupStatusMsg,
   onCreateBackup,
   onRestoreBackup,
+  onForceSyncToCloud,
   config,
   onUpdateConfig
 }: PainelGestorProps) {
@@ -311,7 +313,7 @@ export default function PainelGestor({
 
         const subObj = formatMilitarRelatorio(substituto);
         const subdoObj = formatMilitarRelatorio(substituido);
-        const statusServico = p.status === 'SEM_EFEITO' ? 'TORNADO SEM EFEITO' : 'CUMPRIDA';
+        const statusServico = getStatusServico(p);
 
         return [
           p.turno,
@@ -331,12 +333,12 @@ export default function PainelGestor({
         headStyles: { fillColor: [40, 40, 45], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, halign: 'center' },
         styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak', halign: 'center', valign: 'middle' },
         columnStyles: {
-          0: { cellWidth: 40 },
-          1: { cellWidth: 50 },
+          0: { cellWidth: 45 },
+          1: { cellWidth: 55 },
           2: { cellWidth: 'auto' },
           3: { cellWidth: 'auto' },
-          4: { cellWidth: 100, fontSize: 6.5 },
-          5: { cellWidth: 70, fontSize: 6.5 }
+          4: { cellWidth: 120, fontSize: 6.5 },
+          5: { cellWidth: 'auto', fontSize: 6.5 }
         },
         alternateRowStyles: { fillColor: [250, 250, 250] }
       });
@@ -400,6 +402,22 @@ export default function PainelGestor({
       return `${m.patente} ${m.numero} ${actualNomeGuerra.toUpperCase()}`;
     }
     return `${m.patente} ${actualNomeGuerra.toUpperCase()}`;
+  };
+
+  const getStatusServico = (p: Permuta) => {
+    if (p.status === 'SEM_EFEITO') return 'TORNADO SEM EFEITO';
+    
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+    
+    if (todayStr > p.dataRealizacao) {
+      return 'CUMPRIDA';
+    } else {
+      return 'PENDENTE';
+    }
   };
 
   const lastGestor = filteredPermutas.find(p => p.gestorNome)?.gestorNome;
@@ -1329,7 +1347,7 @@ export default function PainelGestor({
                           
                           const subObj = formatMilitarRelatorio(substituto);
                           const subdoObj = formatMilitarRelatorio(substituido);
-                          const statusServico = p.status === 'SEM_EFEITO' ? 'TORNADO SEM EFEITO' : 'CUMPRIDA';
+                          const statusServico = getStatusServico(p);
                           
                           return (
                             <tr key={p.id} className="border-b border-slate-100 even:bg-slate-50/50 hover:bg-slate-100/50 transition-colors whitespace-nowrap text-[9px]">
@@ -1439,6 +1457,19 @@ export default function PainelGestor({
                 className="bg-cyber-blue/20 hover:bg-cyber-blue/35 text-cyber-cyan border border-cyber-blue/40 py-2 rounded text-[10px] font-mono font-black uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1 cursor-pointer"
               >
                 <span>CRIAR SNAPSHOT NUVEM</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  if (onForceSyncToCloud) {
+                    await onForceSyncToCloud();
+                  }
+                }}
+                className="bg-cyber-green/20 hover:bg-cyber-green/35 text-cyber-green border border-cyber-green/40 py-2.5 rounded text-[10px] font-mono font-black uppercase transition-all tracking-wider text-center flex flex-col items-center justify-center space-y-1 cursor-pointer animate-pulse-slow shadow-[0_0_15px_rgba(0,255,102,0.1)]"
+              >
+                <span className="text-[11px]">⬆️ EXPORTAR TUDO PARA NUVEM</span>
+                <span className="text-[7px] opacity-70 font-normal">Sincroniza este PC com outros celulares</span>
               </button>
 
               <button

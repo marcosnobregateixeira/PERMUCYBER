@@ -73,14 +73,28 @@ export default function BiometricLogin({
     setCustomSubTab('PIN');
   }, [userLogged]);
 
-  // Autocomplete suggestions filter (min 1 letter)
-  const isSearchActive = searchQuery.trim().length >= 1;
-  const filteredSuggestions = isSearchActive
-    ? allUsers.filter(u => 
-        u.nome.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        u.nomeGuerra.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : [];
+  // Autocomplete suggestions filter with rank-based sorting
+  const PATENTE_ORDER_BIO: Record<string, number> = {
+    'CEL': 1, 'TC': 2, 'MAJ': 3, 'CAP': 4, '1ºTEN': 5, '2ºTEN': 6, 'ASP. OF': 7, 
+    'AL. OF': 8, 'ST': 9, '1ºSGT': 10, '2ºSGT': 11, '3ºSGT': 12, 'CB': 13, 'SD': 14
+  };
+
+  const filteredSuggestions = [...allUsers]
+    .filter(u => {
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        u.nome.toLowerCase().includes(query) || 
+        u.nomeGuerra.toLowerCase().includes(query) ||
+        u.patente.toLowerCase().includes(query)
+      );
+    })
+    .sort((a, b) => {
+      const orderA = PATENTE_ORDER_BIO[a.patente] || 99;
+      const orderB = PATENTE_ORDER_BIO[b.patente] || 99;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.nomeGuerra.localeCompare(b.nomeGuerra);
+    });
 
   const handleStartScan = () => {
     if (!userLogged || scanState === 'SCANNING') return;
@@ -219,12 +233,14 @@ export default function BiometricLogin({
                       setSearchQuery(e.target.value);
                       setShowSuggestions(true);
                     }}
-                    placeholder="Busque pelo seu nome..."
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 250)}
+                    placeholder="Clique aqui para ver a lista ou digite..."
                     className="w-full bg-[#051319] border border-cyber-cyan/35 text-xs font-mono text-white pl-8 pr-3 py-2 rounded-md outline-none focus:border-cyber-blue focus:shadow-[0_0_8px_rgba(0,229,255,0.15)] transition-all placeholder:text-slate-500"
                   />
                   
                   {/* Floating results matched dropdown */}
-                  {showSuggestions && isSearchActive && (
+                  {showSuggestions && (
                     <div className="absolute left-0 right-0 mt-1 bg-slate-950 border border-cyber-cyan/50 rounded-lg shadow-2xl max-h-48 overflow-y-auto z-50 p-1 divide-y divide-hud-border/40">
                       {filteredSuggestions.length === 0 ? (
                         <div className="p-2.5 text-[10px] text-slate-500 font-mono italic">
@@ -234,7 +250,7 @@ export default function BiometricLogin({
                         filteredSuggestions.map((u) => (
                           <div
                             key={u.id}
-                            onClick={() => {
+                            onMouseDown={() => {
                               onUserSelect(u.id);
                               setSearchQuery('');
                               setShowSuggestions(false);

@@ -56,20 +56,91 @@ const sortMilitarByPatente = (a: Militar, b: Militar) => {
   return a.nome.localeCompare(b.nome);
 };
 
+const isRosterDefault = (list: Militar[]) => {
+  if (!list || list.length === 0) return true;
+  if (list.length !== MILITARES.length) return false;
+  return list.every(m => MILITARES.some(dm => dm.id === m.id));
+};
+
 export default function App() {
-  const [militares, setMilitares] = useState<Militar[]>([]);
+  const [militares, setMilitares] = useState<Militar[]>(() => {
+    try {
+      const saved = localStorage.getItem('permucyber_militares');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return MILITARES;
+  });
   const [selectedMilitarId, setSelectedMilitarId] = useState<string>('');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  const [hasAutoRestored, setHasAutoRestored] = useState<boolean>(false);
   
-  const [escalas, setEscalas] = useState<Escala[]>([]);
-  const [alertas, setAlertas] = useState<Alerta[]>([]);
-  const [permutas, setPermutas] = useState<Permuta[]>([]);
-  const [logs, setLogs] = useState<BlockchainLog[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [backups, setBackups] = useState<BackupSnapshot[]>([]);
+  const [escalas, setEscalas] = useState<Escala[]>(() => {
+    try {
+      const saved = localStorage.getItem('permucyber_escalas');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return ESCALAS_INICIAIS;
+  });
+  const [alertas, setAlertas] = useState<Alerta[]>(() => {
+    try {
+      const saved = localStorage.getItem('permucyber_alertas');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return ALERTAS_INICIAIS;
+  });
+  const [permutas, setPermutas] = useState<Permuta[]>(() => {
+    try {
+      const saved = localStorage.getItem('permucyber_permutas');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return PERMUTAS_INICIAIS;
+  });
+  const [logs, setLogs] = useState<BlockchainLog[]>(() => {
+    try {
+      const saved = localStorage.getItem('permucyber_logs');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return LOGS_INICIAIS;
+  });
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem('permucyber_messages');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return CHATS_INICIAIS;
+  });
+  const [backups, setBackups] = useState<BackupSnapshot[]>(() => {
+    try {
+      const list: BackupSnapshot[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('BACKUP_')) {
+          const item = localStorage.getItem(key);
+          if (item) {
+            list.push(JSON.parse(item));
+          }
+        }
+      }
+      const saved = localStorage.getItem('permucyber_backups');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(p => {
+            if (!list.some(l => l.id === p.id)) {
+              list.push(p);
+            }
+          });
+        }
+      }
+      return list.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+    } catch (e) {
+      console.error("Local backups load error:", e);
+    }
+    return [];
+  });
   const [config, setConfig] = useState<AppConfig>(() => {
     try {
       const saved = localStorage.getItem('permucyber_config');
@@ -132,6 +203,45 @@ export default function App() {
   }, [messages]);
 
   useEffect(() => {
+    if (backups && backups.length > 0) {
+      try { localStorage.setItem('permucyber_backups', JSON.stringify(backups)); } catch (e) {}
+    }
+  }, [backups]);
+
+  useEffect(() => {
+    if (isLoading || hasAutoRestored) return;
+    if (!backups || backups.length === 0) return;
+
+    // Encontra o último backup manual ou automático
+    const latestBackup = backups
+      .filter(b => b.tipo === 'MANUAL' || b.tipo === 'AUTO')
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
+
+    if (!latestBackup) return;
+
+    // Verifica se a base de dados ativa atual (militares) é a padrão do mock (MILITARES) ou se está vazia
+    const isDefault = militares.length === 0 || isRosterDefault(militares);
+
+    // Se o backup na nuvem tiver dados de policiais diferentes do padrão ou maior quantidade
+    const backupIsDefault = latestBackup.militares.length === MILITARES.length && 
+                            latestBackup.militares.every(m => MILITARES.some(dm => dm.id === m.id));
+
+    if (isDefault && !backupIsDefault) {
+      console.log(`[Auto-Recovery] Sincronizando efetivo ativo a partir do backup em nuvem mais recente: ${latestBackup.id}`);
+      setHasAutoRestored(true);
+      handleRestoreBackup(latestBackup, true, true);
+    }
+  }, [isLoading, backups, militares, hasAutoRestored]);
+
+  useEffect(() => {
+    // Safety fallback: if Firestore takes more than 1.5s to respond, proceed anyway with offline/cached/default data
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     const handleFirebaseError = (error: any) => {
       console.warn("Instabilidade de rede ou limite de cota temporário detectado. Mantendo sincronização ativa via cache:", error);
       if (error?.message?.includes("Quota exceeded") || error?.message?.includes("quota")) {
@@ -143,54 +253,79 @@ export default function App() {
     // 1. Registra IMEDIATAMENTE os listeners em tempo real para sincronização instantânea
     const unsubMilitares = onSnapshot(collection(db, 'militares'), (snap) => {
       setFirebaseError(null);
-      if (snap.empty) {
-        console.log("Seeding default militares into empty Firestore collection...");
-        MILITARES.forEach(async (m) => {
-          try {
-            await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
-          } catch (e) {
-            console.error("Error auto-seeding militar:", e);
-          }
+      const list = snap.docs.map(d => ({ ...d.data() as Militar, id: d.id }));
+
+      const savedLocalMilStr = localStorage.getItem('permucyber_militares');
+      let localMilList: Militar[] = [];
+      try {
+        if (savedLocalMilStr) localMilList = JSON.parse(savedLocalMilStr);
+      } catch (e) {}
+
+      const hasCustomLocal = localMilList.length > 0 && !isRosterDefault(localMilList);
+      const isCloudDefault = list.length === 0 || isRosterDefault(list);
+
+      // Se o cloud estiver vazio ou for apenas o padrão, e o local tiver dados customizados,
+      // nós forçamos o upload dos dados locais para garantir que nada se perca.
+      if (hasCustomLocal && isCloudDefault) {
+        console.log("Detectado dados locais customizados e Cloud padrão/vazio. Sincronizando local -> cloud...");
+        localMilList.forEach(async (m) => {
+          await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
         });
-        return;
+        setMilitares(localMilList.sort(sortMilitarByPatente));
+      } else if (list.length > 0) {
+        // Se o cloud já tem dados (não é o padrão), nós aceitamos o cloud como verdade absoluta
+        // para permitir que novos aparelhos vejam os dados.
+        setMilitares(list.sort(sortMilitarByPatente));
+      } else if (localMilList.length > 0) {
+        setMilitares(localMilList.sort(sortMilitarByPatente));
       }
-      const list = snap.docs.map(d => {
-        const data = d.data() as Militar;
-        return { ...data, id: d.id }; // Garantir que o ID do objeto seja o ID do documento Firestore
-      });
-      setMilitares(list.sort(sortMilitarByPatente));
+
       setIsLoading(false);
     }, handleFirebaseError);
 
     const unsubEscalas = onSnapshot(collection(db, 'escalas'), (snap) => {
       setFirebaseError(null);
-      if (snap.empty) {
-        console.log("Seeding default escalas into empty Firestore collection...");
-        ESCALAS_INICIAIS.forEach(async (e) => {
-          try {
-            await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e));
-          } catch (err) {
-            console.error("Error auto-seeding escala:", err);
-          }
-        });
-        return;
-      }
       const list = snap.docs.map(d => ({ ...d.data() as Escala, id: d.id }));
-      setEscalas(list);
+
+      const savedLocalEscStr = localStorage.getItem('permucyber_escalas');
+      let localEscList: Escala[] = [];
+      try {
+        if (savedLocalEscStr) localEscList = JSON.parse(savedLocalEscStr);
+      } catch (e) {}
+
+      const hasCustomLocal = localEscList.length > 0 && 
+                             (localEscList.length !== ESCALAS_INICIAIS.length || 
+                              !localEscList.every(e => ESCALAS_INICIAIS.some(de => de.id === e.id)));
+      const isCloudDefault = list.length === 0 || 
+                             (list.length === ESCALAS_INICIAIS.length && 
+                              list.every(e => ESCALAS_INICIAIS.some(de => de.id === e.id)));
+
+      if (hasCustomLocal && isCloudDefault) {
+        console.log("Detectado escalas locais customizadas. Sincronizando local -> cloud...");
+        localEscList.forEach(async (e) => {
+          await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e));
+        });
+        setEscalas(localEscList);
+      } else if (list.length > 0) {
+        setEscalas(list);
+      } else if (localEscList.length > 0) {
+        setEscalas(localEscList);
+      }
       setIsLoading(false);
     }, handleFirebaseError);
 
     const unsubAlertas = onSnapshot(collection(db, 'alertas'), (snap) => {
       setFirebaseError(null);
       if (snap.empty) {
-        console.log("Seeding default alertas into empty Firestore collection...");
+        console.log("Seeding empty alertas collection in Firestore with default alerts.");
         ALERTAS_INICIAIS.forEach(async (a) => {
           try {
             await setDoc(doc(db, 'alertas', a.id), sanitizeForFirestore(a));
-          } catch (err) {
-            console.error("Error auto-seeding alerta:", err);
+          } catch (e) {
+            console.error("Firestore error seeding alerta:", e);
           }
         });
+        setAlertas(ALERTAS_INICIAIS);
         return;
       }
       const list = snap.docs.map(d => ({ ...d.data() as Alerta, id: d.id }));
@@ -200,25 +335,81 @@ export default function App() {
     const unsubPermutas = onSnapshot(collection(db, 'permutas'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as Permuta, id: d.id }));
-      setPermutas(list);
+
+      const savedLocalPermStr = localStorage.getItem('permucyber_permutas');
+      let localPermList: Permuta[] = [];
+      try {
+        if (savedLocalPermStr) localPermList = JSON.parse(savedLocalPermStr);
+      } catch (e) {}
+
+      const hasCustomLocal = localPermList.length > 0 && 
+                             (localPermList.length !== PERMUTAS_INICIAIS.length || 
+                              !localPermList.every(p => PERMUTAS_INICIAIS.some(dp => dp.id === p.id)));
+      const isCloudDefault = list.length === 0 || 
+                             (list.length === PERMUTAS_INICIAIS.length && 
+                              list.every(p => PERMUTAS_INICIAIS.some(dp => dp.id === p.id)));
+
+      if (hasCustomLocal && isCloudDefault) {
+        console.log("Detectado permutas locais customizadas. Sincronizando local -> cloud...");
+        localPermList.forEach(async (p) => {
+          await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore(p));
+        });
+        setPermutas(localPermList);
+      } else if (list.length > 0) {
+        setPermutas(list);
+      } else if (localPermList.length > 0) {
+        setPermutas(localPermList);
+      }
     }, handleFirebaseError);
 
     const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => {
       setFirebaseError(null);
+      if (snap.empty) {
+        console.log("Seeding empty logs collection in Firestore.");
+        LOGS_INICIAIS.forEach(async (l) => {
+          try {
+            await setDoc(doc(db, 'logs', l.id), sanitizeForFirestore(l));
+          } catch (e) {
+            console.error("Firestore error seeding log:", e);
+          }
+        });
+        setLogs(LOGS_INICIAIS);
+        return;
+      }
       const list = snap.docs.map(d => ({ ...d.data() as BlockchainLog, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
       setLogs(list);
     }, handleFirebaseError);
 
     const unsubMessages = onSnapshot(collection(db, 'messages'), (snap) => {
       setFirebaseError(null);
+      if (snap.empty) {
+        console.log("Seeding empty messages collection in Firestore.");
+        CHATS_INICIAIS.forEach(async (m) => {
+          try {
+            await setDoc(doc(db, 'messages', m.id), sanitizeForFirestore(m));
+          } catch (e) {
+            console.error("Firestore error seeding message:", e);
+          }
+        });
+        setMessages(CHATS_INICIAIS);
+        return;
+      }
       const list = snap.docs.map(d => ({ ...d.data() as ChatMessage, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
       setMessages(list);
     }, handleFirebaseError);
 
     const unsubBackups = onSnapshot(collection(db, 'backups'), (snap) => {
       setFirebaseError(null);
-      const list = snap.docs.map(d => ({ ...d.data() as any as BackupSnapshot, id: d.id })).sort((a,b) => b.timestamp.localeCompare(a.timestamp));
-      setBackups(list);
+      const cloudList = snap.docs.map(d => ({ ...d.data() as any as BackupSnapshot, id: d.id }));
+      setBackups(prev => {
+        const merged = [...cloudList];
+        prev.forEach(localBk => {
+          if (!merged.some(c => c.id === localBk.id)) {
+            merged.push(localBk);
+          }
+        });
+        return merged.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+      });
     }, handleFirebaseError);
 
     const unsubConfig = onSnapshot(doc(db, 'settings', 'config'), (snap) => {
@@ -251,6 +442,73 @@ export default function App() {
       unsubConfig();
     };
   }, []);
+
+  const handleForceSyncToCloud = async () => {
+    try {
+      setBackupStatusMsg("⌛ Iniciando exportação forçada de dados locais (localStorage) para o Firestore Cloud...");
+      
+      // Carregar dados diretamente do localStorage para garantir que não estamos usando estado sobrescrito pelo cloud vazio
+      const localMilStr = localStorage.getItem('permucyber_militares');
+      const localEscStr = localStorage.getItem('permucyber_escalas');
+      const localPermStr = localStorage.getItem('permucyber_permutas');
+      const localConfigStr = localStorage.getItem('permucyber_config');
+      const localAlertsStr = localStorage.getItem('permucyber_alertas');
+      const localLogsStr = localStorage.getItem('permucyber_logs');
+      const localChatStr = localStorage.getItem('permucyber_messages');
+
+      const milToPush = localMilStr ? JSON.parse(localMilStr) as Militar[] : militares;
+      const escToPush = localEscStr ? JSON.parse(localEscStr) as Escala[] : escalas;
+      const permToPush = localPermStr ? JSON.parse(localPermStr) as Permuta[] : permutas;
+      const configToPush = localConfigStr ? JSON.parse(localConfigStr) as AppConfig : config;
+      const alertsToPush = localAlertsStr ? JSON.parse(localAlertsStr) as Alerta[] : alertas;
+      const logsToPush = localLogsStr ? JSON.parse(localLogsStr) as BlockchainLog[] : logs;
+      const chatToPush = localChatStr ? JSON.parse(localChatStr) as ChatMessage[] : messages;
+
+      // 1. Militares
+      for (const m of milToPush) {
+        await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
+      }
+      
+      // 2. Escalas
+      for (const e of escToPush) {
+        await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e));
+      }
+      
+      // 3. Permutas
+      for (const p of permToPush) {
+        await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore(p));
+      }
+
+      // 4. Alertas
+      for (const a of alertsToPush) {
+        await setDoc(doc(db, 'alertas', a.id), sanitizeForFirestore(a));
+      }
+
+      // 5. Logs
+      for (const l of logsToPush) {
+        await setDoc(doc(db, 'logs', l.id), sanitizeForFirestore(l));
+      }
+
+      // 6. Mensagens
+      for (const c of chatToPush) {
+        await setDoc(doc(db, 'messages', c.id), sanitizeForFirestore(c));
+      }
+      
+      // 7. Configurações
+      await setDoc(doc(db, 'settings', 'config'), sanitizeForFirestore(configToPush));
+      
+      // 8. Gerar um backup snapshot final
+      const snapshot = await generateBackup('MANUAL', loggedUser?.nomeGuerra || 'SISTEMA', milToPush, escToPush, permToPush);
+      
+      setBackupStatusMsg(`✓ Sincronização Total Concluída! ${milToPush.length} militares e ${permToPush.length} permutas exportadas.`);
+      alert("✓ EXPORTAÇÃO COMPLETA!\n\nTodos os dados salvos localmente neste aparelho foram enviados para a nuvem com sucesso. Agora outros aparelhos poderão visualizar estas informações.");
+      
+    } catch (err) {
+      console.error("Force sync failed:", err);
+      setBackupStatusMsg("⚠️ Erro durante a exportação para o Firestore.");
+      alert("⚠️ Falha ao exportar dados. " + (err as Error).message);
+    }
+  };
 
   const handleRefreshAll = () => {
     setIsLoggedIn(false);
@@ -313,83 +571,105 @@ export default function App() {
         logs: logs
       };
 
-      await setDoc(doc(db, 'backups', bkId), sanitizeForFirestore(newSnapshot));
-      localStorage.setItem(`BACKUP_${bkId}`, JSON.stringify(newSnapshot));
-      
-      const successMsg = `✓ Cópia de segurança ${tipo} [${bkId}] transmitida com sucesso para o Firestore Cloud.`;
-      setBackupStatusMsg(successMsg);
+      // 1. Salva localmente no localStorage instantaneamente para redundância máxima
+      try {
+        localStorage.setItem(`BACKUP_${bkId}`, JSON.stringify(newSnapshot));
+      } catch (e) {
+        console.error("Erro ao salvar backup no localStorage:", e);
+      }
+
+      // 2. Atualiza a lista de backups locais no estado do React imediatamente
+      setBackups(prev => {
+        const exists = prev.some(b => b.id === newSnapshot.id);
+        if (exists) return prev;
+        return [newSnapshot, ...prev].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+      });
+
+      // 3. Transmite para o Firestore Cloud em segundo plano de forma assíncrona (não-bloqueante)
+      setDoc(doc(db, 'backups', bkId), sanitizeForFirestore(newSnapshot))
+        .then(() => {
+          setBackupStatusMsg(`✓ Cópia de segurança ${tipo} [${bkId}] transmitida com sucesso para o Firestore Cloud.`);
+        })
+        .catch(err => {
+          console.warn("Aviso de rede: Gravado localmente. Transmissão para a nuvem agendada:", err);
+          setBackupStatusMsg("⚠️ Cópia de segurança gerada localmente (offline / cota do Firestore cheia).");
+        });
 
       if (tipo === 'MANUAL') {
         alert(
-          `✓ BACKUP GERADO E ARMAZENADO NAS NUVENS!\n\n` +
+          `✓ BACKUP INTEGRAL GERADO COM SUCESSO!\n\n` +
           `• Identificador: ${bkId}\n` +
           `• Policiais Ativos: ${activeMilitares.length}\n` +
           `• Escalas de Serviço: ${activeEscalas.length}\n` +
           `• Permutas de Plantão: ${activePermutas.length}\n` +
-          `• Status: Sincronizado e persistido com redundância no Firestore Cloud de forma segura.`
+          `• Status: Salvo localmente com redundância e enviado para fila de nuvem.`
         );
       }
       return newSnapshot;
     } catch (err) {
       console.error("Backup failed:", err);
-      setBackupStatusMsg("⚠️ Falha crítica ao transcrever backup para a nuvem.");
-      alert("⚠️ Erro crítico: Não foi possível salvar o backup nas nuvens. Verifique sua conexão com a rede.");
+      setBackupStatusMsg("⚠️ Falha crítica ao gerar cópia de segurança.");
+      alert("⚠️ Erro ao gerar backup.");
       return null;
     }
   };
 
-  const handleRestoreBackup = async (snapshot: BackupSnapshot) => {
+  const handleRestoreBackup = async (snapshot: BackupSnapshot, silent = false, localOnly = false) => {
     try {
       const backupId = snapshot.id || `LOCAL-${Date.now()}`;
-      setBackupStatusMsg(`⌛ Reconciliando imagens... Revertendo para o backup ${backupId}...`);
+      if (!silent) {
+        setBackupStatusMsg(`⌛ Reconciliando imagens... Revertendo para o backup ${backupId}...`);
+      }
       
-      for (const m of militares) {
-        if (!snapshot.militares.some(sm => sm.id === m.id)) {
-          try {
-            await deleteDoc(doc(db, 'militares', m.id));
-          } catch (e) {
-            console.error("Firestore error deleting militar:", e);
+      if (!localOnly) {
+        for (const m of militares) {
+          if (!snapshot.militares.some(sm => sm.id === m.id)) {
+            try {
+              await deleteDoc(doc(db, 'militares', m.id));
+            } catch (e) {
+              console.error("Firestore error deleting militar:", e);
+            }
           }
         }
-      }
-      for (const e of escalas) {
-        if (!snapshot.escalas.some(se => se.id === e.id)) {
-          try {
-            await deleteDoc(doc(db, 'escalas', e.id));
-          } catch (e) {
-            console.error("Firestore error deleting escala:", e);
+        for (const e of escalas) {
+          if (!snapshot.escalas.some(se => se.id === e.id)) {
+            try {
+              await deleteDoc(doc(db, 'escalas', e.id));
+            } catch (e) {
+              console.error("Firestore error deleting escala:", e);
+            }
           }
         }
-      }
-      for (const p of permutas) {
-        if (!snapshot.permutas.some(sp => sp.id === p.id)) {
-          try {
-            await deleteDoc(doc(db, 'permutas', p.id));
-          } catch (e) {
-            console.error("Firestore error deleting permuta:", e);
+        for (const p of permutas) {
+          if (!snapshot.permutas.some(sp => sp.id === p.id)) {
+            try {
+              await deleteDoc(doc(db, 'permutas', p.id));
+            } catch (e) {
+              console.error("Firestore error deleting permuta:", e);
+            }
           }
         }
-      }
 
-      for (const m of snapshot.militares) {
-        try {
-          await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
-        } catch (e) {
-          console.error("Firestore error setting militar:", e);
+        for (const m of snapshot.militares) {
+          try {
+            await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
+          } catch (e) {
+            console.error("Firestore error setting militar:", e);
+          }
         }
-      }
-      for (const e of snapshot.escalas) {
-        try {
-          await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e));
-        } catch (e) {
-          console.error("Firestore error setting escala:", e);
+        for (const e of snapshot.escalas) {
+          try {
+            await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e));
+          } catch (e) {
+            console.error("Firestore error setting escala:", e);
+          }
         }
-      }
-      for (const p of snapshot.permutas) {
-        try {
-          await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore(p));
-        } catch (e) {
-          console.error("Firestore error setting permuta:", e);
+        for (const p of snapshot.permutas) {
+          try {
+            await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore(p));
+          } catch (e) {
+            console.error("Firestore error setting permuta:", e);
+          }
         }
       }
 
@@ -400,9 +680,22 @@ export default function App() {
       if (snapshot.alertas) setAlertas(snapshot.alertas);
       if (snapshot.logs) setLogs(snapshot.logs);
 
-      await appendAuditLog('INTEGRALIZAÇÃO', `Restauração pontual efetuada com sucesso: ${backupId}.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
-      alert(`SUCESSO! O banco de dados foi totalmente restaurado para a imagem de segurança ${backupId}.`);
-      setBackupStatusMsg(`✓ Restauro concluído com sucesso para o backup ${backupId}.`);
+      // Save to localStorage immediately for robust offline usage and new-user recovery
+      try {
+        localStorage.setItem('permucyber_militares', JSON.stringify(snapshot.militares));
+        localStorage.setItem('permucyber_escalas', JSON.stringify(snapshot.escalas));
+        localStorage.setItem('permucyber_permutas', JSON.stringify(snapshot.permutas));
+        if (snapshot.alertas) localStorage.setItem('permucyber_alertas', JSON.stringify(snapshot.alertas));
+        if (snapshot.logs) localStorage.setItem('permucyber_logs', JSON.stringify(snapshot.logs));
+      } catch (e) {
+        console.error("Local storage sync error during restore:", e);
+      }
+
+      await appendAuditLog('INTEGRALIZAÇÃO', `Restauração ${silent ? 'automática' : 'pontual'} efetuada com sucesso: ${backupId}.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+      if (!silent) {
+        alert(`SUCESSO! O banco de dados foi totalmente restaurado para a imagem de segurança ${backupId}.`);
+      }
+      setBackupStatusMsg(`✓ Sincronização automática concluída com sucesso para o backup ${backupId}.`);
     } catch (err) {
       console.error("Restore failed:", err);
       // Fallback local updates if anything failed during local operations
@@ -411,7 +704,9 @@ export default function App() {
       setPermutas(snapshot.permutas);
       if (snapshot.alertas) setAlertas(snapshot.alertas);
       if (snapshot.logs) setLogs(snapshot.logs);
-      alert("Banco de dados restaurado localmente devido a limitações de conexão com a nuvem.");
+      if (!silent) {
+        alert("Banco de dados restaurado localmente devido a limitações de conexão com a nuvem.");
+      }
       setBackupStatusMsg("✓ Restauro offline concluído com sucesso.");
     }
   };
@@ -485,17 +780,17 @@ export default function App() {
   const handleToggleBiometria = async (id: string) => {
     const m = militares.find(x => x.id === id);
     if(m) {
-      try { await updateDoc(doc(db, 'militares', id), { biometriaAtiva: !m.biometriaAtiva }); } catch(e){}
+      try { await setDoc(doc(db, 'militares', id), { biometriaAtiva: !m.biometriaAtiva }, { merge: true }); } catch(e){}
       setMilitares(prev => prev.map(p => p.id === id ? { ...p, biometriaAtiva: !p.biometriaAtiva } : p));
     }
   };
 
   const handleUpdateMilitarNomeGuerra = async (id: string, newNome: string) => {
     try {
-      await updateDoc(doc(db, 'militares', id), { 
+      await setDoc(doc(db, 'militares', id), { 
         nomeGuerra: newNome, 
         nome: newNome.replace(/^(Sgto\.|Ten\.|Cb\.|Sd\.)\s*/i, '') 
-      });
+      }, { merge: true });
       setMilitares(prev => prev.map(p => p.id === id ? { ...p, nomeGuerra: newNome, nome: newNome.replace(/^(Sgto\.|Ten\.|Cb\.|Sd\.)\s*/i, '') } : p));
     } catch(e) {
       console.error("Erro ao atualizar nome de guerra:", e);
@@ -505,7 +800,7 @@ export default function App() {
 
   const handleUpdateMilitar = async (id: string, updatedFields: Partial<Militar>) => {
     try {
-      await updateDoc(doc(db, 'militares', id), sanitizeForFirestore(updatedFields));
+      await setDoc(doc(db, 'militares', id), sanitizeForFirestore(updatedFields), { merge: true });
       setMilitares(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
       await appendAuditLog('INTEGRALIZAÇÃO', `Cadastro de ${updatedFields.patente || ''} ${updatedFields.nomeGuerra || ''} foi atualizado no sistema de banco de dados.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
     } catch(e) {
@@ -516,14 +811,14 @@ export default function App() {
 
   const handleUpdateMilitarMF = async (id: string, newMF: string) => {
     try { 
-      await updateDoc(doc(db, 'militares', id), { matriculaFuncional: newMF }); 
+      await setDoc(doc(db, 'militares', id), { matriculaFuncional: newMF }, { merge: true }); 
       setMilitares(prev => prev.map(p => p.id === id ? { ...p, matriculaFuncional: newMF } : p));
     } catch(e) { alert("Erro ao atualizar MF. " + (e as Error).message); }
   };
 
   const handleUpdateMilitarNumero = async (id: string, numero: string) => {
     try { 
-      await updateDoc(doc(db, 'militares', id), { numero }); 
+      await setDoc(doc(db, 'militares', id), { numero }, { merge: true }); 
       setMilitares(prev => prev.map(p => p.id === id ? { ...p, numero } : p));
     } catch(e){ alert("Erro ao atualizar número. " + (e as Error).message); }
   };
@@ -534,7 +829,7 @@ export default function App() {
       updates.email = email;
     }
     try { 
-      await updateDoc(doc(db, 'militares', id), updates); 
+      await setDoc(doc(db, 'militares', id), updates, { merge: true }); 
       setMilitares(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
       await appendAuditLog('INTEGRALIZAÇÃO', `Militar ID ${id} atualizou seu token / PIN de segurança criptográfica pessoal e e-mail (${email || 'não informado'}). Acesso bloqueado aguardando liberação do administrador.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
     } catch(e) { alert("Erro ao modificar PIN: " + (e as Error).message); }
@@ -542,7 +837,7 @@ export default function App() {
 
   const handleUpdateMilitarRole = async (id: string, role: Role) => {
     try { 
-      await updateDoc(doc(db, 'militares', id), { role }); 
+      await setDoc(doc(db, 'militares', id), { role }, { merge: true }); 
       setMilitares(prev => prev.map(p => p.id === id ? { ...p, role } : p));
       await appendAuditLog('INTEGRALIZAÇÃO', `Papel do militar ${id} alterado para ${role}.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
     } catch(e) { alert("Erro ao atualizar papel: " + (e as Error).message); }
@@ -1153,10 +1448,22 @@ export default function App() {
     }
   };
 
-  if (isLoading) {
-    return <div className="flex h-screen items-center justify-center bg-hud-bg text-cyber-cyan font-mono text-sm animate-pulse">Sincronizando Sistema Firebase...</div>;
-  }
+  const isCloudDefault = militares.length === 0 || isRosterDefault(militares);
+  const localMilStr = localStorage.getItem('permucyber_militares');
+  let hasLocalData = false;
+  try {
+    if (localMilStr) hasLocalData = !isRosterDefault(JSON.parse(localMilStr));
+  } catch(e) {}
+  const hasUnsyncedData = hasLocalData && isCloudDefault;
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-screen items-center justify-center bg-hud-bg text-cyber-cyan space-y-4">
+        <div className="w-12 h-12 border-2 border-cyber-cyan/30 border-t-cyber-cyan rounded-full animate-spin" />
+        <div className="text-xs font-mono uppercase tracking-widest animate-pulse">Sincronizando Sistema Firebase Cloud...</div>
+      </div>
+    );
+  }
 
   return (
     <MilitaryMobileFrame
@@ -1172,8 +1479,18 @@ export default function App() {
       <InstallAppBanner />
       {!isLoggedIn ? (
         /* BIOMETRIC OR PASS LOGIN SCREEN */
-        <div className="flex-1 flex flex-col h-full">
-          {/* Biometric or pass login screen */}
+        <div className="flex-1 flex flex-col h-full relative">
+          {hasUnsyncedData && (
+            <div className="absolute top-0 left-0 right-0 z-50 bg-cyber-amber p-2 text-center text-black font-black text-[9px] uppercase tracking-tighter leading-tight animate-bounce-short shadow-xl border-b border-black/20">
+              ⚠️ ATENÇÃO: Dados locais detectados neste aparelho que não estão na nuvem.
+              <button 
+                onClick={handleForceSyncToCloud}
+                className="ml-2 bg-black text-white px-2 py-0.5 rounded-sm hover:bg-black/80 transition-all border border-white/20"
+              >
+                EXPORTAR PARA FIREBASE AGORA
+              </button>
+            </div>
+          )}
           <BiometricLogin
             userLogged={loggedUser}
             allUsers={militares}
@@ -1570,6 +1887,7 @@ export default function App() {
                         backupStatusMsg={backupStatusMsg}
                         onCreateBackup={(tipo) => generateBackup(tipo, loggedUser?.nomeGuerra || 'SISTEMA')}
                         onRestoreBackup={handleRestoreBackup}
+                        onForceSyncToCloud={handleForceSyncToCloud}
                         config={config}
                         onUpdateConfig={handleUpdateConfig}
                       />
