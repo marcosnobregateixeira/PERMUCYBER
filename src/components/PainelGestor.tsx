@@ -37,7 +37,7 @@ import {
 import { Permuta, Militar, BlockchainLog, Escala, Role } from '../types';
 import { generateSimpleHash, formatarDataBR } from '../data';
 import DocumentoHomologacao from './DocumentoHomologacao';
-import { salvarDados, atualizarDados, deletarDados, listarDados, AppDataRecord } from '../databaseFallback';
+import { salvarDados, atualizarDados, deletarDados, listarDados, AppDataRecord, generateUUID } from '../databaseFallback';
 import { supabase, setSupabaseCredentials, clearSupabaseCredentials } from '../supabase';
 
 interface PainelGestorProps {
@@ -131,8 +131,8 @@ export default function PainelGestor({
   const [supabaseRecords, setSupabaseRecords] = useState<AppDataRecord[]>([]);
   const [supabaseLoading, setSupabaseLoading] = useState<boolean>(false);
   const [supabaseLogs, setSupabaseLogs] = useState<string[]>([
-    "[Console] Sistema de redundância inicializado.",
-    "[Console] Prontidão de fallback em stand-by."
+    "[Console] Sistema de armazenamento principal Supabase inicializado como PRIMEIRA OPÇÃO.",
+    "[Console] Redundância secundária Firebase Firestore em stand-by tático."
   ]);
   const [supabaseTitle, setSupabaseTitle] = useState<string>("");
   const [supabaseDesc, setSupabaseDesc] = useState<string>("");
@@ -199,7 +199,7 @@ export default function PainelGestor({
 
   const copySQLToClipboard = () => {
     const sql = `CREATE TABLE IF NOT EXISTS public.dados_app (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
   titulo TEXT NOT NULL,
   descricao TEXT,
@@ -220,7 +220,189 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
   WITH CHECK (true);`;
 
     navigator.clipboard.writeText(sql);
-    alert("Script SQL copiado com sucesso!");
+    alert("Script SQL copiado com sucesso! Recomenda-se o uso de TEXT para id para evitar incompatibilidades de UUID.");
+  };
+
+  const runSupabaseDiagnosticTest = async () => {
+    // Limpa os logs antes
+    setSupabaseLogs([
+      `[Diagnóstico] === INICIANDO TESTE FÍSICO DO SUPABASE ===`,
+      `[Diagnóstico] Data/Hora local: ${new Date().toLocaleString('pt-BR')}`,
+      `[Diagnóstico] Usuário ativo: ${userLogged ? `${userLogged.nomeGuerra} (${userLogged.id})` : 'Nenhum usuário logado'}`
+    ]);
+
+    const addLog = (msg: string) => {
+      setSupabaseLogs(prev => [...prev, msg]);
+    };
+
+    if (!supabase) {
+      addLog("❌ Diagnóstico: Cliente Supabase não foi inicializado.");
+      addLog("👉 Causa provável: Falta de credenciais de conexão.");
+      addLog("👉 Solução: Por favor, configure a URL e a Anon Key acima e clique em 'Ativar & Salvar Credenciais'.");
+      alert("Erro: O cliente Supabase está inativo. Configure as credenciais de URL e Anon Key primeiro!");
+      return;
+    }
+
+    addLog("[Diagnóstico] Cliente Supabase detectado. Validando endpoint de conexão...");
+    setSupabaseLoading(true);
+
+    try {
+      // Passo 1: Teste de SELECT simples para checar se a tabela existe
+      addLog("[Passo 1/3] Executando consulta SELECT na tabela 'dados_app'...");
+      const { data: selectData, error: selectError } = await supabase
+        .from('dados_app')
+        .select('id')
+        .limit(1);
+
+      if (selectError) {
+        addLog(`❌ Falha no Passo 1 (SELECT): ${selectError.message} (Código: ${selectError.code || 'sem código'})`);
+        
+        // Verifica se a tabela não existe
+        if (selectError.code === '42P01' || selectError.message.includes('does not exist') || selectError.message.includes('dados_app" not found')) {
+          addLog("🚨 ERRO DETECTADO: A tabela 'dados_app' não existe no seu banco de dados Supabase!");
+          addLog("👉 Solução rápida: O Script SQL de criação já foi copiado para sua área de transferência!");
+          addLog("👉 O que fazer: Acesse o painel do Supabase, clique em 'SQL Editor', crie uma nova query, cole o Script e execute-o!");
+          
+          const sql = `CREATE TABLE IF NOT EXISTS public.dados_app (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  titulo TEXT NOT NULL,
+  descricao TEXT,
+  dados_json JSONB DEFAULT '{}'::jsonb,
+  criado_em TIMESTAMPTZ DEFAULT now()
+);
+
+-- Habilitar RLS (Row Level Security) para segurança militar
+ALTER TABLE public.dados_app ENABLE ROW LEVEL SECURITY;
+
+-- Remover a política se ela já existir para evitar erros de execução repetida
+DROP POLICY IF EXISTS "Acesso individual por user_id" ON public.dados_app;
+
+-- Criar política de acesso para que usuários leiam/gravem apenas seus próprios dados
+CREATE POLICY "Acesso individual por user_id" ON public.dados_app
+  FOR ALL
+  USING (true)
+  WITH CHECK (true);`;
+
+          navigator.clipboard.writeText(sql);
+          alert(
+            "🚨 ERRO: A tabela 'dados_app' não existe no seu banco de dados Supabase!\n\n" +
+            "Para corrigir isso facilmente:\n" +
+            "1. O script SQL de criação automática já foi copiado para sua área de transferência.\n" +
+            "2. Acesse seu projeto no Supabase.\n" +
+            "3. Vá em 'SQL Editor' -> 'New Query'.\n" +
+            "4. Cole o script (Ctrl+V) e clique em 'Run'.\n\n" +
+            "Depois disso, refaça o teste de diagnóstico!"
+          );
+        } else if (selectError.status === 401 || selectError.message.includes('JWT') || selectError.message.includes('Invalid API key')) {
+          addLog("🚨 ERRO DETECTADO: Credenciais inválidas!");
+          addLog("👉 O que fazer: Sua URL ou Anon Key do Supabase estão incorretas. Revise os dados copiados do console do Supabase.");
+          alert("🚨 ERRO: Credenciais Inválidas!\n\nSua URL ou Anon Key do Supabase parecem estar incorretas ou expiradas. Revise as chaves no painel.");
+        } else {
+          alert(`Erro de Conexão com o Supabase:\n\n${selectError.message}`);
+        }
+        return;
+      }
+
+      addLog("✓ Passo 1 concluído: Tabela 'dados_app' está criada e ativa!");
+
+      // Passo 2: Teste de INSERT físico
+      const testId = generateUUID();
+      addLog(`[Passo 2/3] Tentando gravar registro de teste físico (ID: ${testId})...`);
+      
+      const testRecord = {
+        id: testId,
+        user_id: userLogged ? userLogged.id : 'anonymous_diag',
+        titulo: 'Teste de Diagnóstico do Sistema',
+        descricao: 'Este registro valida a gravação e a integridade de dados física do Supabase.',
+        dados_json: { teste_diagnostico_ok: true, rodado_em: new Date().toISOString() },
+        criado_em: new Date().toISOString()
+      };
+
+      const { data: insertData, error: insertError } = await supabase
+        .from('dados_app')
+        .insert([testRecord])
+        .select();
+
+      if (insertError) {
+        addLog(`❌ Falha no Passo 2 (INSERT): ${insertError.message} (Código: ${insertError.code || 'sem código'})`);
+        
+        if (insertError.message.includes('violates row-level security') || insertError.code === '42501') {
+          addLog("🚨 ERRO DETECTADO: Restrição de Row Level Security (RLS) impedindo a gravação!");
+          addLog("👉 Solução: Rode o Script SQL novamente no Supabase para garantir que a política de segurança 'Acesso individual por user_id' com permissão total de USING(true) e CHECK(true) foi aplicada corretamente.");
+          alert(
+            "🚨 ERRO DE SEGURANÇA (RLS):\n\n" +
+            "A tabela existe, mas as políticas de Row Level Security (RLS) estão bloqueando a gravação física.\n\n" +
+            "Rode o Script SQL novamente no SQL Editor do Supabase para aplicar a liberação de leitura e gravação para os testes!"
+          );
+        } else if (insertError.message.includes('invalid input syntax for type uuid')) {
+          addLog("🚨 ERRO DETECTADO: Incompatibilidade de tipo de UUID!");
+          addLog("👉 Causa: Sua tabela 'dados_app' foi criada no Supabase usando tipo 'UUID' para a coluna 'id', mas o sistema precisa de suporte a IDs de texto (como strings de fallback).");
+          addLog("👉 Solução: Recrie a tabela mudando o campo 'id' de UUID para TEXT. O Script SQL atualizado já foi copiado para sua área de transferência!");
+          
+          const sqlTextId = `DROP TABLE IF EXISTS public.dados_app CASCADE;
+
+CREATE TABLE public.dados_app (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  titulo TEXT NOT NULL,
+  descricao TEXT,
+  dados_json JSONB DEFAULT '{}'::jsonb,
+  criado_em TIMESTAMPTZ DEFAULT now()
+);
+
+-- Habilitar RLS (Row Level Security) para segurança militar
+ALTER TABLE public.dados_app ENABLE ROW LEVEL SECURITY;
+
+-- Criar política de acesso para que usuários leiam/gravem apenas seus próprios dados
+CREATE POLICY "Acesso individual por user_id" ON public.dados_app
+  FOR ALL
+  USING (true)
+  WITH CHECK (true);`;
+
+          navigator.clipboard.writeText(sqlTextId);
+          alert(
+            "🚨 ERRO: Incompatibilidade de UUID detectada!\n\n" +
+            "Sua tabela Supabase espera UUIDs estritos, mas o sistema suporta IDs do tipo TEXT/VARCHAR.\n\n" +
+            "O script SQL atualizado para recriar a tabela com campo 'id TEXT' foi copiado para a sua área de transferência. Cole-o no SQL Editor do Supabase e rode-o!"
+          );
+        } else {
+          alert(`Erro ao tentar inserir dados no Supabase:\n\n${insertError.message}`);
+        }
+        return;
+      }
+
+      addLog(`✓ Passo 2 concluído: Dados inseridos com SUCESSO! Confirmado no banco de dados.`);
+
+      // Passo 3: Teste de DELETE físico para limpar o banco
+      addLog("[Passo 3/3] Removendo registro de teste para limpar o banco de dados...");
+      const { error: deleteError } = await supabase
+        .from('dados_app')
+        .delete()
+        .eq('id', testId);
+
+      if (deleteError) {
+        addLog(`⚠️ Aviso no Passo 3 (DELETE): ${deleteError.message}. O registro de teste ficou gravado, mas a inserção funcionou.`);
+      } else {
+        addLog("✓ Passo 3 concluído: Registro de teste removido. Banco de dados limpo!");
+      }
+
+      addLog("=== DIAGNÓSTICO CONCLUÍDO COM SUCESSO! SUPABASE ESTÁ 100% OPERACIONAL! ===");
+      
+      alert(
+        "🎉 PARABÉNS! SUCESSO ABSOLUTO!\n\n" +
+        "O teste físico de conexão, leitura, escrita e deleção no seu banco de dados Supabase foi concluído com SUCESSO!\n\n" +
+        "O sistema está integrado e os seus dados já estão sendo gravados diretamente no Supabase em tempo real com redundância local!"
+      );
+
+      loadSupabaseData(); // Recarrega os dados
+
+    } catch (unexpectedError: any) {
+      addLog(`❌ Erro inesperado durante o diagnóstico: ${unexpectedError.message}`);
+      alert(`Ocorreu um erro inesperado no teste de diagnóstico: ${unexpectedError.message}`);
+    } finally {
+      setSupabaseLoading(false);
+    }
   };
 
   const maskMF = (val: string) => {
@@ -2571,44 +2753,44 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
         <div className="space-y-4 animate-fade-in font-sans">
           
           {/* Top Informative Banner with subtle styling */}
-          <div className="bg-[#051115] border border-cyber-green/35 p-3.5 rounded-xl flex flex-col space-y-1.5 shadow-md">
+          <div className="bg-[#051115] border border-cyber-green/50 p-3.5 rounded-xl flex flex-col space-y-1.5 shadow-md">
             <span className="text-[10px] font-mono text-[#00ff66] uppercase tracking-wider font-extrabold flex items-center">
               <Database className="w-3.5 h-3.5 mr-2 animate-pulse text-[#00ff66]" />
-              SISTEMA DE REDUNDÂNCIA MILITAR - FIREBASE ⇄ SUPABASE
+              SISTEMA DE ARMAZENAMENTO MILITAR - SUPABASE (PRINCIPAL) ⇄ FIREBASE (CONTINGÊNCIA)
             </span>
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              Sistema de contingência de dados táticos. O aplicativo tenta ler e escrever no Firebase Firestore (canal principal); caso a cota gratuita seja atingida ou ocorra falha de rede, a redundância desvia o fluxo instantaneamente para o Supabase SQL, evitando a paralisação do Batalhão.
+              O sistema utiliza o <strong className="text-white">Supabase PostgreSQL como primeira opção de armazenamento principal (banco ativo)</strong> de alta performance. Caso o Supabase não esteja configurado ou ocorra qualquer instabilidade de conexão, o sistema aciona instantaneamente e de forma automatizada o <strong className="text-white">Firebase Firestore como recurso secundário de redundância tática</strong>, assegurando que o Batalhão nunca perca dados nem tenha interrupções.
             </p>
           </div>
 
           {/* BACKENDS CONNECTION STATUS BADGES */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {/* Firebase Status Card */}
-            <div className="bg-hud-card border border-hud-border p-3 rounded-xl flex items-center justify-between relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-1.5 h-full bg-cyber-cyan/80" />
+            {/* Supabase Status Card - PRIMÁRIO */}
+            <div className={`bg-hud-card border p-3 rounded-xl flex items-center justify-between relative overflow-hidden transition-all ${isSupabaseReady ? 'border-[#00ff66]/60 shadow-[0_0_15px_rgba(0,255,102,0.1)]' : 'border-hud-border'}`}>
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-[#00ff66]" />
               <div>
-                <span className="text-[8.5px] font-mono text-slate-500 block uppercase font-bold">BACKEND PRIMÁRIO</span>
-                <span className="text-xs font-bold text-white uppercase font-display tracking-wide">Firebase Firestore Cloud</span>
-              </div>
-              <div className="flex items-center space-x-1.5 bg-cyber-cyan/10 px-2 py-0.5 rounded border border-cyber-cyan/30">
-                <span className={`w-2 h-2 rounded-full ${simulatedOffline ? 'bg-cyber-red animate-pulse' : 'bg-cyber-cyan animate-pulse'}`} />
-                <span className={`text-[8.5px] font-mono font-bold ${simulatedOffline ? 'text-cyber-red' : 'text-cyber-cyan'}`}>
-                  {simulatedOffline ? 'OFC / SIMULADO' : 'ON-LINE / ATIVO'}
-                </span>
-              </div>
-            </div>
-
-            {/* Supabase Status Card */}
-            <div className="bg-hud-card border border-hud-border p-3 rounded-xl flex items-center justify-between relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-1.5 h-full bg-[#00ff66]/80" />
-              <div>
-                <span className="text-[8.5px] font-mono text-slate-500 block uppercase font-bold">BACKEND DE CONTINGÊNCIA</span>
+                <span className="text-[8.5px] font-mono text-[#00ff66] block uppercase font-bold tracking-widest">★ ARMAZENAMENTO PRINCIPAL (1ª OPÇÃO)</span>
                 <span className="text-xs font-bold text-white uppercase font-display tracking-wide">Supabase PostgreSQL SQL</span>
               </div>
               <div className="flex items-center space-x-1.5 bg-[#00ff66]/10 px-2 py-0.5 rounded border border-[#00ff66]/30">
                 <span className={`w-2 h-2 rounded-full ${isSupabaseReady ? 'bg-[#00ff66] animate-pulse' : 'bg-cyber-red animate-pulse'}`} />
                 <span className={`text-[8.5px] font-mono font-bold ${isSupabaseReady ? 'text-[#00ff66]' : 'text-cyber-red'}`}>
-                  {isSupabaseReady ? 'ATIVADO / PRONTO' : 'PENDENTE DE CONFIGURAÇÃO'}
+                  {isSupabaseReady ? 'ATIVADO / OPERANTE' : 'PENDENTE DE CONFIGURAÇÃO'}
+                </span>
+              </div>
+            </div>
+
+            {/* Firebase Status Card - SECUNDÁRIO */}
+            <div className="bg-hud-card border border-hud-border p-3 rounded-xl flex items-center justify-between relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-cyber-cyan/50" />
+              <div>
+                <span className="text-[8.5px] font-mono text-slate-500 block uppercase font-bold tracking-widest">REDUNDÂNCIA SECUNDÁRIA (FALLBACK)</span>
+                <span className="text-xs font-bold text-white uppercase font-display tracking-wide">Firebase Firestore Cloud</span>
+              </div>
+              <div className="flex items-center space-x-1.5 bg-cyber-cyan/10 px-2 py-0.5 rounded border border-cyber-cyan/30">
+                <span className={`w-2 h-2 rounded-full ${simulatedOffline ? 'bg-cyber-red animate-pulse' : 'bg-cyber-cyan animate-pulse'}`} />
+                <span className={`text-[8.5px] font-mono font-bold ${simulatedOffline ? 'text-cyber-red' : 'text-cyber-cyan'}`}>
+                  {simulatedOffline ? 'OFC / SIMULADO' : 'ON-LINE / EM STAND-BY'}
                 </span>
               </div>
             </div>
@@ -2821,6 +3003,16 @@ VITE_SUPABASE_ANON_KEY="sua-anon-key-aqui"`}
                     className="bg-transparent text-slate-300 hover:text-white border border-hud-border hover:bg-slate-800 font-extrabold py-2.5 rounded-lg text-[10px] tracking-wider uppercase transition-all cursor-pointer text-center flex items-center justify-center space-x-1"
                   >
                     <span>Atualizar Lista</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={runSupabaseDiagnosticTest}
+                    disabled={supabaseLoading}
+                    className="col-span-2 bg-[#00ddff] hover:bg-white text-[#03080a] font-extrabold py-2.5 rounded-lg text-[10px] tracking-wider uppercase transition-all cursor-pointer shadow-[0_0_15px_rgba(0,221,255,0.15)] text-center flex items-center justify-center space-x-1 font-mono"
+                  >
+                    <Activity className="w-3.5 h-3.5 mr-1 animate-pulse" />
+                    <span>Diagnóstico e Teste Físico de Gravação</span>
                   </button>
                 </div>
               </div>

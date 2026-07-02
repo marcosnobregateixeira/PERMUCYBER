@@ -35,6 +35,25 @@ function isFirebaseQuotaError(error: any): boolean {
 }
 
 /**
+ * Auxiliar para gerar um UUID compatível com ambos os bancos
+ */
+export function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    try {
+      return crypto.randomUUID();
+    } catch (e) {
+      // Ignora erro de contexto não seguro e faz o fallback
+    }
+  }
+  // Fallback padrão RFC4122 v4
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
  * 1. SALVAR DADOS (CRIAR REGISTRO)
  * Tenta salvar no Supabase primeiro (opção principal). Se falhar ou estiver indisponível,
  * salva no Firebase Firestore (fallback).
@@ -45,10 +64,8 @@ export async function salvarDados(
   descricao: string,
   dadosJson: any
 ): Promise<{ success: boolean; source: 'firebase' | 'supabase'; id: string; data: AppDataRecord }> {
-  // Gerar um ID único que sirva para ambos os bancos se necessário
-  const recordId = typeof crypto !== 'undefined' && crypto.randomUUID 
-    ? crypto.randomUUID() 
-    : `id_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  // Gerar um ID único que sirva para ambos os bancos (UUID estrito)
+  const recordId = generateUUID();
 
   const record: AppDataRecord = {
     id: recordId,
