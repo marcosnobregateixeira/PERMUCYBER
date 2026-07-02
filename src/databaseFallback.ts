@@ -1,6 +1,6 @@
 import { collection, doc, setDoc, getDocs, deleteDoc, query, where, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { supabase } from './supabase';
+import { supabase, getSupabase } from './supabase';
 
 /**
  * Interface para representar a estrutura dos dados que serão armazenados
@@ -13,6 +13,7 @@ export interface AppDataRecord {
   descricao: string;   // Descrição detalhada
   dados_json: any;     // Dados complementares em formato JSON
   criado_em?: string;  // Data de criação
+  origem?: 'supabase' | 'firebase'; // Origem física de onde este registro foi lido ou gravado
 }
 
 /**
@@ -77,10 +78,11 @@ export async function salvarDados(
   };
 
   // --- FASE 1: TENTAR SUPABASE PRIMEIRO (PRINCIPAL) ---
-  if (supabase) {
+  const supabaseClient = getSupabase();
+  if (supabaseClient) {
     try {
       console.log("[Fallback DB] Tentando salvar registro no Supabase (Principal)...");
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from(TABLE_NAME)
         .insert([
           {
@@ -98,8 +100,9 @@ export async function salvarDados(
         throw new Error(error.message);
       }
 
-      console.log("[Fallback DB] ✓ Registro salvo com sucesso no Supabase!");
-      return { success: true, source: 'supabase', id: recordId, data: data ? data[0] : record };
+       console.log("[Fallback DB] ✓ Registro salvo com sucesso no Supabase!");
+      const savedData = data ? data[0] : record;
+      return { success: true, source: 'supabase', id: recordId, data: { ...savedData, origem: 'supabase' } };
     } catch (supabaseError: any) {
       console.warn("[Fallback DB] ⚠️ Falha no Supabase ao salvar dados. Acionando fallback automático do Firebase:", supabaseError);
     }
@@ -116,7 +119,7 @@ export async function salvarDados(
     const docRef = doc(db, TABLE_NAME, recordId);
     await setDoc(docRef, record);
     console.log("[Fallback DB] ✓ Registro salvo com sucesso no Firebase Firestore!");
-    return { success: true, source: 'firebase', id: recordId, data: record };
+    return { success: true, source: 'firebase', id: recordId, data: { ...record, origem: 'firebase' } };
   } catch (firebaseError: any) {
     console.error("[Fallback DB] ❌ Falha catastrófica: Ambos os bancos falharam ao salvar o registro.", firebaseError);
     throw new Error(`Erro ao salvar em ambos os backends. Detalhes Firebase: ${firebaseError.message || firebaseError}`);
@@ -146,10 +149,11 @@ export async function atualizarDados(
   }
 
   // --- TENTATIVA PADRÃO: SUPABASE PRIMEIRO (PRINCIPAL) ---
-  if (supabase) {
+  const supabaseClient = getSupabase();
+  if (supabaseClient) {
     try {
       console.log("[Fallback DB] Tentando atualizar registro no Supabase (Principal)...");
-      const { error } = await supabase
+      const { error } = await supabaseClient
         .from(TABLE_NAME)
         .update(fields)
         .eq('id', id);
@@ -199,10 +203,11 @@ export async function deletarDados(
   let deletedInFirebase = false;
 
   // 1. Tenta Supabase primeiro (Principal)
-  if (supabase) {
+  const supabaseClient = getSupabase();
+  if (supabaseClient) {
     try {
       console.log("[Fallback DB] Removendo registro do Supabase (Principal)...");
-      const { error } = await supabase.from(TABLE_NAME).delete().eq('id', id);
+      const { error } = await supabaseClient.from(TABLE_NAME).delete().eq('id', id);
       if (!error) {
         deletedInSupabase = true;
         console.log("[Fallback DB] ✓ Registro removido do Supabase com sucesso.");
@@ -249,10 +254,11 @@ export async function listarDados(
   const sourcesUsed: ('firebase' | 'supabase')[] = [];
 
   // --- FASE 1: OBTER DO SUPABASE PRIMEIRO (PRINCIPAL) ---
-  if (supabase) {
+  const supabaseClient = getSupabase();
+  if (supabaseClient) {
     try {
       console.log("[Fallback DB] Buscando registros no Supabase para o usuário:", userId);
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from(TABLE_NAME)
         .select('*')
         .eq('user_id', userId);
@@ -267,7 +273,8 @@ export async function listarDados(
             titulo: row.titulo,
             descricao: row.descricao,
             dados_json: row.dados_json,
-            criado_em: row.criado_em
+            criado_em: row.criado_em,
+            origem: 'supabase'
           });
         });
         sourcesUsed.push('supabase');
@@ -290,7 +297,7 @@ export async function listarDados(
       querySnapshot.forEach((doc) => {
         // Evitar duplicados caso já tivéssemos trazido do Supabase
         if (!result.some(r => r.id === doc.id)) {
-          result.push({ ...(doc.data() as AppDataRecord), id: doc.id });
+          result.push({ ...(doc.data() as AppDataRecord), id: doc.id, origem: 'firebase' });
         }
       });
       sourcesUsed.push('firebase');

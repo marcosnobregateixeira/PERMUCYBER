@@ -38,7 +38,7 @@ import { Permuta, Militar, BlockchainLog, Escala, Role } from '../types';
 import { generateSimpleHash, formatarDataBR } from '../data';
 import DocumentoHomologacao from './DocumentoHomologacao';
 import { salvarDados, atualizarDados, deletarDados, listarDados, AppDataRecord, generateUUID } from '../databaseFallback';
-import { supabase, setSupabaseCredentials, clearSupabaseCredentials } from '../supabase';
+import { supabase, setSupabaseCredentials, clearSupabaseCredentials, getSupabase } from '../supabase';
 
 interface PainelGestorProps {
   permutas: Permuta[];
@@ -161,13 +161,18 @@ export default function PainelGestor({
     if (config?.supabaseUrl && config?.supabaseAnonKey) {
       setCustomSupabaseUrl(config.supabaseUrl);
       setCustomSupabaseKey(config.supabaseAnonKey);
-      setIsSupabaseReady(true);
+      // DE FATO inicializa o cliente Supabase com as credenciais que vieram da nuvem!
+      const success = setSupabaseCredentials(config.supabaseUrl, config.supabaseAnonKey, false);
+      setIsSupabaseReady(success);
     } else {
       // Se não houver config global, mas houver local, mantém a local. Caso contrário, desativa.
       const localUrl = localStorage.getItem('VITE_SUPABASE_URL') || '';
       const localKey = localStorage.getItem('VITE_SUPABASE_ANON_KEY') || '';
-      if (!localUrl && !localKey) {
-        setIsSupabaseReady(!!supabase);
+      if (localUrl && localKey) {
+        const success = setSupabaseCredentials(localUrl, localKey, true);
+        setIsSupabaseReady(success);
+      } else {
+        setIsSupabaseReady(!!getSupabase());
       }
     }
   }, [config]);
@@ -235,7 +240,8 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
       setSupabaseLogs(prev => [...prev, msg]);
     };
 
-    if (!supabase) {
+    const supabaseClient = getSupabase();
+    if (!supabaseClient) {
       addLog("❌ Diagnóstico: Cliente Supabase não foi inicializado.");
       addLog("👉 Causa provável: Falta de credenciais de conexão.");
       addLog("👉 Solução: Por favor, configure a URL e a Anon Key acima e clique em 'Ativar & Salvar Credenciais'.");
@@ -249,7 +255,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
     try {
       // Passo 1: Teste de SELECT simples para checar se a tabela existe
       addLog("[Passo 1/3] Executando consulta SELECT na tabela 'dados_app'...");
-      const { data: selectData, error: selectError } = await supabase
+      const { data: selectData, error: selectError } = await supabaseClient
         .from('dados_app')
         .select('id')
         .limit(1);
@@ -319,7 +325,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
         criado_em: new Date().toISOString()
       };
 
-      const { data: insertData, error: insertError } = await supabase
+      const { data: insertData, error: insertError } = await supabaseClient
         .from('dados_app')
         .insert([testRecord])
         .select();
@@ -376,7 +382,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
 
       // Passo 3: Teste de DELETE físico para limpar o banco
       addLog("[Passo 3/3] Removendo registro de teste para limpar o banco de dados...");
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await supabaseClient
         .from('dados_app')
         .delete()
         .eq('id', testId);
@@ -3067,9 +3073,15 @@ VITE_SUPABASE_ANON_KEY="sua-anon-key-aqui"`}
                           <span className="font-bold text-white text-xs truncate max-w-[70%]">{rec.titulo}</span>
                           <div className="flex space-x-1">
                             {/* Source Tag Badge */}
-                            <span className="text-[7.5px] font-mono font-bold px-1.5 py-0.5 rounded uppercase border bg-[#00ff66]/10 text-[#00ff66] border-[#00ff66]/20">
-                              Supabase (DB-FALLBACK)
-                            </span>
+                            {rec.origem === 'supabase' ? (
+                              <span className="text-[7.5px] font-mono font-bold px-1.5 py-0.5 rounded uppercase border bg-[#00ff66]/10 text-[#00ff66] border-[#00ff66]/30 shadow-[0_0_8px_rgba(0,255,102,0.15)]">
+                                ★ SALVO NO SUPABASE (PRINCIPAL)
+                              </span>
+                            ) : (
+                              <span className="text-[7.5px] font-mono font-bold px-1.5 py-0.5 rounded uppercase border bg-cyber-cyan/10 text-cyber-cyan border-cyber-cyan/30 shadow-[0_0_8px_rgba(0,229,255,0.1)]">
+                                ☁ SALVO NO FIREBASE (REDUNDÂNCIA)
+                              </span>
+                            )}
                           </div>
                         </div>
                         <p className="text-[10.5px] text-slate-400 font-sans leading-normal">

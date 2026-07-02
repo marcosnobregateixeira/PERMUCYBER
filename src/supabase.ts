@@ -132,3 +132,11 @@ if (!supabase) {
   );
 }
 
+/**
+ * Retorna o cliente Supabase atual ativo de forma segura.
+ */
+export function getSupabase() {
+  return supabase;
+}
+
+
