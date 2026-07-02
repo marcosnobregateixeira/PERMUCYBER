@@ -85,5 +85,10 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if isValidId(backupId);
     }
+
+    // Unified App Data collection (Fallback/Sincronização)
+    match /dados_app/{recordId} {
+      allow read, write: if true;
+    }
   }
 }

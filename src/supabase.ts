@@ -97,7 +97,8 @@ export function setSupabaseCredentials(url: string, key: string, saveToLocal: bo
       localStorage.setItem('VITE_SUPABASE_ANON_KEY', cleanedKey);
     }
     supabase = createClient(cleanedUrl, cleanedKey);
-    console.log("✓ Cliente Supabase atualizado com novas credenciais dinâmicas!");
+    console.log(`✓ Cliente Supabase inicializado para: ${cleanedUrl}`);
+    console.log("👉 Dica: Certifique-se de que a tabela 'dados_app' existe e que as permissões RLS estão desativadas ou configuradas para permitir INSERT anônimo se você não estiver usando Auth.");
     return true;
   } catch (error) {
     console.error("❌ Erro ao instanciar Supabase dinamicamente:", error);

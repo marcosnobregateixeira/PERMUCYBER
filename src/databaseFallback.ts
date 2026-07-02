@@ -20,6 +20,12 @@ export interface AppDataRecord {
  * Nome da coleção no Firestore e da tabela no Supabase
  */
 const TABLE_NAME = 'dados_app';
+const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
+
+function isValidUUID(uuid: string) {
+  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return regex.test(uuid);
+}
 
 /**
  * Auxiliar para verificar se o erro disparado indica excesso de cotas no Firebase
@@ -63,14 +69,18 @@ export async function salvarDados(
   userId: string,
   titulo: string,
   descricao: string,
-  dadosJson: any
+  dadosJson: any,
+  customId?: string
 ): Promise<{ success: boolean; source: 'firebase' | 'supabase'; id: string; data: AppDataRecord }> {
-  // Gerar um ID único que sirva para ambos os bancos (UUID estrito)
-  const recordId = generateUUID();
+  // Gerar um ID único que sirva para ambos os bancos (UUID estrito) ou usar o fornecido
+  const recordId = customId || generateUUID();
+
+  // Garantir que o userId seja um UUID válido para o Supabase (colunas UUID são estritas)
+  const finalUserId = (userId && isValidUUID(userId)) ? userId : SYSTEM_USER_ID;
 
   const record: AppDataRecord = {
     id: recordId,
-    user_id: userId,
+    user_id: finalUserId,
     titulo: titulo,
     descricao: descricao,
     dados_json: dadosJson,
@@ -81,7 +91,7 @@ export async function salvarDados(
   const supabaseClient = getSupabase();
   if (supabaseClient) {
     try {
-      console.log(`[Fallback DB] Tentando salvar registro [${record.titulo}] no Supabase...`);
+      console.log(`[Fallback DB] Tentando salvar registro [${record.titulo}] no Supabase (ID: ${recordId})...`);
       const { data, error } = await supabaseClient
         .from(TABLE_NAME)
         .insert([
@@ -98,14 +108,17 @@ export async function salvarDados(
 
       if (error) {
         console.error("[Fallback DB] ❌ Erro retornado pelo Supabase:", error);
-        throw new Error(error.message);
+        const detailMsg = error.message || "Erro desconhecido";
+        const hintMsg = error.hint ? ` | Dica: ${error.hint}` : "";
+        const codeMsg = error.code ? ` (Código: ${error.code})` : "";
+        throw new Error(`${detailMsg}${hintMsg}${codeMsg}`);
       }
 
       console.log("[Fallback DB] ✓ Registro salvo com sucesso no Supabase!");
       const savedData = data && data.length > 0 ? data[0] : record;
       return { success: true, source: 'supabase', id: recordId, data: { ...savedData, origem: 'supabase' } };
     } catch (supabaseError: any) {
-      console.warn("[Fallback DB] ⚠️ Falha no Supabase ao salvar dados. Causa:", supabaseError.message || supabaseError);
+      console.warn(`[Fallback DB] ⚠️ Supabase falhou (ID: ${recordId}). Causa:`, supabaseError.message || supabaseError);
       
       if (supabaseError.message?.includes('RLS') || supabaseError.code === '42501') {
         console.warn("[Fallback DB] 🚨 Dica: O erro parece ser de permissão (RLS). Verifique as políticas no painel do Supabase.");
@@ -122,22 +135,22 @@ export async function salvarDados(
     if ((window as any).simulateFirebaseOffline === true) {
       throw new Error("SimulatedFirebaseError: Quota exceeded (Simulado pelo painel de controle)");
     }
-    console.log("[Fallback DB] Tentando salvar registro no Firebase Firestore (Fallback)...");
+    console.log(`[Fallback DB] Tentando salvar no Firebase como plano B (Coleção: ${TABLE_NAME}, ID: ${recordId})...`);
     const docRef = doc(db, TABLE_NAME, recordId);
-    await setDoc(docRef, record);
-    console.log("[Fallback DB] ✓ Registro salvo com sucesso no Firebase Firestore!");
+    
+    // IMPORTANTE: Importar sanitizeForFirestore do firebaseUtils se possível, ou fazer o básico aqui
+    // Como estamos no databaseFallback, vamos garantir que os dados sejam compatíveis
+    const sanitizedRecord = JSON.parse(JSON.stringify(record)); 
+    
+    await setDoc(docRef, sanitizedRecord);
+    console.log("[Fallback DB] ✓ Registro salvo com sucesso no Firebase (Fallback).");
     return { success: true, source: 'firebase', id: recordId, data: { ...record, origem: 'firebase' } };
   } catch (firebaseError: any) {
     console.error("[Fallback DB] ❌ Falha catastrófica: Ambos os bancos falharam ao salvar o registro.", firebaseError);
-    throw new Error(`Erro ao salvar em ambos os backends. Detalhes Firebase: ${firebaseError.message || firebaseError}`);
+    throw new Error(`Erro ao salvar em ambos os backends. Detalhes Firebase: ${firebaseError.message || firebaseError} (RecordID: ${recordId})`);
   }
 }
 
-/**
- * 2. ATUALIZAR DADOS
- * Tenta atualizar no Supabase primeiro. Se falhar ou estiver indisponível,
- * tenta atualizar no Firebase Firestore.
- */
 export async function atualizarDados(
   id: string,
   fields: Partial<Omit<AppDataRecord, 'id' | 'user_id' | 'criado_em'>>,

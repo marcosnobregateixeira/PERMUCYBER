@@ -45,7 +45,7 @@ import { db, auth } from './firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { sanitizeForFirestore } from './firebaseUtils';
 import { setSupabaseCredentials } from './supabase';
-import { salvarDados } from './databaseFallback';
+import { salvarDados, deletarDados } from './databaseFallback';
 
 const PATENTE_ORDER: Record<string, number> = {
   'CEL': 1, 'TC': 2, 'MAJ': 3, 'CAP': 4, '1ºTEN': 5, '2ºTEN': 6, 'ASP. OF': 7, 
@@ -476,16 +476,49 @@ export default function App() {
       // 1. Militares
       for (const m of milToPush) {
         await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
+        try {
+          await salvarDados(
+            loggedUser?.id || 'SISTEMA',
+            `POLICIAL: ${m.patente} ${m.nomeGuerra}`,
+            `Cadastro sincronizado de ${m.nome}`,
+            m,
+            m.id
+          );
+        } catch (sbErr) {
+          console.warn(`Erro Supabase (Militar ${m.id}):`, sbErr);
+        }
       }
       
       // 2. Escalas
       for (const e of escToPush) {
         await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e));
+        try {
+          await salvarDados(
+            loggedUser?.id || 'SISTEMA',
+            `ESCALA: ${e.data} - ${e.turno}`,
+            `Escala sincronizada para ${e.militarNome}`,
+            e,
+            e.id
+          );
+        } catch (sbErr) {
+          console.warn(`Erro Supabase (Escala ${e.id}):`, sbErr);
+        }
       }
       
       // 3. Permutas
       for (const p of permToPush) {
         await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore(p));
+        try {
+          await salvarDados(
+            loggedUser?.id || 'SISTEMA',
+            `PERMUTA: ${p.protocoloId}`,
+            `Permuta sincronizada: ${p.proponenteNome} -> ${p.substitutoNome}`,
+            p,
+            p.id
+          );
+        } catch (sbErr) {
+          console.warn(`Erro Supabase (Permuta ${p.id}):`, sbErr);
+        }
       }
 
       // 4. Alertas
@@ -601,7 +634,8 @@ export default function App() {
             loggedUser?.id || 'SISTEMA',
             `Cópia de Segurança ${tipo} [${bkId}]`,
             `Snapshot integral: ${activeMilitares.length} policiais, ${activeEscalas.length} escalas, ${activePermutas.length} permutas. Gerado por ${autor}`,
-            newSnapshot
+            newSnapshot,
+            bkId
           );
 
           // Salva também na coleção legada de backups do Firestore para manter compatibilidade com os listeners em tempo real
@@ -770,7 +804,15 @@ export default function App() {
   const handleDeleteMilitar = async (id: string) => {
     try {
       console.log(`Iniciando exclusão do militar ID: ${id}`);
+      // 1. Firebase Coleção Legada
       await deleteDoc(doc(db, 'militares', id));
+      
+      // 2. Supabase/Firebase (Tabela Unificada)
+      try {
+        await deletarDados(id);
+      } catch (sbErr) {
+        console.warn("Falha ao deletar do Supabase, mas procedendo:", sbErr);
+      }
       
       // Optimistic update
       const updated = militares.filter(m => m.id !== id);
@@ -878,17 +920,41 @@ export default function App() {
     }
   };
 
+  const syncMilitarToSupabase = async (militar: Militar, acao: string) => {
+    try {
+      await salvarDados(
+        loggedUser?.id || 'SISTEMA',
+        `${acao}: ${militar.patente} ${militar.nomeGuerra}`,
+        `Sincronização individual do militar ID ${militar.id}`,
+        militar,
+        militar.id
+      );
+    } catch (err) {
+      console.warn(`Erro ao sincronizar militar ${militar.id} com Supabase:`, err);
+    }
+  };
+
   const handleUpdateMilitarMF = async (id: string, newMF: string) => {
     try { 
       await setDoc(doc(db, 'militares', id), { matriculaFuncional: newMF }, { merge: true }); 
-      setMilitares(prev => prev.map(p => p.id === id ? { ...p, matriculaFuncional: newMF } : p));
+      setMilitares(prev => {
+        const updated = prev.map(p => p.id === id ? { ...p, matriculaFuncional: newMF } : p);
+        const target = updated.find(p => p.id === id);
+        if (target) syncMilitarToSupabase(target, 'ATUALIZAÇÃO MF');
+        return updated;
+      });
     } catch(e) { alert("Erro ao atualizar MF. " + (e as Error).message); }
   };
 
   const handleUpdateMilitarNumero = async (id: string, numero: string) => {
     try { 
       await setDoc(doc(db, 'militares', id), { numero }, { merge: true }); 
-      setMilitares(prev => prev.map(p => p.id === id ? { ...p, numero } : p));
+      setMilitares(prev => {
+        const updated = prev.map(p => p.id === id ? { ...p, numero } : p);
+        const target = updated.find(p => p.id === id);
+        if (target) syncMilitarToSupabase(target, 'ATUALIZAÇÃO NÚMERO');
+        return updated;
+      });
     } catch(e){ alert("Erro ao atualizar número. " + (e as Error).message); }
   };
 
@@ -899,7 +965,12 @@ export default function App() {
     }
     try { 
       await setDoc(doc(db, 'militares', id), updates, { merge: true }); 
-      setMilitares(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+      setMilitares(prev => {
+        const updated = prev.map(p => p.id === id ? { ...p, ...updates } : p);
+        const target = updated.find(p => p.id === id);
+        if (target) syncMilitarToSupabase(target, 'ATUALIZAÇÃO SEGURANÇA');
+        return updated;
+      });
       await appendAuditLog('INTEGRALIZAÇÃO', `Militar ID ${id} atualizou seu token / PIN de segurança criptográfica pessoal e e-mail (${email || 'não informado'}). Acesso bloqueado aguardando liberação do administrador.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
     } catch(e) { alert("Erro ao modificar PIN: " + (e as Error).message); }
   };
@@ -907,7 +978,12 @@ export default function App() {
   const handleUpdateMilitarRole = async (id: string, role: Role) => {
     try { 
       await setDoc(doc(db, 'militares', id), { role }, { merge: true }); 
-      setMilitares(prev => prev.map(p => p.id === id ? { ...p, role } : p));
+      setMilitares(prev => {
+        const updated = prev.map(p => p.id === id ? { ...p, role } : p);
+        const target = updated.find(p => p.id === id);
+        if (target) syncMilitarToSupabase(target, 'ATUALIZAÇÃO ROLE');
+        return updated;
+      });
       await appendAuditLog('INTEGRALIZAÇÃO', `Papel do militar ${id} alterado para ${role}.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
     } catch(e) { alert("Erro ao atualizar papel: " + (e as Error).message); }
   };
@@ -931,6 +1007,18 @@ export default function App() {
     for (const m of imported) {
       try {
         await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
+        // Supabase individual
+        try {
+          await salvarDados(
+            loggedUser?.id || 'SISTEMA',
+            `IMPORTAÇÃO: ${m.patente} ${m.nomeGuerra}`,
+            `Importação via arquivo JSON do militar ${m.nome}`,
+            m,
+            m.id
+          );
+        } catch (sbErr) {
+          console.warn(`Erro Supabase (Importar ${m.id}):`, sbErr);
+        }
       } catch (e) {
         console.error("Firestore error importing militar:", e);
       }
@@ -1145,7 +1233,10 @@ export default function App() {
       await revertOrDeleteScaleForPermuta(targetPermuta);
     }
     try {
+      // 1. Firebase Coleção Legada
       await deleteDoc(doc(db, 'permutas', id));
+      // 2. Supabase/Firebase (Tabela Unificada)
+      await deletarDados(id);
     } catch (e) {
       console.error("Erro ao deletar permuta:", e);
     }

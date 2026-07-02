@@ -135,6 +135,14 @@
     "settings": {
       "schema": { "type": "object" },
       "description": "App configuration settings."
+    },
+    "backups": {
+      "schema": { "type": "object" },
+      "description": "Snapshots for database recovery."
+    },
+    "dados_app": {
+      "schema": { "type": "object" },
+      "description": "Unified data table for Supabase/Firebase fallback sync."
     }
   }
 }
