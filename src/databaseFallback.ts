@@ -167,25 +167,11 @@ export async function salvarDados(
     console.log("[Fallback DB] Supabase não configurado ou offline. Direcionando direto para o Firebase.");
   }
 
-  // --- FASE 2: REDUNDÂNCIA NO FIREBASE ---
-  try {
-    if ((window as any).simulateFirebaseOffline === true) {
-      throw new Error("SimulatedFirebaseError: Quota exceeded (Simulado pelo painel de controle)");
-    }
-    console.log(`[Fallback DB] Tentando salvar no Firebase como plano B (Coleção: ${TABLE_NAME}, ID: ${recordId})...`);
-    const docRef = doc(db, TABLE_NAME, recordId);
-    
-    // IMPORTANTE: Importar sanitizeForFirestore do firebaseUtils se possível, ou fazer o básico aqui
-    // Como estamos no databaseFallback, vamos garantir que os dados sejam compatíveis
-    const sanitizedRecord = JSON.parse(JSON.stringify(record)); 
-    
-    await setDoc(docRef, sanitizedRecord);
-    console.log("[Fallback DB] ✓ Registro salvo com sucesso no Firebase (Fallback).");
-    return { success: true, source: 'firebase', id: recordId, data: { ...record, origem: 'firebase' } };
-  } catch (firebaseError: any) {
-    console.error("[Fallback DB] ❌ Falha catastrófica: Ambos os bancos falharam ao salvar o registro.", firebaseError);
-    throw new Error(`Erro ao salvar em ambos os backends. Detalhes Firebase: ${firebaseError.message || firebaseError} (RecordID: ${recordId})`);
-  }
+  // --- FASE 2: REDUNDÂNCIA NO FIREBASE (REMOVIDA AUTOMÁTICA) ---
+  // O Firebase agora é manual. Só entraremos aqui se o Supabase falhar E o usuário explicitamente desejar.
+  // Por padrão, se o Supabase falhar, retornamos o erro para o usuário decidir se quer tentar o Firebase.
+  
+  return { success: false, source: 'supabase', id: recordId, data: { ...record, origem: 'supabase' } } as any;
 }
 
 export async function atualizarDados(
@@ -226,20 +212,8 @@ export async function atualizarDados(
     }
   }
 
-  // --- FALLBACK AUTOMÁTICO PARA FIREBASE ---
-  try {
-    if ((window as any).simulateFirebaseOffline === true) {
-      throw new Error("SimulatedFirebaseError: Quota exceeded (Simulado pelo painel de controle)");
-    }
-    console.log("[Fallback DB] Tentando atualizar registro no Firebase Firestore (Fallback)...");
-    const docRef = doc(db, TABLE_NAME, id);
-    await setDoc(docRef, fields, { merge: true });
-    console.log("[Fallback DB] ✓ Registro atualizado com sucesso no Firebase Firestore!");
-    return { success: true, source: 'firebase' };
-  } catch (firebaseError: any) {
-    console.error("[Fallback DB] ❌ Falha em ambos os bancos na atualização.", firebaseError);
-    throw new Error(`Ambos os backends falharam ao atualizar. Detalhes Firebase: ${firebaseError.message || firebaseError}`);
-  }
+  // --- FALLBACK AUTOMÁTICO PARA FIREBASE (DESATIVADO) ---
+  return { success: false, source: 'supabase' } as any;
 }
 
 /**
@@ -280,27 +254,17 @@ export async function deletarDados(
     }
   }
 
-  // 2. Tenta Firebase (seja como fallback ou para sincronização)
-  try {
-    if ((window as any).simulateFirebaseOffline === true) {
-      throw new Error("SimulatedFirebaseError: Quota exceeded (Simulado)");
-    }
-    console.log("[Fallback DB] Removendo registro do Firebase Firestore (Fallback/Sincronização)...");
-    await deleteDoc(doc(db, TABLE_NAME, id));
-    deletedInFirebase = true;
-    console.log("[Fallback DB] ✓ Registro removido do Firebase Firestore.");
-  } catch (err) {
-    console.warn("[Fallback DB] Erro ao tentar deletar no Firebase:", err);
-  }
-
-  if (!deletedInFirebase && !deletedInSupabase) {
-    throw new Error("Falha ao deletar o registro em ambos os bancos de dados.");
+  // 2. Tenta Firebase (Apenas se solicitado via Hint ou se Supabase falhar criticamente e desejar fallback)
+  // Removida deleção automática para tornar o Firebase manual.
+  
+  if (!deletedInSupabase && !sourceHint) {
+    console.warn("[Fallback DB] Registro não removido pois o Firebase está em modo MANUAL.");
   }
 
   return {
-    success: true,
-    source: (deletedInFirebase && deletedInSupabase) ? 'both' : (deletedInSupabase ? 'supabase' : 'firebase')
-  };
+    success: deletedInSupabase,
+    source: deletedInSupabase ? 'supabase' : 'firebase'
+  } as any;
 }
 
 /**
