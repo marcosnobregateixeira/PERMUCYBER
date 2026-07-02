@@ -38,7 +38,7 @@ import { Permuta, Militar, BlockchainLog, Escala, Role } from '../types';
 import { generateSimpleHash, formatarDataBR } from '../data';
 import DocumentoHomologacao from './DocumentoHomologacao';
 import { salvarDados, atualizarDados, deletarDados, listarDados, AppDataRecord } from '../databaseFallback';
-import { supabase } from '../supabase';
+import { supabase, setSupabaseCredentials, clearSupabaseCredentials } from '../supabase';
 
 interface PainelGestorProps {
   permutas: Permuta[];
@@ -140,6 +140,9 @@ export default function PainelGestor({
   const [simulatedOffline, setSimulatedOffline] = useState<boolean>(() => {
     return (window as any).simulateFirebaseOffline === true;
   });
+  const [isSupabaseReady, setIsSupabaseReady] = useState<boolean>(() => !!supabase);
+  const [customSupabaseUrl, setCustomSupabaseUrl] = useState<string>(() => localStorage.getItem('VITE_SUPABASE_URL') || '');
+  const [customSupabaseKey, setCustomSupabaseKey] = useState<string>(() => localStorage.getItem('VITE_SUPABASE_ANON_KEY') || '');
 
   const addSupabaseLog = (msg: string) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -2587,24 +2590,96 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                 <span className="text-xs font-bold text-white uppercase font-display tracking-wide">Supabase PostgreSQL SQL</span>
               </div>
               <div className="flex items-center space-x-1.5 bg-[#00ff66]/10 px-2 py-0.5 rounded border border-[#00ff66]/30">
-                <span className={`w-2 h-2 rounded-full ${supabase ? 'bg-[#00ff66] animate-pulse' : 'bg-cyber-red animate-pulse'}`} />
-                <span className={`text-[8.5px] font-mono font-bold ${supabase ? 'text-[#00ff66]' : 'text-cyber-red'}`}>
-                  {supabase ? 'ATIVADO / PRONTO' : 'PENDENTE DE .ENV'}
+                <span className={`w-2 h-2 rounded-full ${isSupabaseReady ? 'bg-[#00ff66] animate-pulse' : 'bg-cyber-red animate-pulse'}`} />
+                <span className={`text-[8.5px] font-mono font-bold ${isSupabaseReady ? 'text-[#00ff66]' : 'text-cyber-red'}`}>
+                  {isSupabaseReady ? 'ATIVADO / PRONTO' : 'PENDENTE DE CONFIGURAÇÃO'}
                 </span>
               </div>
             </div>
           </div>
 
-          {!supabase && (
+          {/* Form para credenciais do Supabase no Navegador */}
+          <div className="bg-hud-card border border-hud-border rounded-xl p-3.5 space-y-3">
+            <span className="text-[10px] font-mono text-cyber-cyan uppercase tracking-wider block font-extrabold flex items-center">
+              <Key className="w-3.5 h-3.5 mr-1.5 text-cyber-cyan animate-pulse" />
+              🔑 CONEXÃO SUPABASE (BROWSER CREDENTIALS PLAYGROUND)
+            </span>
+            <p className="text-[11px] text-slate-400 leading-normal font-mono">
+              Para ativação em tempo real sem precisar reiniciar o servidor de desenvolvimento, insira o URL da API e a Chave Pública Anon abaixo. Os dados são salvos localmente e ativam o cliente de redundância imediatamente!
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
+              <div className="flex flex-col space-y-1">
+                <label className="text-[9px] text-slate-400 uppercase">Supabase API URL (Project URL)</label>
+                <input
+                  type="text"
+                  placeholder="Ex: https://seu-projeto.supabase.co"
+                  value={customSupabaseUrl}
+                  onChange={(e) => setCustomSupabaseUrl(e.target.value)}
+                  className="bg-[#03090b] border border-hud-border rounded p-2 text-white placeholder-slate-600 focus:border-cyber-cyan outline-none"
+                />
+              </div>
+              <div className="flex flex-col space-y-1">
+                <label className="text-[9px] text-slate-400 uppercase">Supabase Anon Key (Public API Key)</label>
+                <input
+                  type="text"
+                  placeholder="Ex: sb_publishable_... ou eyJ..."
+                  value={customSupabaseKey}
+                  onChange={(e) => setCustomSupabaseKey(e.target.value)}
+                  className="bg-[#03090b] border border-hud-border rounded p-2 text-white placeholder-slate-600 focus:border-cyber-cyan outline-none"
+                />
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 pt-1 font-mono text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!customSupabaseUrl.trim() || !customSupabaseKey.trim()) {
+                    alert("Por favor, preencha o URL da API e a Chave Pública Anon!");
+                    return;
+                  }
+                  const success = setSupabaseCredentials(customSupabaseUrl, customSupabaseKey);
+                  if (success) {
+                    setIsSupabaseReady(true);
+                    addSupabaseLog(`[Config] ✓ Credenciais configuradas localmente com sucesso!`);
+                    addSupabaseLog(`[Config] Supabase Client re-inicializado.`);
+                    alert("Credenciais aplicadas com sucesso! O Supabase está ATIVADO.");
+                  } else {
+                    alert("Erro ao validar as credenciais. Verifique se o URL começa com http:// ou https://");
+                  }
+                }}
+                className="bg-[#00ff66]/20 border border-[#00ff66]/50 hover:bg-[#00ff66]/30 text-[#00ff66] px-3.5 py-1.5 rounded-md font-bold cursor-pointer transition-all flex items-center font-mono"
+              >
+                Ativar & Salvar Credenciais
+              </button>
+              {(localStorage.getItem('VITE_SUPABASE_URL') || customSupabaseUrl || customSupabaseKey) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearSupabaseCredentials();
+                    setCustomSupabaseUrl('');
+                    setCustomSupabaseKey('');
+                    setIsSupabaseReady(false);
+                    addSupabaseLog(`[Config] Credenciais locais removidas. Retornando para variáveis padrão.`);
+                    alert("Credenciais locais removidas com sucesso.");
+                  }}
+                  className="bg-slate-800/80 border border-slate-700 hover:bg-slate-700 hover:text-white text-slate-300 px-3.5 py-1.5 rounded-md font-bold cursor-pointer transition-all font-mono"
+                >
+                  Limpar Credenciais
+                </button>
+              )}
+            </div>
+          </div>
+
+          {!isSupabaseReady && (
             <div className="bg-cyber-amber/15 border border-cyber-amber/40 p-3 rounded-xl text-xs text-slate-300 leading-relaxed space-y-1">
               <span className="text-cyber-amber font-bold flex items-center uppercase text-[10px] tracking-wider">
                 <AlertTriangle className="w-4 h-4 mr-1.5 animate-bounce" />
                 ⚠️ ATENÇÃO: SUPABASE NÃO CONFIGURADO NO ARQUIVO .ENV
               </span>
               <p className="text-[11px]">
-                Para que o fallback físico funcione, adicione as credenciais do seu projeto Supabase no arquivo <strong className="text-white">.env</strong> ou na área de <strong className="text-white">Secrets do AI Studio</strong> com os seguintes nomes de chaves:
+                Você pode colar as credenciais do seu projeto Supabase no formulário acima para conectar instantaneamente, ou configurá-las no arquivo <strong className="text-white">.env</strong> para persistência global:
               </p>
-              <pre className="bg-black/60 p-2 rounded text-[10px] font-mono text-cyber-amber border border-cyber-amber/20 overflow-x-auto mt-2">
+              <pre className="bg-black/60 p-2 rounded text-[10px] font-mono text-cyber-amber border border-cyber-amber/20 overflow-x-auto mt-1">
 {`VITE_SUPABASE_URL="https://seu-projeto.supabase.co"
 VITE_SUPABASE_ANON_KEY="sua-anon-key-aqui"`}
               </pre>
