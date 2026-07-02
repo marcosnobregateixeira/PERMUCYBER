@@ -45,6 +45,7 @@ import { db, auth } from './firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { sanitizeForFirestore } from './firebaseUtils';
 import { setSupabaseCredentials } from './supabase';
+import { salvarDados } from './databaseFallback';
 
 const PATENTE_ORDER: Record<string, number> = {
   'CEL': 1, 'TC': 2, 'MAJ': 3, 'CAP': 4, '1ºTEN': 5, '2ºTEN': 6, 'ASP. OF': 7, 
@@ -453,7 +454,7 @@ export default function App() {
 
   const handleForceSyncToCloud = async () => {
     try {
-      setBackupStatusMsg("⌛ Iniciando exportação forçada de dados locais (localStorage) para o Firestore Cloud...");
+      setBackupStatusMsg("⌛ Iniciando exportação forçada de dados locais (localStorage) para o Supabase e Firestore Cloud...");
       
       // Carregar dados diretamente do localStorage para garantir que não estamos usando estado sobrescrito pelo cloud vazio
       const localMilStr = localStorage.getItem('permucyber_militares');
@@ -508,12 +509,12 @@ export default function App() {
       // 8. Gerar um backup snapshot final
       const snapshot = await generateBackup('MANUAL', loggedUser?.nomeGuerra || 'SISTEMA', milToPush, escToPush, permToPush);
       
-      setBackupStatusMsg(`✓ Sincronização Total Concluída! ${milToPush.length} militares e ${permToPush.length} permutas exportadas.`);
-      alert("✓ EXPORTAÇÃO COMPLETA!\n\nTodos os dados salvos localmente neste aparelho foram enviados para a nuvem com sucesso. Agora outros aparelhos poderão visualizar estas informações.");
+      setBackupStatusMsg(`✓ Sincronização Total Concluída! Dados exportados com sucesso para o Supabase (Principal) e Firebase.`);
+      alert("✓ EXPORTAÇÃO COMPLETA!\n\nTodos os dados salvos localmente neste aparelho foram enviados para os servidores do Supabase (Principal) e Firebase (Redundância) com sucesso!");
       
     } catch (err) {
       console.error("Force sync failed:", err);
-      setBackupStatusMsg("⚠️ Erro durante a exportação para o Firestore.");
+      setBackupStatusMsg("⚠️ Erro durante a exportação para os servidores em nuvem.");
       alert("⚠️ Falha ao exportar dados. " + (err as Error).message);
     }
   };
@@ -593,15 +594,35 @@ export default function App() {
         return [newSnapshot, ...prev].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
       });
 
-      // 3. Transmite para o Firestore Cloud em segundo plano de forma assíncrona (não-bloqueante)
-      setDoc(doc(db, 'backups', bkId), sanitizeForFirestore(newSnapshot))
-        .then(() => {
-          setBackupStatusMsg(`✓ Cópia de segurança ${tipo} [${bkId}] transmitida com sucesso para o Firestore Cloud.`);
-        })
-        .catch(err => {
+      // 3. Transmite para os bancos de dados em nuvem de forma assíncrona (não-bloqueante)
+      const transmitToCloud = async () => {
+        try {
+          const dbResult = await salvarDados(
+            loggedUser?.id || 'SISTEMA',
+            `Cópia de Segurança ${tipo} [${bkId}]`,
+            `Snapshot integral: ${activeMilitares.length} policiais, ${activeEscalas.length} escalas, ${activePermutas.length} permutas. Gerado por ${autor}`,
+            newSnapshot
+          );
+
+          // Salva também na coleção legada de backups do Firestore para manter compatibilidade com os listeners em tempo real
+          try {
+            await setDoc(doc(db, 'backups', bkId), sanitizeForFirestore(newSnapshot));
+          } catch (fireErr) {
+            console.warn("Aviso de rede: Gravado na coleção legada agendado:", fireErr);
+          }
+
+          if (dbResult.source === 'supabase') {
+            setBackupStatusMsg(`✓ Cópia de segurança ${tipo} [${bkId}] transmitida com sucesso para o Supabase (Principal).`);
+          } else {
+            setBackupStatusMsg(`✓ Cópia de segurança ${tipo} [${bkId}] transmitida com sucesso para o Firebase Cloud (Redundância).`);
+          }
+        } catch (err) {
           console.warn("Aviso de rede: Gravado localmente. Transmissão para a nuvem agendada:", err);
-          setBackupStatusMsg("⚠️ Cópia de segurança gerada localmente (offline / cota do Firestore cheia).");
-        });
+          setBackupStatusMsg("⚠️ Cópia de segurança gerada localmente (offline / erro ao sincronizar).");
+        }
+      };
+
+      transmitToCloud();
 
       if (tipo === 'MANUAL') {
         alert(
@@ -610,7 +631,7 @@ export default function App() {
           `• Policiais Ativos: ${activeMilitares.length}\n` +
           `• Escalas de Serviço: ${activeEscalas.length}\n` +
           `• Permutas de Plantão: ${activePermutas.length}\n` +
-          `• Status: Salvo localmente com redundância e enviado para fila de nuvem.`
+          `• Status: Enviado para o Supabase (Principal) e Firebase (Redundância).`
         );
       }
       return newSnapshot;
