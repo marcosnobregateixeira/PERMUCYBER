@@ -23,8 +23,34 @@ const TABLE_NAME = 'dados_app';
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 function isValidUUID(uuid: string) {
-  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return regex.test(uuid);
+}
+
+/**
+ * Converte qualquer string em um formato UUID válido para o Supabase (Postgres).
+ * Isso é determinístico e permite usar IDs customizados (como 'M-1127') em colunas UUID.
+ */
+function toSupabaseFriendlyUUID(str: string): string {
+  if (isValidUUID(str)) return str;
+  
+  // Converter para Hex (cada char vira 2 hex digits)
+  let hex = "";
+  for (let i = 0; i < str.length; i++) {
+    hex += str.charCodeAt(i).toString(16);
+  }
+  
+  // Preencher até 32 caracteres com um sufixo fixo para evitar colisões simples
+  const suffix = "abcdef0123456789";
+  const fullHex = (hex + suffix.repeat(2)).substring(0, 32);
+  
+  return [
+    fullHex.substring(0, 8),
+    fullHex.substring(8, 12),
+    fullHex.substring(12, 16),
+    fullHex.substring(16, 20),
+    fullHex.substring(20, 32)
+  ].join('-');
 }
 
 /**
@@ -72,8 +98,11 @@ export async function salvarDados(
   dadosJson: any,
   customId?: string
 ): Promise<{ success: boolean; source: 'firebase' | 'supabase'; id: string; data: AppDataRecord }> {
-  // Gerar um ID único que sirva para ambos os bancos (UUID estrito) ou usar o fornecido
+  // Gerar um ID único que sirva para ambos os bancos ou usar o fornecido
   const recordId = customId || generateUUID();
+  
+  // UUID específico para o Supabase (se recordId não for UUID, convertemos determinísticamente)
+  const supabaseRecordId = toSupabaseFriendlyUUID(recordId);
 
   // Garantir que o userId seja um UUID válido para o Supabase (colunas UUID são estritas)
   const finalUserId = (userId && isValidUUID(userId)) ? userId : SYSTEM_USER_ID;
@@ -91,12 +120,13 @@ export async function salvarDados(
   const supabaseClient = getSupabase();
   if (supabaseClient) {
     try {
-      console.log(`[Fallback DB] Tentando salvar registro [${record.titulo}] no Supabase (ID: ${recordId})...`);
+      console.log(`[Fallback DB] Tentando salvar registro [${record.titulo}] no Supabase (ID Real: ${recordId}, ID Supabase: ${supabaseRecordId})...`);
+      
       const { data, error } = await supabaseClient
         .from(TABLE_NAME)
         .insert([
           {
-            id: record.id,
+            id: supabaseRecordId, // ID convertido para formato UUID
             user_id: record.user_id,
             titulo: record.titulo,
             descricao: record.descricao,
@@ -107,10 +137,16 @@ export async function salvarDados(
         .select();
 
       if (error) {
-        console.error("[Fallback DB] ❌ Erro retornado pelo Supabase:", error);
+        console.error("[Fallback DB] ❌ Erro retornado pelo Supabase:", JSON.stringify(error));
         const detailMsg = error.message || "Erro desconhecido";
         const hintMsg = error.hint ? ` | Dica: ${error.hint}` : "";
         const codeMsg = error.code ? ` (Código: ${error.code})` : "";
+        
+        // Se o erro for de coluna inexistente, logar aviso específico
+        if (error.code === '42703') {
+           console.warn(`[Fallback DB] 🚨 Aviso: Coluna inexistente detectada. Verifique se a tabela '${TABLE_NAME}' tem as colunas: id, user_id, titulo, descricao, dados_json, criado_em.`);
+        }
+
         throw new Error(`${detailMsg}${hintMsg}${codeMsg}`);
       }
 
@@ -157,6 +193,8 @@ export async function atualizarDados(
   sourceHint?: 'firebase' | 'supabase'
 ): Promise<{ success: boolean; source: 'firebase' | 'supabase' }> {
   
+  const supabaseId = toSupabaseFriendlyUUID(id);
+
   // Se houver um hint sugerindo Firebase especificamente, tenta Firebase primeiro
   if (sourceHint === 'firebase') {
     console.log("[Fallback DB] Atualizando dados diretamente no Firebase por indicação de Hint...");
@@ -172,11 +210,11 @@ export async function atualizarDados(
   const supabaseClient = getSupabase();
   if (supabaseClient) {
     try {
-      console.log("[Fallback DB] Tentando atualizar registro no Supabase (Principal)...");
+      console.log(`[Fallback DB] Tentando atualizar registro no Supabase (ID Real: ${id}, ID Supabase: ${supabaseId})...`);
       const { error } = await supabaseClient
         .from(TABLE_NAME)
         .update(fields)
-        .eq('id', id);
+        .eq('id', supabaseId);
 
       if (error) throw new Error(error.message);
 
@@ -213,6 +251,8 @@ export async function deletarDados(
   sourceHint?: 'firebase' | 'supabase'
 ): Promise<{ success: boolean; source: 'firebase' | 'supabase' | 'both' }> {
   
+  const supabaseId = toSupabaseFriendlyUUID(id);
+
   if (sourceHint === 'firebase') {
     console.log("[Fallback DB] Deletando diretamente no Firebase por indicação de Hint...");
     await deleteDoc(doc(db, TABLE_NAME, id));
@@ -226,8 +266,8 @@ export async function deletarDados(
   const supabaseClient = getSupabase();
   if (supabaseClient) {
     try {
-      console.log("[Fallback DB] Removendo registro do Supabase (Principal)...");
-      const { error } = await supabaseClient.from(TABLE_NAME).delete().eq('id', id);
+      console.log(`[Fallback DB] Removendo registro do Supabase (ID Real: ${id}, ID Supabase: ${supabaseId})...`);
+      const { error } = await supabaseClient.from(TABLE_NAME).delete().eq('id', supabaseId);
       if (!error) {
         deletedInSupabase = true;
         console.log("[Fallback DB] ✓ Registro removido do Supabase com sucesso.");
@@ -287,8 +327,11 @@ export async function listarDados(
         console.error("[Fallback DB] Erro ao consultar Supabase:", error.message);
       } else if (data) {
         data.forEach((row: any) => {
+          // Tentar recuperar o ID original do JSON se ele foi "UUID-ficado" para o Supabase
+          const originalId = row.dados_json?.id || row.id;
+          
           result.push({
-            id: row.id,
+            id: originalId,
             user_id: row.user_id,
             titulo: row.titulo,
             descricao: row.descricao,
