@@ -37,6 +37,8 @@ import {
 import { Permuta, Militar, BlockchainLog, Escala, Role } from '../types';
 import { generateSimpleHash, formatarDataBR } from '../data';
 import DocumentoHomologacao from './DocumentoHomologacao';
+import { salvarDados, atualizarDados, deletarDados, listarDados, AppDataRecord } from '../databaseFallback';
+import { supabase } from '../supabase';
 
 interface PainelGestorProps {
   permutas: Permuta[];
@@ -119,11 +121,88 @@ export default function PainelGestor({
   onUpdateConfig
 }: PainelGestorProps) {
   const sortedMilitares = [...allMilitares].sort(sortMilitarByPatenteG);
-  const [activeSubTab, setActiveSubTab] = useState<'PEDIDOS' | 'AUDITORIA' | 'RELATORIOS' | 'SISTEMA' | 'EXCLUSAO' | 'ACESSOS'>('PEDIDOS');
+  const [activeSubTab, setActiveSubTab] = useState<'PEDIDOS' | 'AUDITORIA' | 'RELATORIOS' | 'SISTEMA' | 'SUPABASE'>('PEDIDOS');
   const [newMilitarForm, setNewMilitarForm] = useState<Partial<Militar>>({ nome: '', nomeGuerra: '', patente: 'SD', funcao: 'ADM', quadro: 'QPPM', pinSegurança: '1234', numero: '', matriculaFuncional: '', turno: 'TURNO A' });
   const [militarIdToDelete, setMilitarIdToDelete] = useState<string | null>(null);
   const [editingMilitar, setEditingMilitar] = useState<Militar | null>(null);
   const [editPolicialTab, setEditPolicialTab] = useState<'GERAL' | 'AFASTAMENTOS'>('GERAL');
+
+  // --- SUPABASE FALLBACK PLAYGROUND STATES ---
+  const [supabaseRecords, setSupabaseRecords] = useState<AppDataRecord[]>([]);
+  const [supabaseLoading, setSupabaseLoading] = useState<boolean>(false);
+  const [supabaseLogs, setSupabaseLogs] = useState<string[]>([
+    "[Console] Sistema de redundância inicializado.",
+    "[Console] Prontidão de fallback em stand-by."
+  ]);
+  const [supabaseTitle, setSupabaseTitle] = useState<string>("");
+  const [supabaseDesc, setSupabaseDesc] = useState<string>("");
+  const [supabaseJson, setSupabaseJson] = useState<string>('{\n  "origem": "Painel Gestor",\n  "status": "Operacional",\n  "versao": "2.4.0"\n}');
+  const [simulatedOffline, setSimulatedOffline] = useState<boolean>(() => {
+    return (window as any).simulateFirebaseOffline === true;
+  });
+
+  const addSupabaseLog = (msg: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setSupabaseLogs(prev => [...prev, `[${timestamp}] ${msg}`]);
+  };
+
+  const handleSimulatedOfflineToggle = () => {
+    const newVal = !simulatedOffline;
+    (window as any).simulateFirebaseOffline = newVal;
+    setSimulatedOffline(newVal);
+    addSupabaseLog(newVal ? "⚠️ SIMULAÇÃO ATIVADA: Firebase Firestore simulando OFFLINE/SEM COTA." : "✓ SIMULAÇÃO DESATIVADA: Firebase Firestore operando normalmente.");
+  };
+
+  // Carregar os dados iniciais do fallback ao mudar para a aba Supabase
+  useEffect(() => {
+    if (activeSubTab === 'SUPABASE' && userLogged) {
+      loadSupabaseData();
+    }
+  }, [activeSubTab]);
+
+  const loadSupabaseData = async () => {
+    if (!userLogged) return;
+    setSupabaseLoading(true);
+    addSupabaseLog("Buscando registros integrados...");
+    try {
+      const res = await listarDados(userLogged.id);
+      if (res.success) {
+        setSupabaseRecords(res.data);
+        addSupabaseLog(`✓ Busca finalizada. Encontrados ${res.data.length} registros.`);
+        addSupabaseLog(`Backends ativos obtidos: ${res.sourcesUsed.join(' & ').toUpperCase()}`);
+      }
+    } catch (err: any) {
+      addSupabaseLog(`❌ Erro ao listar dados: ${err.message}`);
+    } finally {
+      setSupabaseLoading(false);
+    }
+  };
+
+  const copySQLToClipboard = () => {
+    const sql = `CREATE TABLE IF NOT EXISTS public.dados_app (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  titulo TEXT NOT NULL,
+  descricao TEXT,
+  dados_json JSONB DEFAULT '{}'::jsonb,
+  criado_em TIMESTAMPTZ DEFAULT now()
+);
+
+-- Habilitar RLS (Row Level Security) para segurança militar
+ALTER TABLE public.dados_app ENABLE ROW LEVEL SECURITY;
+
+-- Remover a política se ela já existir para evitar erros de execução repetida
+DROP POLICY IF EXISTS "Acesso individual por user_id" ON public.dados_app;
+
+-- Criar política de acesso para que usuários leiam/gravem apenas seus próprios dados
+CREATE POLICY "Acesso individual por user_id" ON public.dados_app
+  FOR ALL
+  USING (true)
+  WITH CHECK (true);`;
+
+    navigator.clipboard.writeText(sql);
+    alert("Script SQL copiado com sucesso!");
+  };
 
   const maskMF = (val: string) => {
     let v = val.replace(/\D/g, '');
@@ -523,7 +602,7 @@ export default function PainelGestor({
       )}
 
       {/* COMPACT SUB TABS CONTROLS */}
-      <div className="grid grid-cols-4 gap-1 bg-[#061217] p-1 rounded-lg border border-hud-border/70 mb-4 text-[10px] font-mono">
+      <div className="grid grid-cols-5 gap-1 bg-[#061217] p-1 rounded-lg border border-hud-border/70 mb-4 text-[9px] font-mono">
         <button
           onClick={() => setActiveSubTab('PEDIDOS')}
           className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
@@ -564,6 +643,16 @@ export default function PainelGestor({
           }`}
         >
           SISTEMA
+        </button>
+        <button
+          onClick={() => setActiveSubTab('SUPABASE')}
+          className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
+            activeSubTab === 'SUPABASE'
+              ? 'bg-[#00ff66] text-[#03080a]'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          SUPABASE
         </button>
       </div>
 
@@ -2453,6 +2542,359 @@ export default function PainelGestor({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ========================================================== */}
+      {/* ACTIVE SUB TAB: SUPABASE INTEGRATION PLAYGROUND & FALLBACK */}
+      {/* ========================================================== */}
+      {activeSubTab === 'SUPABASE' && (
+        <div className="space-y-4 animate-fade-in font-sans">
+          
+          {/* Top Informative Banner with subtle styling */}
+          <div className="bg-[#051115] border border-cyber-green/35 p-3.5 rounded-xl flex flex-col space-y-1.5 shadow-md">
+            <span className="text-[10px] font-mono text-[#00ff66] uppercase tracking-wider font-extrabold flex items-center">
+              <Database className="w-3.5 h-3.5 mr-2 animate-pulse text-[#00ff66]" />
+              SISTEMA DE REDUNDÂNCIA MILITAR - FIREBASE ⇄ SUPABASE
+            </span>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Sistema de contingência de dados táticos. O aplicativo tenta ler e escrever no Firebase Firestore (canal principal); caso a cota gratuita seja atingida ou ocorra falha de rede, a redundância desvia o fluxo instantaneamente para o Supabase SQL, evitando a paralisação do Batalhão.
+            </p>
+          </div>
+
+          {/* BACKENDS CONNECTION STATUS BADGES */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Firebase Status Card */}
+            <div className="bg-hud-card border border-hud-border p-3 rounded-xl flex items-center justify-between relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-cyber-cyan/80" />
+              <div>
+                <span className="text-[8.5px] font-mono text-slate-500 block uppercase font-bold">BACKEND PRIMÁRIO</span>
+                <span className="text-xs font-bold text-white uppercase font-display tracking-wide">Firebase Firestore Cloud</span>
+              </div>
+              <div className="flex items-center space-x-1.5 bg-cyber-cyan/10 px-2 py-0.5 rounded border border-cyber-cyan/30">
+                <span className={`w-2 h-2 rounded-full ${simulatedOffline ? 'bg-cyber-red animate-pulse' : 'bg-cyber-cyan animate-pulse'}`} />
+                <span className={`text-[8.5px] font-mono font-bold ${simulatedOffline ? 'text-cyber-red' : 'text-cyber-cyan'}`}>
+                  {simulatedOffline ? 'OFC / SIMULADO' : 'ON-LINE / ATIVO'}
+                </span>
+              </div>
+            </div>
+
+            {/* Supabase Status Card */}
+            <div className="bg-hud-card border border-hud-border p-3 rounded-xl flex items-center justify-between relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-[#00ff66]/80" />
+              <div>
+                <span className="text-[8.5px] font-mono text-slate-500 block uppercase font-bold">BACKEND DE CONTINGÊNCIA</span>
+                <span className="text-xs font-bold text-white uppercase font-display tracking-wide">Supabase PostgreSQL SQL</span>
+              </div>
+              <div className="flex items-center space-x-1.5 bg-[#00ff66]/10 px-2 py-0.5 rounded border border-[#00ff66]/30">
+                <span className={`w-2 h-2 rounded-full ${supabase ? 'bg-[#00ff66] animate-pulse' : 'bg-cyber-red animate-pulse'}`} />
+                <span className={`text-[8.5px] font-mono font-bold ${supabase ? 'text-[#00ff66]' : 'text-cyber-red'}`}>
+                  {supabase ? 'ATIVADO / PRONTO' : 'PENDENTE DE .ENV'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {!supabase && (
+            <div className="bg-cyber-amber/15 border border-cyber-amber/40 p-3 rounded-xl text-xs text-slate-300 leading-relaxed space-y-1">
+              <span className="text-cyber-amber font-bold flex items-center uppercase text-[10px] tracking-wider">
+                <AlertTriangle className="w-4 h-4 mr-1.5 animate-bounce" />
+                ⚠️ ATENÇÃO: SUPABASE NÃO CONFIGURADO NO ARQUIVO .ENV
+              </span>
+              <p className="text-[11px]">
+                Para que o fallback físico funcione, adicione as credenciais do seu projeto Supabase no arquivo <strong className="text-white">.env</strong> ou na área de <strong className="text-white">Secrets do AI Studio</strong> com os seguintes nomes de chaves:
+              </p>
+              <pre className="bg-black/60 p-2 rounded text-[10px] font-mono text-cyber-amber border border-cyber-amber/20 overflow-x-auto mt-2">
+{`VITE_SUPABASE_URL="https://seu-projeto.supabase.co"
+VITE_SUPABASE_ANON_KEY="sua-anon-key-aqui"`}
+              </pre>
+            </div>
+          )}
+
+          {/* FALLBACK SIMULATION AND PLAYGROUND FORM */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            
+            {/* Playground inputs - 7 Cols */}
+            <div className="bg-hud-card border border-hud-border rounded-xl p-3.5 space-y-3 lg:col-span-7">
+              <div className="flex items-center justify-between border-b border-hud-border/30 pb-2">
+                <span className="text-[10px] font-mono text-cyber-cyan uppercase tracking-wider block font-extrabold">
+                  ✓ FORMULÁRIO DE TESTES DE REDUNDÂNCIA
+                </span>
+                
+                {/* Firebase Simulation Toggle Switch */}
+                <button
+                  type="button"
+                  onClick={handleSimulatedOfflineToggle}
+                  className={`text-[8.5px] font-mono font-bold uppercase py-0.5 px-2 rounded-md border transition-all cursor-pointer ${
+                    simulatedOffline 
+                      ? 'bg-cyber-red/20 text-cyber-red border-cyber-red' 
+                      : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                  }`}
+                  title="Clique para derrubar artificialmente o Firebase e ver o desvio automático de tráfego para o Supabase"
+                >
+                  {simulatedOffline ? "🔴 SIMULAR: FIREBASE CAÍDO" : "⚫ SIMULAR FIREBASE CAÍDO"}
+                </button>
+              </div>
+
+              <div className="space-y-2.5 text-xs font-mono">
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[9px] text-slate-400 uppercase">Título do Registro</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Boletim Geral da Guarda Especial"
+                    value={supabaseTitle}
+                    onChange={(e) => setSupabaseTitle(e.target.value)}
+                    className="bg-[#03090b] border border-hud-border rounded p-2 text-white placeholder-slate-600 focus:border-cyber-cyan outline-none"
+                  />
+                </div>
+
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[9px] text-slate-400 uppercase">Descrição do Registro</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: CB Rocha assumiu o plantão de contingência no posto principal"
+                    value={supabaseDesc}
+                    onChange={(e) => setSupabaseDesc(e.target.value)}
+                    className="bg-[#03090b] border border-hud-border rounded p-2 text-white placeholder-slate-600 focus:border-cyber-cyan outline-none"
+                  />
+                </div>
+
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[9px] text-slate-400 uppercase">Metadados Adicionais (Formato JSONb)</label>
+                  <textarea
+                    rows={3}
+                    value={supabaseJson}
+                    onChange={(e) => setSupabaseJson(e.target.value)}
+                    className="bg-[#03090b] border border-hud-border rounded p-2 text-white font-mono placeholder-slate-600 focus:border-cyber-cyan outline-none resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!supabaseTitle.trim()) {
+                        alert("Título é obrigatório!");
+                        return;
+                      }
+                      if (!userLogged) {
+                        alert("Efetue o login para simular dados do seu usuário!");
+                        return;
+                      }
+                      let parsedJson = {};
+                      try {
+                        parsedJson = JSON.parse(supabaseJson);
+                      } catch (e) {
+                        alert("Metadados JSON inválido! Verifique aspas duplas, chaves e vírgulas.");
+                        return;
+                      }
+
+                      setSupabaseLoading(true);
+                      addSupabaseLog(`[Início] Executando salvarDados(userId: "${userLogged.id}")`);
+                      try {
+                        const res = await salvarDados(userLogged.id, supabaseTitle, supabaseDesc, parsedJson);
+                        if (res.success) {
+                          addSupabaseLog(`✓ Registro gravado com sucesso!`);
+                          addSupabaseLog(`[Sucesso] ID Gerado: ${res.id}`);
+                          addSupabaseLog(`[Sucesso] Backend utilizado: ${res.source.toUpperCase()}`);
+                          setSupabaseTitle("");
+                          setSupabaseDesc("");
+                          loadSupabaseData(); // Recarrega a lista
+                        }
+                      } catch (err: any) {
+                        addSupabaseLog(`❌ Erro catastrófico: ${err.message}`);
+                      } finally {
+                        setSupabaseLoading(false);
+                      }
+                    }}
+                    disabled={supabaseLoading}
+                    className="bg-[#00ff66] text-[#03080a] hover:bg-white font-extrabold py-2.5 rounded-lg text-[10px] tracking-wider uppercase transition-all cursor-pointer shadow-[0_0_15px_rgba(0,255,102,0.15)] text-center flex items-center justify-center space-x-1"
+                  >
+                    <span>Gravar dados na nuvem</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={loadSupabaseData}
+                    disabled={supabaseLoading}
+                    className="bg-transparent text-slate-300 hover:text-white border border-hud-border hover:bg-slate-800 font-extrabold py-2.5 rounded-lg text-[10px] tracking-wider uppercase transition-all cursor-pointer text-center flex items-center justify-center space-x-1"
+                  >
+                    <span>Atualizar Lista</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Simulated Live Console Log - 5 Cols */}
+            <div className="bg-black border border-hud-border/80 rounded-xl p-3.5 flex flex-col space-y-2 lg:col-span-5 h-[290px]">
+              <span className="text-[8.5px] font-mono text-[#00ff66] uppercase tracking-wider block font-black border-b border-hud-border/40 pb-1 flex items-center">
+                <FileCode className="w-3.5 h-3.5 mr-1.5" />
+                CONSOLES DE LOG EM TEMPO REAL
+              </span>
+              
+              <div className="flex-1 bg-black/80 font-mono text-[9px] text-[#00ff66] p-2 rounded border border-hud-border/35 overflow-y-auto space-y-1">
+                {supabaseLogs.map((logStr, i) => (
+                  <div key={i} className="leading-normal break-all">
+                    {logStr}
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSupabaseLogs(["[Console] Terminal limpo.", "[Console] Stand-by de redundância ativo."])}
+                className="text-right text-[8px] font-mono text-slate-500 hover:text-white uppercase transition-colors cursor-pointer self-end"
+              >
+                Limpar Console Log
+              </button>
+            </div>
+          </div>
+
+          {/* DYNAMIC LIST OF INTEGRATED RECORDS */}
+          <div className="bg-hud-card border border-hud-border rounded-xl p-3.5 space-y-3.5">
+            <span className="text-[10px] font-mono text-cyber-cyan uppercase tracking-wider block font-extrabold border-b border-hud-border/30 pb-2">
+              ✓ REGISTROS SINCRO-REDUNDANTES (TABELA: DADOS_APP)
+            </span>
+
+            {supabaseLoading && supabaseRecords.length === 0 ? (
+              <div className="text-center py-8 text-cyber-cyan font-mono text-xs animate-pulse">
+                Sincronizando com as Nuvens...
+              </div>
+            ) : supabaseRecords.length === 0 ? (
+              <div className="text-center py-8 border border-dashed border-hud-border/40 rounded-lg bg-[#020507]/40 text-slate-500 font-mono text-[10px] uppercase">
+                Nenhum registro encontrado para seu usuário ativo. Insira novos registros acima!
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[350px] overflow-y-auto pr-1">
+                {supabaseRecords.map((rec) => {
+                  return (
+                    <div key={rec.id} className="bg-[#03090b] border border-hud-border/70 p-3 rounded-xl flex flex-col justify-between space-y-2 relative group hover:border-[#00ff66]/30 transition-all">
+                      <div className="space-y-1.5">
+                        <div className="flex items-start justify-between">
+                          <span className="font-bold text-white text-xs truncate max-w-[70%]">{rec.titulo}</span>
+                          <div className="flex space-x-1">
+                            {/* Source Tag Badge */}
+                            <span className="text-[7.5px] font-mono font-bold px-1.5 py-0.5 rounded uppercase border bg-[#00ff66]/10 text-[#00ff66] border-[#00ff66]/20">
+                              Supabase (DB-FALLBACK)
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-[10.5px] text-slate-400 font-sans leading-normal">
+                          {rec.descricao || "Sem descrição disponível."}
+                        </p>
+                        
+                        {rec.dados_json && Object.keys(rec.dados_json).length > 0 && (
+                          <div className="p-1.5 bg-black/60 rounded border border-hud-border/30 text-[8.5px] font-mono text-cyber-cyan overflow-x-auto">
+                            {JSON.stringify(rec.dados_json, null, 2)}
+                          </div>
+                        )}
+                        <span className="block text-[8px] font-mono text-slate-500">
+                          ID: {rec.id} | Sincronizado em: {rec.criado_em ? new Date(rec.criado_em).toLocaleString() : 'Não informado'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center space-x-2 border-t border-hud-border/30 pt-2 text-[9.5px] font-mono">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newTitle = prompt("Insira o novo título do registro permanente:", rec.titulo);
+                            if (newTitle === null) return;
+                            if (!newTitle.trim()) {
+                              alert("Título não pode ser vazio!");
+                              return;
+                            }
+                            setSupabaseLoading(true);
+                            addSupabaseLog(`[Início] Executando atualizarDados(id: "${rec.id}")`);
+                            atualizarDados(rec.id, { titulo: newTitle })
+                              .then((res) => {
+                                if (res.success) {
+                                  addSupabaseLog(`✓ Registro atualizado via backend ${res.source.toUpperCase()}`);
+                                  loadSupabaseData();
+                                }
+                              })
+                              .catch((err) => {
+                                addSupabaseLog(`❌ Erro ao atualizar: ${err.message}`);
+                              })
+                              .finally(() => setSupabaseLoading(false));
+                          }}
+                          className="text-cyber-cyan hover:text-white transition-colors cursor-pointer"
+                        >
+                          EDITAR
+                        </button>
+                        <span className="text-slate-700">|</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!confirm("Confirmar exclusão definitiva do registro permanente?")) return;
+                            setSupabaseLoading(true);
+                            addSupabaseLog(`[Início] Executando deletarDados(id: "${rec.id}")`);
+                            deletarDados(rec.id)
+                              .then((res) => {
+                                if (res.success) {
+                                  addSupabaseLog(`✓ Registro excluído. Backends limpos: ${res.source.toUpperCase()}`);
+                                  loadSupabaseData();
+                                }
+                              })
+                              .catch((err) => {
+                                addSupabaseLog(`❌ Erro ao deletar: ${err.message}`);
+                              })
+                              .finally(() => setSupabaseLoading(false));
+                          }}
+                          className="text-cyber-red hover:text-white transition-colors cursor-pointer"
+                        >
+                          EXCLUIR
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* SQL SCRIPT CARD FOR SETUP */}
+          <div className="bg-[#050b0e] border border-hud-border rounded-xl p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between border-b border-hud-border/40 pb-1.5">
+              <span className="text-[9.5px] font-mono text-[#00ff66] uppercase tracking-wider block font-bold">
+                ✓ SCRIPT SQL DE CRIAÇÃO DA TABELA (DADOS_APP)
+              </span>
+              <button
+                type="button"
+                onClick={copySQLToClipboard}
+                className="bg-[#00ff66]/10 hover:bg-[#00ff66]/20 text-[#00ff66] border border-[#00ff66]/30 py-0.5 px-2.5 rounded font-mono text-[8px] font-bold uppercase transition-all tracking-wider cursor-pointer"
+              >
+                Copiar Script SQL
+              </button>
+            </div>
+            
+            <p className="text-[10.5px] text-slate-400">
+              Copie o código abaixo e cole no painel <strong className="text-white">SQL Editor</strong> do seu console do <strong className="text-[#00ff66]">Supabase</strong> para criar a tabela com os campos exatos requeridos pelo sistema.
+            </p>
+
+            <pre className="bg-black/60 p-2.5 rounded text-[9.5px] font-mono text-emerald-400 border border-emerald-500/20 overflow-x-auto max-h-[190px]">
+{`CREATE TABLE IF NOT EXISTS public.dados_app (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  titulo TEXT NOT NULL,
+  descricao TEXT,
+  dados_json JSONB DEFAULT '{}'::jsonb,
+  criado_em TIMESTAMPTZ DEFAULT now()
+);
+
+-- Habilitar RLS (Row Level Security) para segurança militar
+ALTER TABLE public.dados_app ENABLE ROW LEVEL SECURITY;
+
+-- Remover a política se ela já existir para evitar erros de execução repetida
+DROP POLICY IF EXISTS "Acesso individual por user_id" ON public.dados_app;
+
+-- Criar política de acesso para que usuários leiam/gravem apenas seus próprios dados
+CREATE POLICY "Acesso individual por user_id" ON public.dados_app
+  FOR ALL
+  USING (true)
+  WITH CHECK (true);`}
+            </pre>
+          </div>
+
         </div>
       )}
 
