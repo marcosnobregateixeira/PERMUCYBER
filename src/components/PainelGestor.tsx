@@ -68,6 +68,7 @@ interface PainelGestorProps {
   onClearAllMilitares?: () => void;
   backups?: any[];
   backupStatusMsg?: string;
+  onUpdateBackupStatusMsg?: (msg: string) => void;
   onCreateBackup?: (tipo: 'AUTO' | 'MANUAL') => Promise<any>;
   onRestoreBackup?: (bk: any) => void;
   onForceSyncToCloud?: () => Promise<void>;
@@ -114,6 +115,7 @@ export default function PainelGestor({
   onClearAllMilitares,
   backups,
   backupStatusMsg,
+  onUpdateBackupStatusMsg,
   onCreateBackup,
   onRestoreBackup,
   onForceSyncToCloud,
@@ -1753,6 +1755,42 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                 className="bg-cyber-blue/20 hover:bg-cyber-blue/35 text-cyber-cyan border border-cyber-blue/40 py-2 rounded text-[10px] font-mono font-black uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1 cursor-pointer"
               >
                 <span>CRIAR SNAPSHOT NUVEM</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    if (onUpdateBackupStatusMsg) onUpdateBackupStatusMsg("⌛ Iniciando Teste de Conexão Supabase...");
+                    const testId = `TEST-${Date.now().toString().slice(-4)}`;
+                    const testData = { message: "Teste de conexão e backup", timestamp: new Date().toISOString() };
+                    
+                    const result = await salvarDados(
+                      userLogged?.id || 'TEST-USER',
+                      `TESTE DE CONEXÃO SUPABASE [${testId}]`,
+                      "Verificando se o sistema consegue gravar dados na tabela unificada dados_app.",
+                      testData,
+                      testId
+                    );
+                    
+                    if (result.success && result.source === 'supabase') {
+                      if (onUpdateBackupStatusMsg) onUpdateBackupStatusMsg(`✅ TESTE SUCESSO! Gravado no Supabase (ID: ${testId})`);
+                      alert(`✅ SUCESSO NO TESTE!\n\nConexão com Supabase está OPERACIONAL.\nID do Teste: ${testId}\n\nO backup foi salvo com sucesso.`);
+                    } else if (result.success) {
+                      if (onUpdateBackupStatusMsg) onUpdateBackupStatusMsg(`⚠️ Gravado no Firebase (Supabase indisponível)`);
+                      alert(`⚠️ AVISO!\n\nOs dados foram salvos, mas no FIREBASE de redundância.\n\nVerifique se as credenciais do Supabase nas configurações estão corretas.`);
+                    } else {
+                      throw new Error("Falha no retorno da função salvarDados");
+                    }
+                  } catch (err) {
+                    if (onUpdateBackupStatusMsg) onUpdateBackupStatusMsg("❌ Erro no Teste Supabase");
+                    alert(`❌ FALHA NO TESTE!\n\nErro: ${(err as Error).message}`);
+                  }
+                }}
+                className="bg-purple-600/20 hover:bg-purple-600/35 text-purple-400 border border-purple-600/40 py-2.5 rounded text-[10px] font-mono font-black uppercase transition-all tracking-wider text-center flex flex-col items-center justify-center space-y-1 cursor-pointer"
+              >
+                <span className="text-[11px]">⚡ TESTAR BACKUP SUPABASE</span>
+                <span className="text-[7px] opacity-70 font-normal">Valida a comunicação com o banco principal</span>
               </button>
 
               <button

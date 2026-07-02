@@ -2097,6 +2097,7 @@ export default function App() {
                         onUserSwitch={handleUserChange}
                         backups={backups}
                         backupStatusMsg={backupStatusMsg}
+                        onUpdateBackupStatusMsg={setBackupStatusMsg}
                         onCreateBackup={(tipo) => generateBackup(tipo, loggedUser?.nomeGuerra || 'SISTEMA')}
                         onRestoreBackup={handleRestoreBackup}
                         onForceSyncToCloud={handleForceSyncToCloud}

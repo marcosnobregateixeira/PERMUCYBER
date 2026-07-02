@@ -124,7 +124,7 @@ export async function salvarDados(
       
       const { data, error } = await supabaseClient
         .from(TABLE_NAME)
-        .insert([
+        .upsert(
           {
             id: supabaseRecordId, // ID convertido para formato UUID
             user_id: record.user_id,
@@ -132,8 +132,9 @@ export async function salvarDados(
             descricao: record.descricao,
             dados_json: record.dados_json,
             criado_em: record.criado_em
-          }
-        ])
+          },
+          { onConflict: 'id' }
+        )
         .select();
 
       if (error) {
