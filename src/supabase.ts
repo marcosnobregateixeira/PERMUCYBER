@@ -83,7 +83,7 @@ if (initial.url && initial.key && isValidHttpUrl(initial.url)) {
 /**
  * Atualiza as credenciais do Supabase dinamicamente no localStorage e recria o cliente
  */
-export function setSupabaseCredentials(url: string, key: string): boolean {
+export function setSupabaseCredentials(url: string, key: string, saveToLocal: boolean = true): boolean {
   const cleanedUrl = cleanSupabaseUrl(url);
   const cleanedKey = cleanSupabaseKey(key);
 
@@ -92,8 +92,10 @@ export function setSupabaseCredentials(url: string, key: string): boolean {
   }
 
   try {
-    localStorage.setItem('VITE_SUPABASE_URL', cleanedUrl);
-    localStorage.setItem('VITE_SUPABASE_ANON_KEY', cleanedKey);
+    if (saveToLocal) {
+      localStorage.setItem('VITE_SUPABASE_URL', cleanedUrl);
+      localStorage.setItem('VITE_SUPABASE_ANON_KEY', cleanedKey);
+    }
     supabase = createClient(cleanedUrl, cleanedKey);
     console.log("✓ Cliente Supabase atualizado com novas credenciais dinâmicas!");
     return true;

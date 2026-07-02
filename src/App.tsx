@@ -44,6 +44,7 @@ import {
 import { db, auth } from './firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { sanitizeForFirestore } from './firebaseUtils';
+import { setSupabaseCredentials } from './supabase';
 
 const PATENTE_ORDER: Record<string, number> = {
   'CEL': 1, 'TC': 2, 'MAJ': 3, 'CAP': 4, '1ºTEN': 5, '2ºTEN': 6, 'ASP. OF': 7, 
@@ -145,7 +146,11 @@ export default function App() {
     try {
       const saved = localStorage.getItem('permucyber_config');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved) as AppConfig;
+        if (parsed.supabaseUrl && parsed.supabaseAnonKey) {
+          setSupabaseCredentials(parsed.supabaseUrl, parsed.supabaseAnonKey);
+        }
+        return parsed;
       }
     } catch (e) {
       console.error("Local load error for config:", e);
@@ -417,6 +422,9 @@ export default function App() {
       if (snap.exists()) {
         const data = snap.data() as AppConfig;
         setConfig(data);
+        if (data.supabaseUrl && data.supabaseAnonKey) {
+          setSupabaseCredentials(data.supabaseUrl, data.supabaseAnonKey);
+        }
         try {
           localStorage.setItem('permucyber_config', JSON.stringify(data));
         } catch (e) {

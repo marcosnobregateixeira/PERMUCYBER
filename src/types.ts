@@ -136,5 +136,7 @@ export interface AppConfig {
   id: string;
   brasaoEsquerdoUrl: string;
   brasaoDireitoUrl: string;
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
 }
 

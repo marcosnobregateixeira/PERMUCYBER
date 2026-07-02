@@ -156,6 +156,22 @@ export default function PainelGestor({
     addSupabaseLog(newVal ? "⚠️ SIMULAÇÃO ATIVADA: Firebase Firestore simulando OFFLINE/SEM COTA." : "✓ SIMULAÇÃO DESATIVADA: Firebase Firestore operando normalmente.");
   };
 
+  // Sincroniza o estado das credenciais do Supabase quando a config global do Firestore é atualizada
+  useEffect(() => {
+    if (config?.supabaseUrl && config?.supabaseAnonKey) {
+      setCustomSupabaseUrl(config.supabaseUrl);
+      setCustomSupabaseKey(config.supabaseAnonKey);
+      setIsSupabaseReady(true);
+    } else {
+      // Se não houver config global, mas houver local, mantém a local. Caso contrário, desativa.
+      const localUrl = localStorage.getItem('VITE_SUPABASE_URL') || '';
+      const localKey = localStorage.getItem('VITE_SUPABASE_ANON_KEY') || '';
+      if (!localUrl && !localKey) {
+        setIsSupabaseReady(!!supabase);
+      }
+    }
+  }, [config]);
+
   // Carregar os dados iniciais do fallback ao mudar para a aba Supabase
   useEffect(() => {
     if (activeSubTab === 'SUPABASE' && userLogged) {
@@ -2642,7 +2658,12 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                     setIsSupabaseReady(true);
                     addSupabaseLog(`[Config] ✓ Credenciais configuradas localmente com sucesso!`);
                     addSupabaseLog(`[Config] Supabase Client re-inicializado.`);
-                    alert("Credenciais aplicadas com sucesso! O Supabase está ATIVADO.");
+                    // Salva as credenciais globalmente no Firestore para sincronizar com todos os aparelhos (celular, etc.)
+                    onUpdateConfig({
+                      supabaseUrl: customSupabaseUrl,
+                      supabaseAnonKey: customSupabaseKey
+                    });
+                    alert("Credenciais aplicadas com sucesso!\n\nO Supabase está ATIVADO. A configuração foi salva na nuvem e sincronizará automaticamente em todos os seus dispositivos (incluindo o seu celular)!");
                   } else {
                     alert("Erro ao validar as credenciais. Verifique se o URL começa com http:// ou https://");
                   }
@@ -2651,7 +2672,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
               >
                 Ativar & Salvar Credenciais
               </button>
-              {(localStorage.getItem('VITE_SUPABASE_URL') || customSupabaseUrl || customSupabaseKey) && (
+              {(localStorage.getItem('VITE_SUPABASE_URL') || customSupabaseUrl || customSupabaseKey || config?.supabaseUrl) && (
                 <button
                   type="button"
                   onClick={() => {
@@ -2659,8 +2680,13 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                     setCustomSupabaseUrl('');
                     setCustomSupabaseKey('');
                     setIsSupabaseReady(false);
-                    addSupabaseLog(`[Config] Credenciais locais removidas. Retornando para variáveis padrão.`);
-                    alert("Credenciais locais removidas com sucesso.");
+                    // Remove também do Firestore
+                    onUpdateConfig({
+                      supabaseUrl: '',
+                      supabaseAnonKey: ''
+                    });
+                    addSupabaseLog(`[Config] Credenciais removidas localmente e na nuvem. Retornando para variáveis padrão.`);
+                    alert("Credenciais removidas com sucesso localmente e na nuvem.");
                   }}
                   className="bg-slate-800/80 border border-slate-700 hover:bg-slate-700 hover:text-white text-slate-300 px-3.5 py-1.5 rounded-md font-bold cursor-pointer transition-all font-mono"
                 >
