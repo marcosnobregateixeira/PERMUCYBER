@@ -81,7 +81,7 @@ export async function salvarDados(
   const supabaseClient = getSupabase();
   if (supabaseClient) {
     try {
-      console.log("[Fallback DB] Tentando salvar registro no Supabase (Principal)...");
+      console.log(`[Fallback DB] Tentando salvar registro [${record.titulo}] no Supabase...`);
       const { data, error } = await supabaseClient
         .from(TABLE_NAME)
         .insert([
@@ -97,14 +97,21 @@ export async function salvarDados(
         .select();
 
       if (error) {
+        console.error("[Fallback DB] ❌ Erro retornado pelo Supabase:", error);
         throw new Error(error.message);
       }
 
-       console.log("[Fallback DB] ✓ Registro salvo com sucesso no Supabase!");
-      const savedData = data ? data[0] : record;
+      console.log("[Fallback DB] ✓ Registro salvo com sucesso no Supabase!");
+      const savedData = data && data.length > 0 ? data[0] : record;
       return { success: true, source: 'supabase', id: recordId, data: { ...savedData, origem: 'supabase' } };
     } catch (supabaseError: any) {
-      console.warn("[Fallback DB] ⚠️ Falha no Supabase ao salvar dados. Acionando fallback automático do Firebase:", supabaseError);
+      console.warn("[Fallback DB] ⚠️ Falha no Supabase ao salvar dados. Causa:", supabaseError.message || supabaseError);
+      
+      if (supabaseError.message?.includes('RLS') || supabaseError.code === '42501') {
+        console.warn("[Fallback DB] 🚨 Dica: O erro parece ser de permissão (RLS). Verifique as políticas no painel do Supabase.");
+      }
+      
+      console.log("[Fallback DB] Acionando fallback automático do Firebase...");
     }
   } else {
     console.log("[Fallback DB] Supabase não configurado ou offline. Direcionando direto para o Firebase.");

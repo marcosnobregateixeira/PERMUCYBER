@@ -742,7 +742,21 @@ export default function App() {
 
   const handleAddMilitarIndividual = async (militar: Militar) => {
     try {
+      // 1. Firebase (Redundância)
       await setDoc(doc(db, 'militares', militar.id), sanitizeForFirestore(militar));
+      
+      // 2. Supabase (Principal) - Gravação Individual para visibilidade imediata no painel Supabase
+      try {
+        await salvarDados(
+          loggedUser?.id || 'SISTEMA',
+          `POLICIAL: ${militar.patente} ${militar.nomeGuerra}`,
+          `Cadastro individual do militar ID ${militar.id} (${militar.nome})`,
+          militar
+        );
+      } catch (sbErr) {
+        console.warn("Aviso: Falha na gravação individual Supabase, mas procedendo:", sbErr);
+      }
+
       const updated = [...militares, militar];
       setMilitares(updated);
       await appendAuditLog('INTEGRALIZAÇÃO', `Militar ${militar.nomeGuerra} adicionado à base de dados.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
@@ -829,9 +843,35 @@ export default function App() {
 
   const handleUpdateMilitar = async (id: string, updatedFields: Partial<Militar>) => {
     try {
+      // 1. Firestore
       await setDoc(doc(db, 'militares', id), sanitizeForFirestore(updatedFields), { merge: true });
+      
+      // 2. Local State
+      const oldMilitar = militares.find(m => m.id === id);
+      const updatedMilitar = oldMilitar ? { ...oldMilitar, ...updatedFields } : null;
+      
+      if (updatedMilitar) {
+        // 3. Salva no Supabase via Fallback
+        try {
+          await salvarDados(
+            loggedUser?.id || 'SISTEMA',
+            `ATUALIZAÇÃO: ${updatedMilitar.patente} ${updatedMilitar.nomeGuerra}`,
+            `Atualização individual do militar ID ${id}`,
+            updatedMilitar
+          );
+        } catch (err) {
+          console.warn("Falha ao salvar atualização no Supabase:", err);
+        }
+      }
+
       setMilitares(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
       await appendAuditLog('INTEGRALIZAÇÃO', `Cadastro de ${updatedFields.patente || ''} ${updatedFields.nomeGuerra || ''} foi atualizado no sistema de banco de dados.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+      
+      // Trigger auto-backup for safety
+      if (updatedMilitar) {
+        const updatedList = militares.map(p => p.id === id ? { ...p, ...updatedFields } : p);
+        await generateBackup('AUTO', loggedUser?.nomeGuerra || 'SISTEMA', updatedList);
+      }
     } catch(e) {
       console.error("Error updating militar:", e);
       alert("Erro ao atualizar policial. " + (e as Error).message);
@@ -1232,9 +1272,29 @@ export default function App() {
     }
 
     // Local fallback update
-    setPermutas(prev => prev.map(p => p.id === permutaId ? { ...p, status: 'ALTERACAO_SOLICITADA', comentarioAlteracao: comentario } : p));
+    const updatedPermutas = prev => prev.map(p => p.id === permutaId ? { ...p, status: 'ALTERACAO_SOLICITADA', comentarioAlteracao: comentario } : p);
+    setPermutas(updatedPermutas);
+
+    // Salva no Supabase via Fallback para visibilidade individual
+    try {
+      const targetP = permutas.find(p => p.id === permutaId);
+      if (targetP) {
+        await salvarDados(
+          loggedUser.id,
+          `ALTERAÇÃO SOLICITADA: Permuta ${targetP.protocoloId}`,
+          `Considerações operacionais de ${loggedUser.nomeGuerra}: ${comentario.slice(0, 50)}`,
+          { ...targetP, status: 'ALTERACAO_SOLICITADA', comentarioAlteracao: comentario }
+        );
+      }
+    } catch (sbErr) {
+      console.warn("Aviso: Falha na gravação individual Supabase (Solicitação Alteração):", sbErr);
+    }
 
     await appendAuditLog('INTEGRALIZAÇÃO', `Proposta de alteração de escala retransmitida com considerações operacionais: "${comentario.slice(0, 45)}...".`, loggedUser.nomeGuerra, logs);
+    
+    // Trigger auto-backup
+    await generateBackup('AUTO', loggedUser.nomeGuerra);
+
     setActiveReviewPermuta(null);
     setCurrentTab('PERMUTAS');
   };
@@ -1281,13 +1341,27 @@ export default function App() {
     }
 
     // Always update local state
-    setPermutas(prev => prev.map(p => p.id === permutaId ? {
+    const updatedPermutas = prev => prev.map(p => p.id === permutaId ? {
       ...p,
       status: 'APROVADO',
       assinaturaGestor: gestorSignature,
       gestorNome,
       dataAssinaturaGestor
-    } : p));
+    } : p);
+    
+    setPermutas(updatedPermutas);
+
+    // Salva no Supabase via Fallback para visibilidade individual
+    try {
+      await salvarDados(
+        loggedUser.id,
+        `HOMOLOGAÇÃO: Permuta ${targetPermuta.protocoloId}`,
+        `Permuta homologada por ${gestorNome}`,
+        { ...targetPermuta, status: 'APROVADO', gestorNome, dataAssinaturaGestor }
+      );
+    } catch (sbErr) {
+      console.warn("Aviso: Falha na gravação individual Supabase (Homologação):", sbErr);
+    }
 
     // Duplicity Prevention: Check if there's already a scale for this militar, data, and turno
     const existingEscala = escalas.find(e => 
@@ -1342,6 +1416,9 @@ export default function App() {
     }
 
     await appendAuditLog('PROCESSO_APROVADO', `Homologação oficial ativada por ${gestorNome} para protocolo ${targetPermuta.protocoloId}. Escala atualizada. Vias digitais autenticadas.`, gestorNome, logs);
+    
+    // Trigger auto-backup after significant state change
+    await generateBackup('AUTO', gestorNome);
   };
 
   const handleRejectPermutaGestor = async (permutaId: string) => {
@@ -1358,6 +1435,18 @@ export default function App() {
         gestorNome: loggedUser.nomeGuerra,
         dataAssinaturaGestor
       }), { merge: true });
+
+      // Salva no Supabase via Fallback para visibilidade individual
+      try {
+        await salvarDados(
+          loggedUser.id,
+          `REJEIÇÃO: Permuta ${targetPermuta.protocoloId}`,
+          `Permuta indeferida por ${loggedUser.nomeGuerra}`,
+          { ...targetPermuta, status: 'REJEITADO', gestorNome: loggedUser.nomeGuerra, dataAssinaturaGestor }
+        );
+      } catch (sbErr) {
+        console.warn("Aviso: Falha na gravação individual Supabase (Rejeição):", sbErr);
+      }
     } catch (e) {
       console.error("Firestore error rejecting permuta:", e);
     }
@@ -1371,6 +1460,9 @@ export default function App() {
     } : p));
 
     await appendAuditLog('PROCESSO_REJEITADO', `Permuta ID ${targetPermuta.protocoloId} rejeitada administrativamente pelo Comando de Batalhão.`, loggedUser.nomeGuerra, logs);
+
+    // Trigger auto-backup
+    await generateBackup('AUTO', loggedUser.nomeGuerra);
   };
 
   const handleTornarSemEfeitoPermuta = async (permutaId: string) => {
