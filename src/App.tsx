@@ -42,10 +42,10 @@ import {
 } from 'lucide-react';
 
 import { db, auth } from './firebase';
-import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { sanitizeForFirestore } from './firebaseUtils';
-import { setSupabaseCredentials } from './supabase';
-import { salvarDados, deletarDados, atualizarDados } from './databaseFallback';
+import { setSupabaseCredentials, getSupabase } from './supabase';
+import { salvarDados, deletarDados, atualizarDados, SYSTEM_USER_ID } from './databaseFallback';
 
 const PATENTE_ORDER: Record<string, number> = {
   'CEL': 1, 'TC': 2, 'MAJ': 3, 'CAP': 4, '1ºTEN': 5, '2ºTEN': 6, 'ASP. OF': 7, 
@@ -159,6 +159,7 @@ export default function App() {
     return { id: 'main', brasaoEsquerdoUrl: '', brasaoDireitoUrl: '' };
   });
   const [backupStatusMsg, setBackupStatusMsg] = useState<string>('Sincronização em nuvem e backups estão ativos.');
+  const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'online' | 'offline'>('offline');
 
   const [currentTab, setCurrentTab] = useState<'DASHBOARD' | 'PERMUTAS' | 'CHAT' | 'GESTAO'>('DASHBOARD');
   const [activeSwapScale, setActiveSwapScale] = useState<Escala | null>(null);
@@ -247,7 +248,172 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  // --- NOVA SINCRONIZAÇÃO EM TEMPO REAL SUPABASE ---
   useEffect(() => {
+    const supabaseClient = getSupabase();
+    if (!supabaseClient) {
+      console.log("[App] Supabase não configurado. Sincronização via Firebase será utilizada como padrão.");
+      return;
+    }
+
+    console.log("[App] Configurando Realtime Supabase para sincronização total...");
+    setRealtimeStatus('connecting');
+
+    // 1. Fetch Inicial do Supabase para garantir que todos comecem com os mesmos dados
+    const fetchInitialData = async () => {
+      try {
+        const { data, error } = await supabaseClient
+          .from('dados_app')
+          .select('*');
+        
+        if (error) {
+          // Se o erro for PGRST116 (Resource not found), a tabela não existe.
+          if (error.code === 'PGRST116' || error.message?.includes('relation "dados_app" does not exist')) {
+            console.warn("[App] Tabela 'dados_app' não encontrada no Supabase. Certifique-se de criá-la conforme as instruções.");
+            return;
+          }
+          throw error;
+        }
+
+        if (data && data.length > 0) {
+          console.log(`[App] Sincronização inicial: ${data.length} registros recuperados do Supabase.`);
+          
+          const newMilitares: Militar[] = [];
+          const newEscalas: Escala[] = [];
+          const newPermutas: Permuta[] = [];
+          const newAlertas: Alerta[] = [];
+          const newLogs: BlockchainLog[] = [];
+          const newMessages: ChatMessage[] = [];
+          const newBackups: BackupSnapshot[] = [];
+
+          data.forEach(row => {
+            const obj = row.dados_json;
+            if (!obj) return;
+
+            // Identificação robusta por propriedades únicas
+            if (obj.nomeGuerra && obj.patente && obj.companhia) newMilitares.push(obj);
+            else if (obj.turno && obj.data && obj.militarId && !obj.protocoloId) newEscalas.push(obj);
+            else if (obj.protocoloId) newPermutas.push(obj);
+            else if (obj.prioridade && obj.conteudo) newAlertas.push(obj);
+            else if (obj.hashAtual && obj.tipoEvento) newLogs.push(obj);
+            else if (obj.deMilitarId && obj.paraMilitarId && obj.conteudo) newMessages.push(obj);
+            else if (obj.quantidadeMilitares && obj.quantidadeEscalas && obj.militares) newBackups.push(obj);
+          });
+
+          if (newMilitares.length > 0) setMilitares(newMilitares.sort(sortMilitarByPatente));
+          if (newEscalas.length > 0) setEscalas(newEscalas);
+          if (newPermutas.length > 0) setPermutas(newPermutas);
+          if (newAlertas.length > 0) setAlertas(newAlertas);
+          if (newLogs.length > 0) setLogs(newLogs.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
+          if (newMessages.length > 0) setMessages(newMessages.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
+          if (newBackups.length > 0) setBackups(newBackups.sort((a,b) => b.timestamp.localeCompare(a.timestamp)));
+        } else {
+          console.log("[App] Supabase conectado, mas nenhum dado encontrado na tabela 'dados_app'.");
+        }
+      } catch (err) {
+        console.error("[App] Erro no fetch inicial Supabase:", err);
+      }
+    };
+
+    fetchInitialData();
+
+    // 2. Canal de Realtime
+    const channel = supabaseClient
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'dados_app'
+        },
+        (payload) => {
+          console.log("[Realtime] Mudança detectada:", payload.eventType);
+          
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const obj = payload.new.dados_json;
+            if (!obj) return;
+            if (obj.nomeGuerra && obj.patente && obj.companhia) {
+              setMilitares(prev => {
+                const exists = prev.some(m => m.id === obj.id);
+                if (exists) return prev.map(m => m.id === obj.id ? obj : m).sort(sortMilitarByPatente);
+                return [...prev, obj].sort(sortMilitarByPatente);
+              });
+            } else if (obj.turno && obj.data && obj.militarId && !obj.protocoloId) {
+              setEscalas(prev => {
+                const exists = prev.some(e => e.id === obj.id);
+                if (exists) return prev.map(e => e.id === obj.id ? obj : e);
+                return [...prev, obj];
+              });
+            } else if (obj.protocoloId) {
+              setPermutas(prev => {
+                const exists = prev.some(p => p.id === obj.id);
+                if (exists) return prev.map(p => p.id === obj.id ? obj : p);
+                return [...prev, obj];
+              });
+            } else if (obj.prioridade && obj.conteudo) {
+              setAlertas(prev => {
+                const exists = prev.some(a => a.id === obj.id);
+                if (exists) return prev.map(a => a.id === obj.id ? obj : a);
+                return [...prev, obj];
+              });
+            } else if (obj.hashAtual && obj.tipoEvento) {
+              setLogs(prev => {
+                const exists = prev.some(l => l.id === obj.id);
+                if (exists) return prev.map(l => l.id === obj.id ? obj : l).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
+                return [...prev, obj].sort((a,b) => a.timestamp.localeCompare(b.timestamp));
+              });
+            } else if (obj.deMilitarId && obj.paraMilitarId && obj.conteudo) {
+              setMessages(prev => {
+                const exists = prev.some(m => m.id === obj.id);
+                if (exists) return prev.map(m => m.id === obj.id ? obj : m).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
+                return [...prev, obj].sort((a,b) => a.timestamp.localeCompare(b.timestamp));
+              });
+            } else if (obj.quantidadeMilitares && obj.quantidadeEscalas && obj.militares) {
+              setBackups(prev => {
+                const exists = prev.some(b => b.id === obj.id);
+                if (exists) return prev.map(b => b.id === obj.id ? obj : b).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
+                return [obj, ...prev].sort((a,b) => b.timestamp.localeCompare(a.timestamp));
+              });
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const deletedId = payload.old.id;
+            // Como o payload old só tem o ID no Supabase realtime por padrão, 
+            // precisamos tentar remover de todas as listas onde o ID bata
+            setMilitares(prev => prev.filter(m => m.id !== deletedId));
+            setEscalas(prev => prev.filter(e => e.id !== deletedId));
+            setPermutas(prev => prev.filter(p => p.id !== deletedId));
+            setAlertas(prev => prev.filter(a => a.id !== deletedId));
+            setLogs(prev => prev.filter(l => l.id !== deletedId));
+            setMessages(prev => prev.filter(m => m.id !== deletedId));
+            setBackups(prev => prev.filter(b => b.id !== deletedId));
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log("[Realtime] Conectado e ouvindo mudanças!");
+          setRealtimeStatus('online');
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          setRealtimeStatus('offline');
+        }
+      });
+
+    return () => {
+      supabaseClient.removeChannel(channel);
+    };
+  }, [config.supabaseUrl, config.supabaseAnonKey]); // Re-bind se as chaves mudarem
+
+  useEffect(() => {
+    // Se o Supabase estiver configurado e ativo, desativamos os listeners automáticos do Firebase
+    // para que o Supabase seja a única fonte da verdade em tempo real (conforme solicitado).
+    const supabaseClient = getSupabase();
+    if (supabaseClient) {
+      console.log("[App] Sincronização em tempo real via Supabase ativa. Listeners Firebase em modo standby.");
+      setIsLoading(false);
+      return;
+    }
+
     const handleFirebaseError = (error: any) => {
       console.warn("Instabilidade de rede ou limite de cota temporário detectado. Mantendo sincronização ativa via cache:", error);
       if (error?.message?.includes("Quota exceeded") || error?.message?.includes("quota")) {
@@ -478,7 +644,7 @@ export default function App() {
         await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
         try {
           await salvarDados(
-            loggedUser?.id || 'SISTEMA',
+            SYSTEM_USER_ID,
             `POLICIAL: ${m.patente} ${m.nomeGuerra}`,
             `Cadastro sincronizado de ${m.nome}`,
             m,
@@ -494,7 +660,7 @@ export default function App() {
         await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e));
         try {
           await salvarDados(
-            loggedUser?.id || 'SISTEMA',
+            SYSTEM_USER_ID,
             `ESCALA: ${e.data} - ${e.turno}`,
             `Escala sincronizada para ${e.militarNome}`,
             e,
@@ -510,7 +676,7 @@ export default function App() {
         await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore(p));
         try {
           await salvarDados(
-            loggedUser?.id || 'SISTEMA',
+            SYSTEM_USER_ID,
             `PERMUTA: ${p.protocoloId}`,
             `Permuta sincronizada: ${p.proponenteNome} -> ${p.substitutoNome}`,
             p,
@@ -524,20 +690,24 @@ export default function App() {
       // 4. Alertas
       for (const a of alertsToPush) {
         await setDoc(doc(db, 'alertas', a.id), sanitizeForFirestore(a));
+        await salvarDados(SYSTEM_USER_ID, 'ALERTA', a.titulo, a, a.id);
       }
 
       // 5. Logs
       for (const l of logsToPush) {
         await setDoc(doc(db, 'logs', l.id), sanitizeForFirestore(l));
+        await salvarDados(SYSTEM_USER_ID, `LOG: ${l.tipoEvento}`, l.evento, l, l.id);
       }
 
       // 6. Mensagens
       for (const c of chatToPush) {
         await setDoc(doc(db, 'messages', c.id), sanitizeForFirestore(c));
+        await salvarDados(SYSTEM_USER_ID, 'MENSAGEM', 'Mensagem sincronizada', c, c.id);
       }
       
       // 7. Configurações
       await setDoc(doc(db, 'settings', 'config'), sanitizeForFirestore(configToPush));
+      await salvarDados(SYSTEM_USER_ID, 'CONFIG', 'Configurações de sistema', configToPush, 'config-system');
       
       // 8. Gerar um backup snapshot final
       const snapshot = await generateBackup('MANUAL', loggedUser?.nomeGuerra || 'SISTEMA', milToPush, escToPush, permToPush);
@@ -588,7 +758,19 @@ export default function App() {
       hashAtual: generateSimpleHash(evento, prevHash)
     };
 
-    await setDoc(doc(db, 'logs', nextLog.id), sanitizeForFirestore(nextLog));
+    try {
+      await salvarDados(
+        SYSTEM_USER_ID,
+        `LOG: ${tipoEvento}`,
+        evento,
+        nextLog,
+        nextLog.id
+      );
+    } catch (err) {
+      console.warn("Falha ao salvar log no Supabase:", err);
+      // Fallback para Firestore apenas para este log
+      try { await setDoc(doc(db, 'logs', nextLog.id), sanitizeForFirestore(nextLog)); } catch(e){}
+    }
   };
 
   const generateBackup = async (tipo: 'AUTO' | 'MANUAL', autor: string, forcedMilitares?: Militar[], forcedEscalas?: Escala[], forcedPermutas?: Permuta[]): Promise<BackupSnapshot | null> => {
@@ -631,7 +813,7 @@ export default function App() {
       const transmitToCloud = async () => {
         try {
           const dbResult = await salvarDados(
-            loggedUser?.id || 'SISTEMA',
+            SYSTEM_USER_ID,
             `Cópia de Segurança ${tipo} [${bkId}]`,
             `Snapshot integral: ${activeMilitares.length} policiais, ${activeEscalas.length} escalas, ${activePermutas.length} permutas. Gerado por ${autor}`,
             newSnapshot,
@@ -645,10 +827,12 @@ export default function App() {
             console.warn("Aviso de rede: Gravado na coleção legada agendado:", fireErr);
           }
 
-          if (dbResult.source === 'supabase') {
+          if (dbResult && dbResult.success && dbResult.source === 'supabase') {
             setBackupStatusMsg(`✓ Cópia de segurança ${tipo} [${bkId}] transmitida com sucesso para o Supabase (Principal).`);
+          } else if (dbResult && dbResult.success) {
+            setBackupStatusMsg(`✓ Cópia de segurança ${tipo} [${bkId}] transmitida com sucesso para o Firebase Cloud.`);
           } else {
-            setBackupStatusMsg(`✓ Cópia de segurança ${tipo} [${bkId}] transmitida com sucesso para o Firebase Cloud (Redundância).`);
+            setBackupStatusMsg(`⚠️ FALHA na nuvem: Backup [${bkId}] salvo apenas localmente.`);
           }
         } catch (err) {
           console.warn("Aviso de rede: Gravado localmente. Transmissão para a nuvem agendada:", err);
@@ -777,13 +961,17 @@ export default function App() {
   const handleAddMilitarIndividual = async (militar: Militar) => {
     try {
       // Supabase (Principal) - Gravação Individual
-      await salvarDados(
-        loggedUser?.id || 'SISTEMA',
+      const result = await salvarDados(
+        SYSTEM_USER_ID,
         `POLICIAL: ${militar.patente} ${militar.nomeGuerra}`,
         `Cadastro individual do militar ID ${militar.id} (${militar.nome})`,
         militar,
         militar.id
       );
+
+      if (!result || !result.success) {
+        throw new Error("Falha ao sincronizar com o Supabase.");
+      }
 
       const updated = [...militares, militar];
       setMilitares(updated);
@@ -890,7 +1078,7 @@ export default function App() {
       if (updatedMilitar) {
         // Salva no Supabase via Fallback
         await salvarDados(
-          loggedUser?.id || 'SISTEMA',
+          SYSTEM_USER_ID,
           `ATUALIZAÇÃO: ${updatedMilitar.patente} ${updatedMilitar.nomeGuerra}`,
           `Atualização individual do militar ID ${id}`,
           updatedMilitar,
@@ -909,7 +1097,7 @@ export default function App() {
   const syncMilitarToSupabase = async (militar: Militar, acao: string) => {
     try {
       await salvarDados(
-        loggedUser?.id || 'SISTEMA',
+        SYSTEM_USER_ID,
         `${acao}: ${militar.patente} ${militar.nomeGuerra}`,
         `Sincronização individual do militar ID ${militar.id}`,
         militar,
@@ -973,12 +1161,19 @@ export default function App() {
   const handleUpdateConfig = async (newConfig: Partial<AppConfig>) => {
     const updated = { ...config, ...newConfig };
     setConfig(updated);
+    
+    // Atualiza as credenciais do Supabase em tempo real se mudarem
+    if (newConfig.supabaseUrl && newConfig.supabaseAnonKey) {
+      setSupabaseCredentials(newConfig.supabaseUrl, newConfig.supabaseAnonKey);
+    }
+
     try {
       localStorage.setItem('permucyber_config', JSON.stringify(updated));
     } catch (e) {
       console.error("Local save error for config:", e);
     }
     try {
+      await salvarDados(SYSTEM_USER_ID, 'CONFIG', 'Atualização de configurações', updated, 'config-system');
       await setDoc(doc(db, 'settings', 'config'), sanitizeForFirestore(updated));
     } catch (e) {
       console.error("Error updating config:", e);
@@ -992,7 +1187,7 @@ export default function App() {
         // Supabase individual
         try {
           await salvarDados(
-            loggedUser?.id || 'SISTEMA',
+            SYSTEM_USER_ID,
             `IMPORTAÇÃO: ${m.patente} ${m.nomeGuerra}`,
             `Importação via arquivo JSON do militar ${m.nome}`,
             m,
@@ -1027,7 +1222,7 @@ export default function App() {
     };
 
     await salvarDados(
-      loggedUser.id,
+      SYSTEM_USER_ID,
       `MENSAGEM: ${loggedUser.nomeGuerra} -> ${paraMilitarId}`,
       "Mensagem de chat enviada",
       freshMessage,
@@ -1042,7 +1237,7 @@ export default function App() {
     if (!loggedUser) return;
     try {
       await salvarDados(
-        loggedUser.id,
+        SYSTEM_USER_ID,
         `PERMUTA: ${novaPermuta.protocoloId}`,
         `Solicitação de permuta criada por ${loggedUser.nomeGuerra}`,
         novaPermuta,
@@ -1141,13 +1336,16 @@ export default function App() {
     }
 
     try {
+      await atualizarDados(permutaId, { 
+        dados_json: { ...targetPermuta, status: 'PENDENTE_GESTOR', assinaturaSubstituta: peerSignature } 
+      });
       const permutaRef = doc(db, 'permutas', permutaId);
       await setDoc(permutaRef, sanitizeForFirestore({
         status: 'PENDENTE_GESTOR',
         assinaturaSubstituta: peerSignature
       }), { merge: true });
     } catch (e) {
-      console.error("Firestore error accepting permuta:", e);
+      console.error("Error accepting permuta:", e);
     }
 
     // Local fallback update
@@ -1161,10 +1359,16 @@ export default function App() {
   const handleDeclinePermuta = async (permutaId: string) => {
     if (!loggedUser) return;
     try {
+      const targetP = permutas.find(p => p.id === permutaId);
+      if (targetP) {
+        await atualizarDados(permutaId, { 
+          dados_json: { ...targetP, status: 'REJEITADO_SUBSTITUTO' } 
+        });
+      }
       const permutaRef = doc(db, 'permutas', permutaId);
       await setDoc(permutaRef, sanitizeForFirestore({ status: 'REJEITADO_SUBSTITUTO' }), { merge: true });
     } catch (e) {
-      console.error("Firestore error declining permuta:", e);
+      console.error("Error declining permuta:", e);
     }
 
     // Local fallback update
@@ -1315,14 +1519,21 @@ export default function App() {
           const dataCancelamento = new Date().toISOString();
           
           try {
-            const permutaRef = doc(db, 'permutas', p.id);
-            await setDoc(permutaRef, sanitizeForFirestore({
+            await atualizarDados(p.id, { 
+              dados_json: {
+                ...p,
+                status: 'SEM_EFEITO',
+                motivoSemEfeito: motivoStr,
+                dataCancelamentoAutomatico: dataCancelamento
+              }
+            });
+            await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore({
               status: 'SEM_EFEITO',
               motivoSemEfeito: motivoStr,
               dataCancelamentoAutomatico: dataCancelamento
             }), { merge: true });
           } catch (e) {
-            console.error("Firestore error auto-cancelling permuta:", e);
+            console.error("Error auto-cancelling permuta:", e);
           }
           
           updatedPermutas[i] = {
@@ -1347,14 +1558,20 @@ export default function App() {
 
   const handleRequestAlteration = async (permutaId: string, comentario: string) => {
     if (!loggedUser) return;
+    const targetP = permutas.find(p => p.id === permutaId);
+    if (!targetP) return;
+    
     try {
+      await atualizarDados(permutaId, { 
+        dados_json: { ...targetP, status: 'ALTERACAO_SOLICITADA', comentarioAlteracao: comentario } 
+      });
       const permutaRef = doc(db, 'permutas', permutaId);
       await setDoc(permutaRef, sanitizeForFirestore({
         status: 'ALTERACAO_SOLICITADA',
         comentarioAlteracao: comentario
       }), { merge: true });
     } catch (e) {
-      console.error("Firestore error requesting alteration:", e);
+      console.error("Error requesting alteration:", e);
     }
 
     // Local fallback update
@@ -1366,7 +1583,7 @@ export default function App() {
       const targetP = permutas.find(p => p.id === permutaId);
       if (targetP) {
         await salvarDados(
-          loggedUser.id,
+          SYSTEM_USER_ID,
           `ALTERAÇÃO SOLICITADA: Permuta ${targetP.protocoloId}`,
           `Considerações operacionais de ${loggedUser.nomeGuerra}: ${comentario.slice(0, 50)}`,
           { ...targetP, status: 'ALTERACAO_SOLICITADA', comentarioAlteracao: comentario }
@@ -1442,7 +1659,7 @@ export default function App() {
     // Salva no Supabase via Fallback para visibilidade individual
     try {
       await salvarDados(
-        loggedUser.id,
+        SYSTEM_USER_ID,
         `HOMOLOGAÇÃO: Permuta ${targetPermuta.protocoloId}`,
         `Permuta homologada por ${gestorNome}`,
         { ...targetPermuta, status: 'APROVADO', gestorNome, dataAssinaturaGestor }
@@ -1490,7 +1707,7 @@ export default function App() {
         };
         try {
           await salvarDados(
-            loggedUser.id,
+            SYSTEM_USER_ID,
             `NOVA ESCALA: ${novaEscala.data} - ${novaEscala.turno}`,
             "Escala gerada via permuta homologada",
             novaEscala,
@@ -1626,7 +1843,7 @@ export default function App() {
     };
     try {
       await salvarDados(
-        loggedUser.id,
+        SYSTEM_USER_ID,
         `MENSAGEM: SISTEMA -> ${targetPermuta.militarSubstituidoId}`,
         "Mensagem automática de aceite de permuta",
         automatedMsg,
@@ -1644,30 +1861,59 @@ export default function App() {
   };
 
   const handleUpdateAlerta = async (alertaId: string, conteudo: string, color: string, icon: string, velocidade?: number, tamanho?: number) => {
-    try {
-      const alertaData = {
-        id: alertaId,
-        prioridade: 'CRÍTICA',
-        titulo: 'ALERTA DE SEGURANÇA',
-        conteudo,
-        color,
-        icon,
-        velocidade: velocidade || 3,
-        tamanho: tamanho || 12,
-        datahora: new Date().toISOString().replace('T', ' ').slice(0, 16)
-      };
+    const alertaData = {
+      id: alertaId,
+      prioridade: 'CRÍTICA' as const,
+      titulo: 'ALERTA DE SEGURANÇA',
+      conteudo,
+      color,
+      icon,
+      velocidade: velocidade || 3,
+      tamanho: tamanho || 12,
+      datahora: new Date().toISOString().replace('T', ' ').slice(0, 16)
+    };
 
+    // 1. Update local state instantly
+    setAlertas(prev => prev.map(a => a.id === alertaId ? alertaData : a));
+
+    // 2. Save to localStorage instantly
+    try {
+      const saved = localStorage.getItem('permucyber_alertas');
+      let currentAlertas: Alerta[] = [];
+      if (saved) {
+        currentAlertas = JSON.parse(saved);
+      }
+      const updatedLocal = currentAlertas.map(a => a.id === alertaId ? alertaData : a);
+      localStorage.setItem('permucyber_alertas', JSON.stringify(updatedLocal));
+    } catch (e) {
+      console.error("Local storage error:", e);
+    }
+
+    // 3. Save to Firestore (Firebase)
+    try {
+      await setDoc(doc(db, 'alertas', alertaId), sanitizeForFirestore(alertaData));
+    } catch (e) {
+      console.error("Firestore error updating alert:", e);
+    }
+
+    // 4. Save to Supabase (Fallback DB)
+    try {
       await salvarDados(
-        loggedUser?.id || 'SISTEMA',
+        SYSTEM_USER_ID,
         'ALERTA OPERACIONAL',
         `Atualização de alerta: ${conteudo.slice(0, 30)}...`,
         alertaData,
         alertaId
       );
+    } catch (e) {
+      console.warn("Supabase save error:", e);
+    }
 
+    // 5. Append Audit Log
+    try {
       await appendAuditLog('INTEGRALIZAÇÃO', `Alerta operacional de comando atualizado: "${conteudo.slice(0, 45)}...".`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
     } catch (e) {
-      console.error("Error updating alert:", e);
+      console.error("Audit log error:", e);
     }
   };
 
@@ -1681,7 +1927,7 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col h-screen items-center justify-center bg-hud-bg text-cyber-cyan space-y-4">
+      <div className={`flex flex-col h-screen items-center justify-center bg-hud-bg text-cyber-cyan space-y-4 ${config.theme === 'pmce' ? 'theme-pmce' : config.theme === 'light' ? 'theme-light' : ''}`}>
         <div className="w-12 h-12 border-2 border-cyber-cyan/30 border-t-cyber-cyan rounded-full animate-spin" />
         <div className="text-xs font-mono uppercase tracking-widest animate-pulse">Sincronizando Base de Dados Supabase (Principal)...</div>
       </div>
@@ -1698,6 +1944,7 @@ export default function App() {
       onImportMilitaresJSON={handleImportMilitaresJSON}
       onUpdateMilitarNomeGuerra={handleUpdateMilitarNomeGuerra}
       isLoggedIn={isLoggedIn}
+      theme={config.theme}
     >
       <InstallAppBanner />
       {!isLoggedIn ? (
@@ -2194,6 +2441,19 @@ export default function App() {
 
         </div>
       )}
+      {/* Status de Sincronização */}
+      <div className="fixed bottom-4 right-4 z-50 flex items-center space-x-2 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-cyber-cyan/20 pointer-events-none">
+        <div className={`w-2 h-2 rounded-full ${
+          realtimeStatus === 'online' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' :
+          realtimeStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' :
+          'bg-red-500'
+        }`} />
+        <span className="text-[10px] font-mono uppercase tracking-tighter text-cyber-cyan/80">
+          {realtimeStatus === 'online' ? 'Nuvem Ativa' : 
+           realtimeStatus === 'connecting' ? 'Sincronizando...' : 
+           'Nuvem Offline'}
+        </span>
+      </div>
     </MilitaryMobileFrame>
   );
 }

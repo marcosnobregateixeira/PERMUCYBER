@@ -20,7 +20,7 @@ export interface AppDataRecord {
  * Nome da coleção no Firestore e da tabela no Supabase
  */
 const TABLE_NAME = 'dados_app';
-const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
+export const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 function isValidUUID(uuid: string) {
   const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -126,11 +126,11 @@ export async function salvarDados(
         .from(TABLE_NAME)
         .upsert(
           {
-            id: supabaseRecordId, // ID convertido para formato UUID
-            user_id: record.user_id,
-            titulo: record.titulo,
-            descricao: record.descricao,
-            dados_json: record.dados_json,
+            id: supabaseRecordId,
+            user_id: finalUserId,
+            titulo: titulo,
+            descricao: descricao,
+            dados_json: dadosJson, // Armazenar apenas os dados brutos, sem o wrapper AppDataRecord
             criado_em: record.criado_em
           },
           { onConflict: 'id' }
@@ -168,9 +168,8 @@ export async function salvarDados(
   }
 
   // --- FASE 2: REDUNDÂNCIA NO FIREBASE (REMOVIDA AUTOMÁTICA) ---
-  // O Firebase agora é manual. Só entraremos aqui se o Supabase falhar E o usuário explicitamente desejar.
-  // Por padrão, se o Supabase falhar, retornamos o erro para o usuário decidir se quer tentar o Firebase.
-  
+  // O Firebase agora é manual. 
+  console.error(`[Fallback DB] Erro: Supabase indisponível para salvar ${recordId}.`);
   return { success: false, source: 'supabase', id: recordId, data: { ...record, origem: 'supabase' } } as any;
 }
 

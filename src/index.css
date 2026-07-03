@@ -166,3 +166,211 @@
     color: black !important;
   }
 }
+
+/* ==========================================================================
+   DYNAMIC THEME: PMCE (POLÍCIA MILITAR DO CEARÁ)
+   ========================================================================== */
+.theme-pmce {
+  --color-cyber-blue: #006B3F;      /* Verde PMCE Oficial */
+  --color-cyber-cyan: #009e5c;      /* Verde PMCE vibrante para alta legibilidade */
+  --color-cyber-green: #FFD500;     /* Amarelo Destaque */
+  --color-cyber-amber: #FFD500;     /* Amarelo Destaque */
+  --color-cyber-red: #C62828;       /* Vermelho Alerta */
+  
+  --color-hud-bg: #03140b;          /* Verde militar escuro institucional */
+  --color-hud-board: #051e12;       /* Fundo de painel verde oliva escuro */
+  --color-hud-card: #082a1a;        /* Fundo de card verde oliva tático */
+  --color-hud-border: rgba(0, 107, 63, 0.45);
+  --color-hud-border-active: #FFD500; /* Borda ativa em amarelo destaque */
+}
+
+/* Custom glow overrides in PMCE scope */
+.theme-pmce .neon-text-blue {
+  text-shadow: 0 0 5px rgba(0, 107, 63, 0.6), 0 0 10px rgba(0, 107, 63, 0.4);
+}
+.theme-pmce .neon-text-green {
+  text-shadow: 0 0 5px rgba(255, 213, 0, 0.6), 0 0 10px rgba(255, 213, 0, 0.4);
+}
+.theme-pmce .neon-text-red {
+  text-shadow: 0 0 5px rgba(198, 40, 40, 0.6), 0 0 10px rgba(198, 40, 40, 0.4);
+}
+.theme-pmce .neon-border-blue {
+  box-shadow: 0 0 8px rgba(0, 107, 63, 0.5), inset 0 0 8px rgba(0, 107, 63, 0.2);
+}
+.theme-pmce .neon-border-green {
+  box-shadow: 0 0 8px rgba(255, 213, 0, 0.5), inset 0 0 8px rgba(255, 213, 0, 0.2);
+}
+.theme-pmce .neon-border-cyan {
+  box-shadow: 0 0 8px rgba(0, 158, 92, 0.5), inset 0 0 8px rgba(0, 158, 92, 0.2);
+}
+.theme-pmce .hologram-grid {
+  background-image: 
+    linear-gradient(rgba(0, 107, 63, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 107, 63, 0.05) 1px, transparent 1px);
+}
+.theme-pmce ::-webkit-scrollbar-track {
+  background: #03140b;
+}
+.theme-pmce ::-webkit-scrollbar-thumb {
+  background: rgba(0, 107, 63, 0.4);
+}
+.theme-pmce ::-webkit-scrollbar-thumb:hover {
+  background: #FFD500;
+}
+
+/* Background gradient shift for outer screen */
+.theme-pmce.min-h-screen {
+  background: radial-gradient(ellipse at center, #022314 0%, #011209 60%, #000905 100%) !important;
+  color: #FFD500 !important;
+}
+
+
+/* ==========================================================================
+   DYNAMIC THEME: LIGHT / PMCE BRANCO (INSTITUCIONAL LIGHT)
+   ========================================================================== */
+.theme-light {
+  --color-cyber-blue: #006B3F;      /* Verde PMCE Oficial */
+  --color-cyber-cyan: #004D2C;      /* Verde Escuro */
+  --color-cyber-green: #FF8F00;     /* Laranja/Amarelo escuro legível */
+  --color-cyber-amber: #006B3F;     /* Verde PMCE */
+  --color-cyber-red: #C62828;       /* Vermelho Alerta */
+  
+  --color-hud-bg: #FFFFFF;          /* Fundo interno branco */
+  --color-hud-board: #F3F4F6;       /* Fundo de painel cinza claro (slate-100) */
+  --color-hud-card: #E5E7EB;        /* Fundo de card cinza claro (slate-200) */
+  --color-hud-border: rgba(0, 107, 63, 0.25);
+  --color-hud-border-active: #006B3F; /* Borda ativa verde */
+}
+
+/* Custom overrides in light theme - subtle drop shadow instead of neon glow */
+.theme-light .neon-text-blue {
+  color: #006B3F !important;
+  text-shadow: none !important;
+}
+.theme-light .neon-text-green {
+  color: #004D2C !important;
+  text-shadow: none !important;
+}
+.theme-light .neon-text-red {
+  color: #C62828 !important;
+  text-shadow: none !important;
+}
+.theme-light .neon-border-blue {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+.theme-light .neon-border-green {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+.theme-light .neon-border-cyan {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+.theme-light .hologram-grid {
+  background-image: 
+    linear-gradient(rgba(0, 107, 63, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 107, 63, 0.02) 1px, transparent 1px) !important;
+}
+.theme-light ::-webkit-scrollbar-track {
+  background: #FFFFFF;
+}
+.theme-light ::-webkit-scrollbar-thumb {
+  background: rgba(0, 107, 63, 0.2);
+}
+.theme-light ::-webkit-scrollbar-thumb:hover {
+  background: #006B3F;
+}
+
+/* Background gradient shift for outer screen */
+.theme-light.min-h-screen {
+  background: radial-gradient(ellipse at center, #F3F4F6 0%, #E5E7EB 60%, #D1D5DB 100%) !important;
+  color: #111827 !important;
+}
+
+/* Avoid hiding phrases and labels on light backgrounds */
+.theme-light .text-white {
+  color: #111827 !important; /* Force to dark gray/black */
+}
+.theme-light .text-slate-100 { color: #111827 !important; }
+.theme-light .text-slate-200 { color: #1F2937 !important; }
+.theme-light .text-slate-300 { color: #374151 !important; }
+.theme-light .text-slate-400 { color: #4B5563 !important; }
+.theme-light .text-slate-500 { color: #6B7280 !important; }
+
+.theme-light .text-gray-100 { color: #111827 !important; }
+.theme-light .text-gray-200 { color: #1F2937 !important; }
+.theme-light .text-gray-300 { color: #374151 !important; }
+.theme-light .text-gray-400 { color: #4B5563 !important; }
+.theme-light .text-gray-500 { color: #6B7280 !important; }
+
+/* Keep specific text colors inside dark/colored containers legible */
+.theme-light .bg-cyber-blue .text-white,
+.theme-light .bg-cyber-green .text-white,
+.theme-light .bg-cyber-red .text-white,
+.theme-light .bg-cyber-amber .text-white,
+.theme-light .bg-emerald-600 .text-white,
+.theme-light .bg-red-600 .text-white,
+.theme-light .bg-[#006B3F] .text-white,
+.theme-light .bg-[#004D2C] .text-white,
+.theme-light .bg-black .text-white,
+.theme-light .bg-slate-900 .text-white,
+.theme-light button .text-white,
+.theme-light button.bg-cyber-blue .text-white,
+.theme-light button.bg-red-600 .text-white,
+.theme-light button.bg-cyber-red .text-white,
+.theme-light .bg-red-500\/20 .text-white,
+.theme-light .bg-red-500\/10 .text-white,
+.theme-light .bg-[#111827] .text-white,
+.theme-light .bg-slate-800 .text-white,
+.theme-light [class*="bg-cyber-"] .text-white {
+  color: #FFFFFF !important; /* Keep white text for buttons or banners with background fill */
+}
+
+/* Force specific colors for elements that have background colors */
+.theme-light .bg-cyber-blue {
+  background-color: #006B3F !important;
+}
+.theme-light .bg-cyber-cyan {
+  background-color: #009e5c !important;
+}
+.theme-light .bg-cyber-amber {
+  background-color: #FFD500 !important;
+}
+.theme-light .bg-cyber-green {
+  background-color: #009e5c !important;
+}
+.theme-light .bg-cyber-red {
+  background-color: #C62828 !important;
+}
+
+/* Fix specific backgrounds that might look too dark or need adjustment */
+.theme-light .bg-black,
+.theme-light .bg-\[\#051115\],
+.theme-light .bg-\[\#061217\],
+.theme-light .bg-\[\#03080a\],
+.theme-light .bg-\[\#040d10\] {
+  background-color: #F9FAFB !important; /* replace pure dark backgrounds with clean light ones */
+}
+
+/* Specific text inputs or textareas */
+.theme-light input,
+.theme-light textarea,
+.theme-light select {
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
+  border-color: rgba(0, 107, 63, 0.3) !important;
+}
+
+.theme-light input::placeholder,
+.theme-light textarea::placeholder {
+  color: #9CA3AF !important;
+}
+
+/* Hologram sweep and scanlines should be very subtle in light mode */
+.theme-light .scanlines {
+  background: linear-gradient(
+    rgba(255, 255, 255, 0) 50%, 
+    rgba(0, 0, 0, 0.05) 50%
+  ) !important;
+  opacity: 0.15 !important;
+}
+
+

@@ -17,6 +17,7 @@ interface MilitaryMobileFrameProps {
   onImportMilitaresJSON?: (militares: Militar[]) => void;
   onUpdateMilitarNomeGuerra?: (id: string, newNome: string) => void;
   isLoggedIn?: boolean;
+  theme?: string;
 }
 
 export default function MilitaryMobileFrame({
@@ -28,7 +29,8 @@ export default function MilitaryMobileFrame({
   onRefreshData,
   onImportMilitaresJSON,
   onUpdateMilitarNomeGuerra,
-  isLoggedIn = false
+  isLoggedIn = false,
+  theme
 }: MilitaryMobileFrameProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,14 +69,14 @@ export default function MilitaryMobileFrame({
     fileInputRef.current?.click();
   };
   return (
-    <div className="min-h-screen bg-[#020507] text-[#00e5ff] font-sans overflow-x-hidden hologram-grid flex flex-col items-center justify-center p-0 md:p-6 select-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0b1c24] via-[#03080a] to-[#010304]">
+    <div className={`min-h-screen bg-[#020507] text-[#00e5ff] font-sans overflow-x-hidden hologram-grid flex flex-col items-center justify-center p-0 md:p-6 select-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0b1c24] via-[#03080a] to-[#010304] ${theme === 'pmce' ? 'theme-pmce' : theme === 'light' ? 'theme-light' : ''}`}>
       {/* Background Holographic Sweep */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-10">
         <div className="absolute top-0 left-0 w-full h-[2px] bg-cyber-blue animate-scanline" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,#00e5ff1b,#00000000_60%)]" />
       </div>
 
-      <div className="w-full max-w-lg bg-hud-bg md:rounded-[40px] border border-hud-border/80 neon-border-blue md:h-[840px] md:max-h-[92vh] flex flex-col overflow-hidden relative shadow-[0_0_50px_rgba(0,0,0,0.8),_0_0_30px_rgba(0,229,255,0.15)]">
+      <div className={`w-full max-w-lg bg-hud-bg md:rounded-[40px] border border-hud-border/80 neon-border-blue md:h-[840px] md:max-h-[92vh] flex flex-col overflow-hidden relative shadow-[0_0_50px_rgba(0,0,0,0.8),_0_0_30px_rgba(0,229,255,0.15)] ${theme === 'pmce' ? 'theme-pmce' : theme === 'light' ? 'theme-light' : ''}`}>
         {/* CRT Scanline overlay effect */}
         <div className="absolute inset-0 scanlines pointer-events-none opacity-40 z-50 rounded-[40px]" />
 
@@ -82,12 +84,12 @@ export default function MilitaryMobileFrame({
         <div className="absolute top-2 left-6 z-20 hidden md:block">
           <div className="flex space-x-1.5 opacity-60">
             <span className="w-1.5 h-1.5 rounded-full bg-cyber-blue animate-pulse" />
-            <span className="text-[9px] font-mono tracking-widest text-[#00b0ff]">PERMUCYBER v4.95-SYS</span>
+            <span className="text-[9px] font-mono tracking-widest text-cyber-cyan">PERMUCYBER v4.95-SYS</span>
           </div>
         </div>
 
         {/* Core Screen Space with Custom military background */}
-        <div className="flex-1 flex flex-col items-stretch overflow-y-auto relative bg-[#040d11]/95 text-slate-100 p-0">
+        <div className={`flex-1 flex flex-col items-stretch overflow-y-auto relative p-0 ${theme === 'light' ? 'bg-[#FFFFFF] text-slate-900' : 'bg-[#040d11]/95 text-slate-100'}`}>
           {children}
         </div>
 

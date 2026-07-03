@@ -138,5 +138,6 @@ export interface AppConfig {
   brasaoDireitoUrl: string;
   supabaseUrl?: string;
   supabaseAnonKey?: string;
+  theme?: string;
 }
 
