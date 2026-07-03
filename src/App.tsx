@@ -75,9 +75,7 @@ export default function App() {
   const [selectedMilitarId, setSelectedMilitarId] = useState<string>(() => {
     return localStorage.getItem('permucyber_logged_id') || '';
   });
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    return localStorage.getItem('permucyber_is_logged') === 'true';
-  });
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
@@ -2084,7 +2082,6 @@ export default function App() {
             onUserSelect={handleUserChange}
             onLoginSuccess={() => {
               setIsLoggedIn(true);
-              localStorage.setItem('permucyber_is_logged', 'true');
             }}
             onUpdateMilitarPin={handleUpdateMilitarPin}
           />
