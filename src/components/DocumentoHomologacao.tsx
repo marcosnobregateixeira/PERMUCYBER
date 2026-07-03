@@ -191,7 +191,7 @@ export default function DocumentoHomologacao({
               </span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[9px]">Homologado em:</span>
+              <span className="text-slate-400 block text-[9px]">Autorizado em:</span>
               <span className="text-cyber-green font-bold block text-[10px] font-mono">
                 {permuta.dataAssinaturaGestor || '2026-06-20 12:44'}
               </span>

@@ -682,15 +682,33 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
   // ==========================================
   const formatMilitarRelatorio = (m: Militar | undefined) => {
     if (!m) return 'N/A';
-    const ranksWithNumeral = ['ST', '1ºSGT', '2ºSGT', '3ºSGT', 'CB', 'SD'];
-    const showNumeral = ranksWithNumeral.includes(m.patente);
-    const parts = m.nomeGuerra.split(' ');
-    const actualNomeGuerra = parts.length > 1 ? parts.slice(1).join(' ') : m.nomeGuerra;
     
-    if (showNumeral && m.numero) {
-      return `${m.patente} ${m.numero} ${actualNomeGuerra.toUpperCase()}`;
+    // Numeral (Badge number) MUST be displayed ONLY for: ST, 1ºSGT, 2ºSGT, 3ºSGT, CB, SD.
+    const ranksWithNumeral = ['ST', '1ºSGT', '2ºSGT', '3ºSGT', 'CB', 'SD'];
+    const showNumeral = ranksWithNumeral.includes(m.patente.toUpperCase());
+    
+    // Clean the name: remove the rank prefix and numeral if they are present at the start of nomeGuerra
+    let cleanedName = m.nomeGuerra.trim();
+    
+    // 1. Remove rank prefix if present
+    if (cleanedName.toUpperCase().startsWith(m.patente.toUpperCase())) {
+      cleanedName = cleanedName.substring(m.patente.length).trim();
     }
-    return `${m.patente} ${actualNomeGuerra.toUpperCase()}`;
+    
+    // 2. Remove numeral if it's at the start and we are showing it separately (avoid duplication)
+    if (showNumeral && m.numero && cleanedName.startsWith(m.numero)) {
+      cleanedName = cleanedName.substring(m.numero.length).trim();
+    }
+    
+    const finalName = cleanedName.toUpperCase();
+    
+    // Pattern: [RANK] [NUMERAL] [NAME]
+    if (showNumeral && m.numero) {
+      return `${m.patente} ${m.numero} ${finalName}`.trim().replace(/\s+/g, ' ');
+    }
+    
+    // For other ranks: [RANK] [NAME]
+    return `${m.patente} ${finalName}`.trim().replace(/\s+/g, ' ');
   };
 
   const getStatusServico = (p: Permuta) => {

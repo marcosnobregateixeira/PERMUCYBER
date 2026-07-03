@@ -148,7 +148,7 @@ export default function App() {
           });
         }
       }
-      return list.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+      return list.sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 3);
     } catch (e) {
       console.error("Local backups load error:", e);
     }
@@ -222,7 +222,22 @@ export default function App() {
 
   useEffect(() => {
     if (backups && backups.length > 0) {
-      try { localStorage.setItem('permucyber_backups', JSON.stringify(backups)); } catch (e) {}
+      try {
+        const allowedKeys = new Set(backups.map(b => `BACKUP_${b.id}`));
+        const keysToDelete: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('BACKUP_')) {
+            if (!allowedKeys.has(key)) {
+              keysToDelete.push(key);
+            }
+          }
+        }
+        keysToDelete.forEach(k => localStorage.removeItem(k));
+        localStorage.setItem('permucyber_backups', JSON.stringify(backups));
+      } catch (e) {
+        console.warn("localStorage backups save/prune error:", e);
+      }
     }
   }, [backups]);
 
@@ -333,7 +348,7 @@ export default function App() {
           }
           if (newLogs.length > 0) setLogs(newLogs.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
           if (newMessages.length > 0) setMessages(newMessages.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
-          if (newBackups.length > 0) setBackups(newBackups.sort((a,b) => b.timestamp.localeCompare(a.timestamp)));
+          if (newBackups.length > 0) setBackups(newBackups.sort((a,b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 3));
         } else {
           console.log("[App] Supabase conectado, mas nenhum dado encontrado na tabela 'dados_app'.");
         }
@@ -404,8 +419,10 @@ export default function App() {
             } else if (obj.quantidadeMilitares && obj.quantidadeEscalas && obj.militares) {
               setBackups(prev => {
                 const exists = prev.some(b => b.id === obj.id);
-                if (exists) return prev.map(b => b.id === obj.id ? obj : b).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
-                return [obj, ...prev].sort((a,b) => b.timestamp.localeCompare(a.timestamp));
+                const updated = exists 
+                  ? prev.map(b => b.id === obj.id ? obj : b)
+                  : [obj, ...prev];
+                return updated.sort((a,b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 3);
               });
             }
           } else if (payload.eventType === 'DELETE') {
@@ -418,7 +435,7 @@ export default function App() {
             setAlertas(prev => prev.filter(a => a.id !== deletedId));
             setLogs(prev => prev.filter(l => l.id !== deletedId));
             setMessages(prev => prev.filter(m => m.id !== deletedId));
-            setBackups(prev => prev.filter(b => b.id !== deletedId));
+            setBackups(prev => prev.filter(b => b.id !== deletedId).slice(0, 3));
           }
         }
       )
@@ -612,7 +629,7 @@ export default function App() {
             merged.push(localBk);
           }
         });
-        return merged.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+        return merged.sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 3);
       });
     }, handleFirebaseError);
 
@@ -841,7 +858,7 @@ export default function App() {
       setBackups(prev => {
         const exists = prev.some(b => b.id === newSnapshot.id);
         if (exists) return prev;
-        return [newSnapshot, ...prev].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+        return [newSnapshot, ...prev].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 3);
       });
 
       // 3. Transmite para os bancos de dados em nuvem de forma assíncrona (não-bloqueante)
@@ -2236,16 +2253,25 @@ export default function App() {
 
                             const isHomologated = p.status === 'APROVADO';
 
+                            if (isHomologated) {
+                              return (
+                                <div key={p.id} id={`my-permuta-item-${p.id}`} className="mt-1">
+                                  <DocumentoHomologacao
+                                    permuta={p}
+                                    allMilitares={militares}
+                                  />
+                                </div>
+                              );
+                            }
+
                             return (
                               <div 
                                 key={p.id}
                                 className={`bg-hud-card border rounded-xl transition-all relative overflow-hidden ${
                                   isHighlighted 
                                     ? 'border-cyber-cyan shadow-[0_0_15px_rgba(0,229,255,0.15)] scale-[1.01] z-10' 
-                                    : isHomologated 
-                                    ? 'border-cyber-green/30 opacity-90'
                                     : 'border-hud-border'
-                                } ${isHomologated ? 'p-3' : 'p-3.5 space-y-3'}`}
+                                } p-3.5 space-y-3`}
                                 id={`my-permuta-item-${p.id}`}
                               >
                                 {isHighlighted && (
@@ -2255,45 +2281,22 @@ export default function App() {
                                 <div className="flex justify-between items-start">
                                   <div className="min-w-0">
                                     <span className="text-[8px] text-slate-400 font-mono uppercase tracking-tighter">Protocolo: nº {p.protocoloId}</span>
-                                    <h4 className={`text-xs font-bold text-white tracking-wide mt-0.5 truncate ${isHomologated ? 'text-[11px]' : ''}`}>{p.postoServico}</h4>
+                                    <h4 className="text-xs font-bold text-white tracking-wide mt-0.5 truncate">{p.postoServico}</h4>
                                   </div>
                                   <span className={`text-[9px] px-1.5 py-0.5 border rounded uppercase font-bold shrink-0 ${badgeStyle}`}>
                                     {stateLabel}
                                   </span>
                                 </div>
 
-                                {!isHomologated ? (
-                                  <div className="flex justify-between items-center text-[10.5px] text-slate-400 border-t border-hud-border/30 pt-2.5">
-                                    <span className="truncate mr-2">
-                                      De: {origin?.nomeGuerra} ➔ Para: {dest?.nomeGuerra}
-                                    </span>
-                                    <div className="flex items-center text-cyber-blue font-mono shrink-0">
-                                      <Clock className="w-3 h-3 mr-1" />
-                                      <span>{formatarDataBR(p.dataRealizacao)} ({p.turno})</span>
-                                    </div>
+                                <div className="flex justify-between items-center text-[10.5px] text-slate-400 border-t border-hud-border/30 pt-2.5">
+                                  <span className="truncate mr-2">
+                                    De: {origin?.nomeGuerra} ➔ Para: {dest?.nomeGuerra}
+                                  </span>
+                                  <div className="flex items-center text-cyber-blue font-mono shrink-0">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    <span>{formatarDataBR(p.dataRealizacao)} ({p.turno})</span>
                                   </div>
-                                ) : (
-                                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-cyber-green/10">
-                                     <div className="flex items-center text-[10px] text-slate-400">
-                                       <span className="text-cyber-green/70 mr-1.5 font-bold">✓</span>
-                                       <span>{formatarDataBR(p.dataRealizacao)} • {p.turno}</span>
-                                     </div>
-                                     <div className="text-[9px] text-slate-400 font-mono text-right leading-tight">
-                                        De: {origin?.nomeGuerra}<br/>
-                                        Para: {dest?.nomeGuerra}
-                                     </div>
-                                  </div>
-                                )}
-
-                                {/* Official Digital Homologation Document */}
-                                {p.status === 'APROVADO' && (
-                                  <div className="mt-2.5">
-                                    <DocumentoHomologacao
-                                      permuta={p}
-                                      allMilitares={militares}
-                                    />
-                                  </div>
-                                )}
+                                </div>
 
                                 {/* Clicking to evaluate if peer requested alteração or actions are pending */}
                                 {p.status === 'PENDENTE_SUBSTITUTO' && p.militarSubstitutoId === loggedUser?.id && (

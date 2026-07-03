@@ -319,23 +319,8 @@ export default function PermutaFlow({
           </h3>
           
           <p className="text-[11px] text-slate-300 leading-relaxed font-sans px-2">
-            A proposta para <strong>{postoServico}</strong> no dia <strong>{formatarDataBR(selectedDate)}</strong> ({customTurno}) foi criptografada e enviada para aprovação do parceiro <strong>{lastSubstituteName}</strong>.
+            A proposta foi enviada para aprovação de <strong>{lastSubstituteName}</strong>.
           </p>
-
-          <div className="w-full bg-[#020709] border border-hud-border/70 rounded-xl p-3 text-left space-y-1.5 font-mono text-[10px]">
-            <div className="flex justify-between items-center text-[9.5px] text-slate-400">
-              <span>CÓDIGO PROTOCOLO:</span>
-              <span className="text-cyber-cyan font-bold">{lastProtocolId}</span>
-            </div>
-            <div className="flex justify-between items-center text-[9.5px] text-slate-400 border-t border-hud-border/30 pt-1.5">
-              <span>SISTEMA DE HASHING:</span>
-              <span className="text-slate-400 uppercase">SHA-256 SECURE</span>
-            </div>
-            <div className="text-[8.5px] text-cyber-green font-semibold uppercase tracking-wider flex items-center gap-1 mt-1 font-sans bg-cyber-green/10 px-2 py-1 rounded border border-cyber-green/35">
-              <span className="w-1.5 h-1.5 bg-cyber-green rounded-full animate-ping shrink-0" />
-              INTEGRIDADE DA ASSINATURA ELETRÔNICA CERTIFICADA
-            </div>
-          </div>
 
           {/* DYNAMIC REDIRECT/CHAIN BUTTONS */}
           <div className="w-full flex flex-col gap-2.5 pt-4">
