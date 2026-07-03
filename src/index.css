@@ -745,4 +745,214 @@
 }
 
 
+/* ==========================================================================
+   DYNAMIC THEME: PMCE CLARO CYBER (PREMIUM FUTURISTIC LIGHT)
+   ========================================================================== */
+.theme-pmce-claro-cyber {
+  --color-cyber-blue: #1F6B42;      /* Verde PMCE */
+  --color-cyber-cyan: #0057B8;      /* Azul institucional */
+  --color-cyber-green: #2F855A;     /* Verde hover */
+  --color-cyber-amber: #00B4FF;     /* Azul neon suave */
+  --color-cyber-red: #ff3b30;       /* Vermelho */
+
+  --color-hud-bg: #FFFFFF;          /* Fundo principal */
+  --color-hud-board: #F8FAFC;       /* Fundo secundário */
+  --color-hud-card: #FFFFFF;        /* Cards */
+  --color-hud-border: #D9E2EC;      /* Bordas suaves */
+  --color-hud-border-active: #0057B8; /* Borda ativa */
+}
+
+/* Reduzir brilho e manter neon elegante e sutil */
+.theme-pmce-claro-cyber .neon-text-blue {
+  color: #0057B8 !important;
+  text-shadow: 0 0 2px rgba(0, 87, 184, 0.15) !important;
+}
+.theme-pmce-claro-cyber .neon-text-green {
+  color: #1F6B42 !important;
+  text-shadow: 0 0 2px rgba(31, 107, 66, 0.15) !important;
+}
+.theme-pmce-claro-cyber .neon-text-red {
+  color: #ff3b30 !important;
+  text-shadow: 0 0 2px rgba(255, 59, 48, 0.15) !important;
+}
+.theme-pmce-claro-cyber .neon-border-blue {
+  border-color: #D9E2EC !important;
+  box-shadow: 0 2px 8px rgba(0, 87, 184, 0.05), 0 0 4px rgba(0, 180, 255, 0.1) !important;
+}
+.theme-pmce-claro-cyber .neon-border-green {
+  border-color: #1F6B42 !important;
+  box-shadow: 0 2px 8px rgba(31, 107, 66, 0.05), 0 0 4px rgba(31, 107, 66, 0.1) !important;
+}
+.theme-pmce-claro-cyber .neon-border-cyan {
+  border-color: #0057B8 !important;
+  box-shadow: 0 2px 8px rgba(0, 87, 184, 0.05), 0 0 4px rgba(0, 180, 255, 0.1) !important;
+}
+
+/* Grid holográfico muito sutil e limpo */
+.theme-pmce-claro-cyber .hologram-grid {
+  background-image: 
+    linear-gradient(rgba(0, 87, 184, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 87, 184, 0.015) 1px, transparent 1px) !important;
+}
+
+/* Scrollbar personalizado */
+.theme-pmce-claro-cyber ::-webkit-scrollbar-track {
+  background: #F8FAFC;
+}
+.theme-pmce-claro-cyber ::-webkit-scrollbar-thumb {
+  background: rgba(0, 87, 184, 0.15);
+  border-radius: 4px;
+}
+.theme-pmce-claro-cyber ::-webkit-scrollbar-thumb:hover {
+  background: #0057B8;
+}
+
+/* 2. AUTOMATIC ADAPTIVE CONTRASTE ENGINE */
+.theme-pmce-claro-cyber {
+  color: #111827 !important;
+}
+
+/* Forçar texto escuro em todos os elementos estruturais de texto do App */
+.theme-pmce-claro-cyber p,
+.theme-pmce-claro-cyber span:not(.text-white):not(.text-cyber-green):not(.text-cyber-cyan):not(.text-cyber-blue),
+.theme-pmce-claro-cyber h1,
+.theme-pmce-claro-cyber h2,
+.theme-pmce-claro-cyber h3,
+.theme-pmce-claro-cyber h4,
+.theme-pmce-claro-cyber h5,
+.theme-pmce-claro-cyber td,
+.theme-pmce-claro-cyber label,
+.theme-pmce-claro-cyber li,
+.theme-pmce-claro-cyber div:not(.bg-cyber-blue):not(.bg-cyber-cyan):not(.bg-emerald-600) > h4,
+.theme-pmce-claro-cyber div:not(.bg-cyber-blue):not(.bg-cyber-cyan):not(.bg-emerald-600) > p {
+  color: #111827;
+}
+
+/* Textos secundários e datas */
+.theme-pmce-claro-cyber .text-slate-400,
+.theme-pmce-claro-cyber .text-slate-500,
+.theme-pmce-claro-cyber .text-gray-400,
+.theme-pmce-claro-cyber .text-gray-500,
+.theme-pmce-claro-cyber .text-cyber-blue\/60 {
+  color: #4B5563 !important;
+}
+
+/* 3. COMPONENTES: TABELAS, FILTROS, SELECTS, BOTÕES */
+
+/* Tabelas com excelente contraste */
+.theme-pmce-claro-cyber table {
+  background-color: #FFFFFF !important;
+}
+.theme-pmce-claro-cyber th {
+  background-color: #F8FAFC !important;
+  color: #111827 !important;
+  font-weight: 700 !important;
+  border-bottom: 2px solid #D9E2EC !important;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.theme-pmce-claro-cyber td {
+  border-bottom: 1px solid #D9E2EC !important;
+  color: #111827 !important;
+}
+.theme-pmce-claro-cyber tr:hover {
+  background-color: rgba(0, 87, 184, 0.03) !important;
+}
+
+/* Inputs, Selects e Textareas */
+.theme-pmce-claro-cyber input,
+.theme-pmce-claro-cyber textarea,
+.theme-pmce-claro-cyber select {
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
+  border: 1.5px solid #D9E2EC !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important;
+  border-radius: 8px !important;
+}
+.theme-pmce-claro-cyber input:focus,
+.theme-pmce-claro-cyber textarea:focus,
+.theme-pmce-claro-cyber select:focus {
+  border-color: #1F6B42 !important;
+  box-shadow: 0 0 0 3px rgba(0, 180, 255, 0.15) !important;
+}
+.theme-pmce-claro-cyber input::placeholder,
+.theme-pmce-claro-cyber textarea::placeholder {
+  color: #9CA3AF !important;
+}
+
+/* Botões ativos */
+.theme-pmce-claro-cyber button.bg-cyber-blue,
+.theme-pmce-claro-cyber button.bg-cyber-cyan,
+.theme-pmce-claro-cyber button.bg-[#006B3F],
+.theme-pmce-claro-cyber button.bg-emerald-600,
+.theme-pmce-claro-cyber .bg-cyber-green {
+  background-color: #1F6B42 !important;
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+  text-shadow: none !important;
+}
+.theme-pmce-claro-cyber button.bg-cyber-blue:hover,
+.theme-pmce-claro-cyber button.bg-cyber-cyan:hover,
+.theme-pmce-claro-cyber button.bg-emerald-600:hover {
+  background-color: #2F855A !important;
+}
+
+/* Botões com bordas e ícones */
+.theme-pmce-claro-cyber .hover\:bg-cyber-cyan\/15:hover {
+  background-color: rgba(0, 87, 184, 0.08) !important;
+  color: #0057B8 !important;
+}
+
+/* Menu lateral */
+.theme-pmce-claro-cyber .bg-black\/30 {
+  background-color: #F8FAFC !important;
+  border-right: 1px solid #D9E2EC !important;
+}
+.theme-pmce-claro-cyber .border-hud-border\/40 {
+  border-color: #D9E2EC !important;
+}
+
+/* Sombras discretas de efeito glass leve em cards */
+.theme-pmce-claro-cyber .bg-hud-card,
+.theme-pmce-claro-cyber .bg-hud-board {
+  background-color: #FFFFFF !important;
+  border: 1px solid #D9E2EC !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.02) !important;
+}
+
+/* Forçar cores de texto brancas em badges ou botões com classes específicas de texto claro */
+.theme-pmce-claro-cyber .text-white {
+  color: #FFFFFF !important;
+}
+.theme-pmce-claro-cyber .bg-[#00ff66]/10 {
+  background-color: rgba(31, 107, 66, 0.1) !important;
+}
+
+/* Correções específicas para a visualização mobile do Android */
+.theme-pmce-claro-cyber .scanlines {
+  background: linear-gradient(
+    rgba(255, 255, 255, 0) 50%, 
+    rgba(0, 0, 0, 0.03) 50%
+  ) !important;
+  opacity: 0.1 !important;
+}
+
+/* Ajustes finos adicionais de cores específicas na interface */
+.theme-pmce-claro-cyber .text-cyber-green {
+  color: #1F6B42 !important;
+}
+.theme-pmce-claro-cyber .text-cyber-cyan {
+  color: #0057B8 !important;
+}
+.theme-pmce-claro-cyber .text-cyber-blue {
+  color: #0057B8 !important;
+}
+.theme-pmce-claro-cyber .border-cyber-blue {
+  border-color: #0057B8 !important;
+}
+.theme-pmce-claro-cyber .border-cyber-cyan {
+  border-color: #0057B8 !important;
+}
+
+
 
