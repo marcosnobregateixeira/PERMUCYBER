@@ -567,5 +567,182 @@
     linear-gradient(90deg, rgba(0, 203, 214, 0.04) 1px, transparent 1px) !important;
 }
 
+/* ==========================================================================
+   DYNAMIC THEME: PMCE CLARO PREMIUM (CORPORATIVO PREMIUM)
+   ========================================================================== */
+.theme-pmce-light {
+  --color-cyber-blue: #1F6B42;      /* Verde institucional */
+  --color-cyber-cyan: #0057B8;      /* Azul institucional */
+  --color-cyber-green: #2F855A;     /* Verde claro */
+  --color-cyber-amber: #00B4FF;     /* Azul neon suave */
+  --color-cyber-red: #C62828;       /* Vermelho Alerta */
+  
+  --color-hud-bg: #FFFFFF;          /* Fundo Branco */
+  --color-hud-board: #F8FAFC;       /* Branco gelo */
+  --color-hud-card: #FFFFFF;        /* Cards em branco com sombras suaves */
+  --color-hud-border: #E2E8F0;      /* Bordas discretas */
+  --color-hud-border-active: #1F6B42;
+}
+
+/* Reduzir brilho excessivo de neon para tema claro e aplicar cores de texto escuro legíveis */
+.theme-pmce-light .neon-text-blue {
+  color: #0057B8 !important;
+  text-shadow: none !important;
+}
+.theme-pmce-light .neon-text-green {
+  color: #1F6B42 !important;
+  text-shadow: none !important;
+}
+.theme-pmce-light .neon-text-red {
+  color: #C62828 !important;
+  text-shadow: none !important;
+}
+.theme-pmce-light .neon-border-blue {
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+}
+.theme-pmce-light .neon-border-green {
+  border-color: #1F6B42 !important;
+  box-shadow: 0 4px 6px -1px rgba(31, 107, 66, 0.08) !important;
+}
+.theme-pmce-light .neon-border-cyan {
+  border-color: #0057B8 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 87, 184, 0.08) !important;
+}
+
+/* Grid holográfico muito sutil (quase imperceptível em branco) */
+.theme-pmce-light .hologram-grid {
+  background-image: 
+    linear-gradient(rgba(0, 87, 184, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 87, 184, 0.015) 1px, transparent 1px) !important;
+}
+
+.theme-pmce-light ::-webkit-scrollbar-track {
+  background: #F8FAFC;
+}
+.theme-pmce-light ::-webkit-scrollbar-thumb {
+  background: rgba(31, 107, 66, 0.15);
+  border-radius: 4px;
+}
+.theme-pmce-light ::-webkit-scrollbar-thumb:hover {
+  background: #1F6B42;
+}
+
+/* 2. AUTOMATIC ADAPTIVE CONTRASTE ENGINE (FUNDO CLARO -> TEXTO ESCURO) */
+.theme-pmce-light {
+  color: #1A202C !important;
+}
+
+/* Forçar texto escuro em todos os elementos estruturais de texto do App */
+.theme-pmce-light p,
+.theme-pmce-light span:not(.text-white),
+.theme-pmce-light h1,
+.theme-pmce-light h2,
+.theme-pmce-light h3,
+.theme-pmce-light h4,
+.theme-pmce-light h5,
+.theme-pmce-light td,
+.theme-pmce-light label,
+.theme-pmce-light li {
+  color: #1A202C;
+}
+
+/* Legendas e textos secundários */
+.theme-pmce-light .text-slate-400,
+.theme-pmce-light .text-slate-500,
+.theme-pmce-light .text-gray-400,
+.theme-pmce-light .text-gray-500 {
+  color: #4A5568 !important;
+}
+
+/* 3. COMPONENTES: TABELAS, FILTROS, SELECTS, BOTÕES */
+
+/* Tabelas */
+.theme-pmce-light table {
+  background-color: #FFFFFF !important;
+}
+.theme-pmce-light th {
+  background-color: #F1F5F9 !important;
+  color: #1A202C !important;
+  font-weight: 700 !important;
+  border-bottom: 2px solid #E2E8F0 !important;
+}
+.theme-pmce-light td {
+  border-bottom: 1px solid #F1F5F9 !important;
+  color: #2D3748 !important;
+}
+.theme-pmce-light tr:hover {
+  background-color: #F8FAFC !important;
+}
+
+/* Inputs, Selects e Textareas */
+.theme-pmce-light input,
+.theme-pmce-light textarea,
+.theme-pmce-light select {
+  background-color: #FFFFFF !important;
+  color: #1A202C !important;
+  border: 1.5px solid #E2E8F0 !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important;
+  border-radius: 8px !important;
+}
+.theme-pmce-light input:focus,
+.theme-pmce-light textarea:focus,
+.theme-pmce-light select:focus {
+  border-color: #1F6B42 !important;
+  box-shadow: 0 0 0 3px rgba(31, 107, 66, 0.12) !important;
+}
+.theme-pmce-light input::placeholder,
+.theme-pmce-light textarea::placeholder {
+  color: #A0AEC0 !important;
+}
+
+/* Botões ativos / importantes */
+.theme-pmce-light button.bg-cyber-blue,
+.theme-pmce-light button.bg-cyber-cyan,
+.theme-pmce-light button.bg-emerald-600,
+.theme-pmce-light .bg-cyber-green {
+  background-color: #1F6B42 !important;
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+}
+.theme-pmce-light button.bg-cyber-blue:hover,
+.theme-pmce-light button.bg-cyber-cyan:hover {
+  background-color: #2F855A !important;
+}
+
+/* Botões com bordas e ícones */
+.theme-pmce-light .hover\:bg-cyber-cyan\/15:hover {
+  background-color: rgba(31, 107, 66, 0.08) !important;
+  color: #1F6B42 !important;
+}
+
+/* Menu lateral e itens ativos */
+.theme-pmce-light .bg-black\/30 {
+  background-color: #F8FAFC !important;
+  border-right: 1px solid #E2E8F0 !important;
+}
+.theme-pmce-light .border-hud-border\/40 {
+  border-color: #E2E8F0 !important;
+}
+
+/* Sombras discretas de efeito glass leve em cards */
+.theme-pmce-light .bg-hud-card,
+.theme-pmce-light .bg-hud-board {
+  background-color: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 4px 20px -2px rgba(0,0,0,0.03), 0 2px 8px -1px rgba(0,0,0,0.02) !important;
+}
+
+/* Forçar cores de texto brancas em badges ou botões com classes específicas de texto claro */
+.theme-pmce-light .text-white,
+.theme-pmce-light .text-cyber-green,
+.theme-pmce-light .text-cyber-cyan,
+.theme-pmce-light .text-cyber-blue {
+  text-shadow: none !important;
+}
+.theme-pmce-light .text-white {
+  color: #FFFFFF !important;
+}
+
 
 
