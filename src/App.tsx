@@ -308,10 +308,22 @@ export default function App() {
             }
           });
 
-          if (newMilitares.length > 0) setMilitares(newMilitares.sort(sortMilitarByPatente));
-          if (newEscalas.length > 0) setEscalas(newEscalas);
-          if (newPermutas.length > 0) setPermutas(newPermutas);
-          if (newAlertas.length > 0) setAlertas(newAlertas);
+          if (newMilitares.length > 0) {
+            const uniqueMil = newMilitares.filter((m, idx, arr) => arr.findIndex(x => x.id === m.id) === idx);
+            setMilitares(uniqueMil.sort(sortMilitarByPatente));
+          }
+          if (newEscalas.length > 0) {
+            const uniqueEsc = newEscalas.filter((e, idx, arr) => arr.findIndex(x => x.id === e.id) === idx);
+            setEscalas(uniqueEsc);
+          }
+          if (newPermutas.length > 0) {
+            const uniquePerm = newPermutas.filter((p, idx, arr) => arr.findIndex(x => x.id === p.id) === idx);
+            setPermutas(uniquePerm);
+          }
+          if (newAlertas.length > 0) {
+            const uniqueAl = newAlertas.filter((a, idx, arr) => arr.findIndex(x => x.id === a.id) === idx);
+            setAlertas(uniqueAl);
+          }
           if (newLogs.length > 0) setLogs(newLogs.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
           if (newMessages.length > 0) setMessages(newMessages.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
           if (newBackups.length > 0) setBackups(newBackups.sort((a,b) => b.timestamp.localeCompare(a.timestamp)));
@@ -979,7 +991,7 @@ export default function App() {
     const isDuplicate = militares.some(m => 
       m.nome === militar.nome || 
       (m.nomeGuerra === militar.nomeGuerra && m.patente === militar.patente) ||
-      (m.matricula && militar.matricula && m.matricula === militar.matricula)
+      (m.matriculaFuncional && militar.matriculaFuncional && m.matriculaFuncional === militar.matriculaFuncional)
     );
 
     if (isDuplicate) {
@@ -1651,7 +1663,8 @@ export default function App() {
           SYSTEM_USER_ID,
           `ALTERAÇÃO SOLICITADA: Permuta ${targetP.protocoloId}`,
           `Considerações operacionais de ${loggedUser.nomeGuerra}: ${comentario.slice(0, 50)}`,
-          { ...targetP, status: 'ALTERACAO_SOLICITADA', comentarioAlteracao: comentario }
+          { ...targetP, status: 'ALTERACAO_SOLICITADA', comentarioAlteracao: comentario },
+          targetP.id
         );
       }
     } catch (sbErr) {
@@ -1671,6 +1684,41 @@ export default function App() {
     if (!loggedUser || (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN')) return;
     const targetPermuta = permutas.find(p => p.id === permutaId);
     if (!targetPermuta) return;
+
+    // Hard check for same day and same shift conflicts
+    const isSubstitutoAlreadyApproved = permutas.some(p =>
+      p.id !== permutaId &&
+      p.status === 'APROVADO' &&
+      p.dataRealizacao === targetPermuta.dataRealizacao &&
+      p.turno === targetPermuta.turno &&
+      (p.militarSubstituidoId === targetPermuta.militarSubstitutoId || p.militarSubstitutoId === targetPermuta.militarSubstitutoId)
+    );
+    if (isSubstitutoAlreadyApproved) {
+      alert(`ERRO DE CONFLITO: O substituto já possui uma permuta homologada para esta mesma data (${formatarDataBR(targetPermuta.dataRealizacao)}) e turno (${targetPermuta.turno}).`);
+      return;
+    }
+
+    const isSubstituidoAlreadyApproved = permutas.some(p =>
+      p.id !== permutaId &&
+      p.status === 'APROVADO' &&
+      p.dataRealizacao === targetPermuta.dataRealizacao &&
+      p.turno === targetPermuta.turno &&
+      (p.militarSubstituidoId === targetPermuta.militarSubstituidoId || p.militarSubstitutoId === targetPermuta.militarSubstituidoId)
+    );
+    if (isSubstituidoAlreadyApproved) {
+      alert(`ERRO DE CONFLITO: O solicitante já possui uma permuta homologada para esta mesma data (${formatarDataBR(targetPermuta.dataRealizacao)}) e turno (${targetPermuta.turno}).`);
+      return;
+    }
+
+    const isSubstitutoEscalado = escalas.some(e =>
+      e.militarId === targetPermuta.militarSubstitutoId &&
+      e.data === targetPermuta.dataRealizacao &&
+      e.turno === targetPermuta.turno
+    );
+    if (isSubstitutoEscalado) {
+      alert(`ERRO DE CONFLITO: O substituto já está de serviço (escala oficial) nesta mesma data (${formatarDataBR(targetPermuta.dataRealizacao)}) e turno (${targetPermuta.turno}).`);
+      return;
+    }
 
     const substituto = militares.find(m => m.id === targetPermuta.militarSubstitutoId);
     if (substituto) {
@@ -1727,7 +1775,8 @@ export default function App() {
         SYSTEM_USER_ID,
         `HOMOLOGAÇÃO: Permuta ${targetPermuta.protocoloId}`,
         `Permuta homologada por ${gestorNome}`,
-        { ...targetPermuta, status: 'APROVADO', gestorNome, dataAssinaturaGestor }
+        { ...targetPermuta, status: 'APROVADO', gestorNome, dataAssinaturaGestor },
+        permutaId
       );
       await setDoc(doc(db, 'permutas', permutaId), sanitizeForFirestore({ ...targetPermuta, status: 'APROVADO', gestorNome, dataAssinaturaGestor }), { merge: true });
     } catch (sbErr) {
