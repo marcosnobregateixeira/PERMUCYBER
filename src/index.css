@@ -375,151 +375,196 @@
 
 
 /* ==========================================================================
-   DYNAMIC THEME: SAÚDE (DIRETORIA DE SAÚDE - MILITARY HEALTH GREEN & WHITE)
+   DYNAMIC THEME: ALTO CONTRASTE (OPTIMIZED NEON FOR AA/AAA READABILITY)
    ========================================================================== */
-.theme-saude {
-  --color-cyber-blue: #0C5A3E;      /* Verde Saúde Principal (Verde Escuro Militar) */
-  --color-cyber-cyan: #137C58;      /* Verde Saúde Secundário */
-  --color-cyber-green: #10855c;     /* Verde Saúde Destaque */
-  --color-cyber-amber: #11523B;     /* Verde Escuro Adicional */
-  --color-cyber-red: #C62828;       /* Vermelho Alerta */
+.theme-contrast {
+  --color-cyber-blue: #00a3e0;      /* Contrast-optimized Cyan-Blue */
+  --color-cyber-cyan: #00cbd6;      /* High-contrast Teal */
+  --color-cyber-green: #00d15e;     /* High-contrast Green */
+  --color-cyber-amber: #e09900;     /* High-contrast Amber */
+  --color-cyber-red: #ff3b30;       /* High-contrast Red */
   
-  --color-hud-bg: #FFFFFF;          /* Fundo interno branco impecável */
-  --color-hud-board: #F3F4F6;       /* Fundo de painel cinza claro (slate-100) */
-  --color-hud-card: #FFFFFF;        /* Fundo de card branco */
-  --color-hud-border: rgba(12, 90, 62, 0.2);
-  --color-hud-border-active: #0C5A3E; /* Borda ativa verde saúde */
+  --color-hud-bg: #03070a;          /* Deep pitch background for higher ratio */
+  --color-hud-board: #080e14;       /* Solid board background */
+  --color-hud-card: #10161f;        /* High-contrast card backdrop */
+  --color-hud-border: rgba(0, 203, 214, 0.4); /* Solid, defined structural borders */
+  --color-hud-border-active: #00cbd6;
 }
 
-/* Custom overrides in saude theme - subtle shadows, white card backgrounds, deep green accents */
-.theme-saude .neon-text-blue {
-  color: #0C5A3E !important;
-  text-shadow: none !important;
+/* 1. Neon Overrides in Contrast Theme - Avoid excessive blinding light while maintaining aesthetic glow */
+.theme-contrast .neon-text-blue {
+  text-shadow: 0 0 2px rgba(0, 163, 224, 0.4);
+  color: #00cbd6 !important;
 }
-.theme-saude .neon-text-green {
-  color: #137C58 !important;
-  text-shadow: none !important;
+.theme-contrast .neon-text-green {
+  text-shadow: 0 0 2px rgba(0, 209, 94, 0.4);
+  color: #00d15e !important;
 }
-.theme-saude .neon-text-red {
-  color: #C62828 !important;
-  text-shadow: none !important;
+.theme-contrast .neon-text-red {
+  text-shadow: 0 0 2px rgba(255, 59, 48, 0.4);
+  color: #ff3b30 !important;
 }
-.theme-saude .neon-border-blue {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+.theme-contrast .neon-border-blue {
+  box-shadow: 0 0 4px rgba(0, 163, 224, 0.3), inset 0 0 4px rgba(0, 163, 224, 0.15) !important;
 }
-.theme-saude .neon-border-green {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+.theme-contrast .neon-border-green {
+  box-shadow: 0 0 4px rgba(0, 209, 94, 0.3), inset 0 0 4px rgba(0, 209, 94, 0.15) !important;
 }
-.theme-saude .neon-border-cyan {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05) !important;
-}
-.theme-saude .hologram-grid {
-  background-image: 
-    linear-gradient(rgba(12, 90, 62, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(12, 90, 62, 0.02) 1px, transparent 1px) !important;
-}
-.theme-saude ::-webkit-scrollbar-track {
-  background: #FFFFFF;
-}
-.theme-saude ::-webkit-scrollbar-thumb {
-  background: rgba(12, 90, 62, 0.2);
-}
-.theme-saude ::-webkit-scrollbar-thumb:hover {
-  background: #0C5A3E;
+.theme-contrast .neon-border-cyan {
+  box-shadow: 0 0 4px rgba(0, 203, 214, 0.3), inset 0 0 4px rgba(0, 203, 214, 0.15) !important;
 }
 
 /* Background gradient shift for outer screen */
-.theme-saude.min-h-screen {
-  background: radial-gradient(ellipse at center, #F3F4F6 0%, #E5E7EB 60%, #D1D5DB 100%) !important;
-  color: #111827 !important;
+.theme-contrast.min-h-screen {
+  background: radial-gradient(ellipse at center, #051016 0%, #020609 70%, #010304 100%) !important;
+  color: #ffffff !important;
 }
 
-/* Avoid hiding phrases and labels on light backgrounds */
-.theme-saude .text-white {
-  color: #111827 !important; /* Force to dark gray/black */
-}
-.theme-saude .text-slate-100 { color: #111827 !important; }
-.theme-saude .text-slate-200 { color: #1F2937 !important; }
-.theme-saude .text-slate-300 { color: #374151 !important; }
-.theme-saude .text-slate-400 { color: #4B5563 !important; }
-.theme-saude .text-slate-500 { color: #6B7280 !important; }
+/* 2. AUTOMATIC ADAPTIVE CONTRASTE ENGINE (Detects backgrounds & applies correct text) */
 
-.theme-saude .text-gray-100 { color: #111827 !important; }
-.theme-saude .text-gray-200 { color: #1F2937 !important; }
-.theme-saude .text-gray-300 { color: #374151 !important; }
-.theme-saude .text-gray-400 { color: #4B5563 !important; }
-.theme-saude .text-gray-500 { color: #6B7280 !important; }
-
-/* Keep specific text colors inside dark/colored containers legible */
-.theme-saude .bg-cyber-blue .text-white,
-.theme-saude .bg-cyber-green .text-white,
-.theme-saude .bg-cyber-red .text-white,
-.theme-saude .bg-cyber-amber .text-white,
-.theme-saude .bg-emerald-600 .text-white,
-.theme-saude .bg-red-600 .text-white,
-.theme-saude .bg-[#0C5A3E] .text-white,
-.theme-saude .bg-[#137C58] .text-white,
-.theme-saude .bg-black .text-white,
-.theme-saude .bg-slate-900 .text-white,
-.theme-saude button .text-white,
-.theme-saude button.bg-cyber-blue .text-white,
-.theme-saude button.bg-red-600 .text-white,
-.theme-saude button.bg-cyber-red .text-white,
-.theme-saude .bg-red-500\/20 .text-white,
-.theme-saude .bg-red-500\/10 .text-white,
-.theme-saude .bg-[#111827] .text-white,
-.theme-saude .bg-slate-800 .text-white,
-.theme-saude [class*="bg-cyber-"] .text-white {
-  color: #FFFFFF !important; /* Keep white text for buttons or banners with background fill */
+/* LIGHT Background Elements inside Contrast theme: enforce high-contrast dark text and clean contrast */
+.theme-contrast .bg-white,
+.theme-contrast .bg-slate-50,
+.theme-contrast .bg-slate-100,
+.theme-contrast .bg-slate-200,
+.theme-contrast .bg-gray-100,
+.theme-contrast .bg-gray-200,
+.theme-contrast .bg-zinc-100,
+.theme-contrast .bg-zinc-200,
+.theme-contrast .bg-amber-100,
+.theme-contrast .bg-yellow-100,
+.theme-contrast .bg-amber-500\/10,
+.theme-contrast .bg-cyber-amber\/10,
+.theme-contrast [class*="bg-white"],
+.theme-contrast [class*="bg-slate-100"],
+.theme-contrast [class*="bg-slate-200"] {
+  color: #0b1419 !important; /* Rich deep slate for perfect AA/AAA contrast */
 }
 
-/* Force specific colors for elements that have background colors */
-.theme-saude .bg-cyber-blue {
-  background-color: #0C5A3E !important;
-}
-.theme-saude .bg-cyber-cyan {
-  background-color: #137C58 !important;
-}
-.theme-saude .bg-cyber-amber {
-  background-color: #11523B !important;
-}
-.theme-saude .bg-cyber-green {
-  background-color: #137C58 !important;
-}
-.theme-saude .bg-cyber-red {
-  background-color: #C62828 !important;
-}
-
-/* Fix specific backgrounds that might look too dark or need adjustment */
-.theme-saude .bg-black,
-.theme-saude .bg-\[\#051115\],
-.theme-saude .bg-\[\#061217\],
-.theme-saude .bg-\[\#03080a\],
-.theme-saude .bg-\[\#040d10\] {
-  background-color: #F9FAFB !important; /* replace pure dark backgrounds with clean light ones */
-}
-
-/* Specific text inputs or textareas */
-.theme-saude input,
-.theme-saude textarea,
-.theme-saude select {
-  background-color: #FFFFFF !important;
-  color: #111827 !important;
-  border-color: rgba(12, 90, 62, 0.3) !important;
+/* Enforce dark text inside any light container's text nodes */
+.theme-contrast .bg-white p,
+.theme-contrast .bg-white span,
+.theme-contrast .bg-white h1,
+.theme-contrast .bg-white h2,
+.theme-contrast .bg-white h3,
+.theme-contrast .bg-white h4,
+.theme-contrast .bg-white h5,
+.theme-contrast .bg-white td,
+.theme-contrast .bg-white th,
+.theme-contrast .bg-slate-100 p,
+.theme-contrast .bg-slate-100 span,
+.theme-contrast .bg-slate-100 td,
+.theme-contrast .bg-slate-100 th,
+.theme-contrast .bg-slate-200 p,
+.theme-contrast .bg-slate-200 span,
+.theme-contrast .bg-slate-200 td,
+.theme-contrast .bg-slate-200 th,
+.theme-contrast .bg-gray-100 p,
+.theme-contrast .bg-gray-100 span,
+.theme-contrast .bg-gray-200 p,
+.theme-contrast .bg-gray-200 span {
+  color: #0b1419 !important;
 }
 
-.theme-saude input::placeholder,
-.theme-saude textarea::placeholder {
-  color: #9CA3AF !important;
+/* Enforce rich dark gray for muted labels inside light containers */
+.theme-contrast .bg-white .text-slate-400,
+.theme-contrast .bg-white .text-slate-500,
+.theme-contrast .bg-slate-100 .text-slate-400,
+.theme-contrast .bg-slate-100 .text-slate-500,
+.theme-contrast .bg-slate-200 .text-slate-400,
+.theme-contrast .bg-slate-200 .text-slate-500 {
+  color: #4a5560 !important;
 }
 
-/* Hologram sweep and scanlines should be very subtle in light mode */
-.theme-saude .scanlines {
+/* Ensure pure readable light text inside dark containers */
+.theme-contrast .bg-hud-bg,
+.theme-contrast .bg-hud-card,
+.theme-contrast .bg-hud-board,
+.theme-contrast .bg-[#051115],
+.theme-contrast .bg-slate-900,
+.theme-contrast .bg-gray-900 {
+  color: #ffffff !important;
+}
+
+/* Ensure correct text matching for labels in dark containers */
+.theme-contrast .text-slate-100 { color: #f8fafc !important; }
+.theme-contrast .text-slate-200 { color: #f1f5f9 !important; }
+.theme-contrast .text-slate-300 { color: #e2e8f0 !important; }
+.theme-contrast .text-slate-400 { color: #cbd5e1 !important; } /* Highened brightness from #94a3b8 */
+.theme-contrast .text-slate-500 { color: #94a3b8 !important; }
+
+/* 3. FORCED LEGIBILITY FOR CORE USER EXPERIENCE ELEMENTS */
+
+/* Tables and Cells: beautiful high-contrast text and crisp border separation */
+.theme-contrast table,
+.theme-contrast th,
+.theme-contrast td {
+  border-color: rgba(0, 203, 214, 0.25) !important;
+}
+.theme-contrast th {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  background-color: rgba(0, 203, 214, 0.15) !important;
+}
+.theme-contrast tr:hover {
+  background-color: rgba(0, 203, 214, 0.08) !important;
+}
+
+/* Input Fields & Placeholders: ensure very high contrast border and highly visible typing area */
+.theme-contrast input,
+.theme-contrast textarea,
+.theme-contrast select {
+  background-color: #050a0f !important;
+  color: #ffffff !important;
+  border: 1.5px solid rgba(0, 203, 214, 0.6) !important; /* solid thicker border */
+  border-radius: 6px !important;
+}
+.theme-contrast input:focus,
+.theme-contrast textarea:focus,
+.theme-contrast select:focus {
+  border-color: #00cbd6 !important;
+  box-shadow: 0 0 6px rgba(0, 203, 214, 0.4) !important;
+}
+.theme-contrast input::placeholder,
+.theme-contrast textarea::placeholder {
+  color: #94a3b8 !important; /* highly visible placeholder */
+  opacity: 0.95 !important;
+}
+
+/* Menu items & Sidebars: crisp text links */
+.theme-contrast .hover\:bg-cyber-cyan\/15:hover {
+  background-color: rgba(0, 203, 214, 0.2) !important;
+  color: #ffffff !important;
+}
+.theme-contrast .hover\:text-white:hover {
+  color: #ffffff !important;
+}
+
+/* Buttons inside high-contrast theme: ensure buttons are solid with crisp white text */
+.theme-contrast button:not([disabled]) {
+  text-shadow: none !important;
+}
+.theme-contrast .bg-cyber-blue,
+.theme-contrast .bg-cyber-cyan,
+.theme-contrast .bg-[#006B3F],
+.theme-contrast .bg-red-600,
+.theme-contrast .bg-cyber-red,
+.theme-contrast .bg-emerald-600 {
+  color: #ffffff !important;
+}
+
+/* Ambient glow scanlines & hologram grid adjustments in high-contrast mode */
+.theme-contrast .scanlines {
   background: linear-gradient(
-    rgba(255, 255, 255, 0) 50%, 
-    rgba(0, 0, 0, 0.05) 50%
+    rgba(16, 22, 31, 0) 50%, 
+    rgba(0, 0, 0, 0.3) 50%
   ) !important;
-  opacity: 0.15 !important;
+  opacity: 0.25 !important;
+}
+.theme-contrast .hologram-grid {
+  background-image: 
+    linear-gradient(rgba(0, 203, 214, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 203, 214, 0.04) 1px, transparent 1px) !important;
 }
 
 

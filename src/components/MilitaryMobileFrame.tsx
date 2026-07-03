@@ -69,14 +69,14 @@ export default function MilitaryMobileFrame({
     fileInputRef.current?.click();
   };
   return (
-    <div className={`min-h-screen bg-[#020507] text-[#00e5ff] font-sans overflow-x-hidden hologram-grid flex flex-col items-center justify-center p-0 md:p-6 select-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0b1c24] via-[#03080a] to-[#010304] ${theme === 'pmce' ? 'theme-pmce' : theme === 'light' ? 'theme-light' : theme === 'saude' ? 'theme-saude' : ''}`}>
+    <div className={`min-h-screen bg-[#020507] text-[#00e5ff] font-sans overflow-x-hidden hologram-grid flex flex-col items-center justify-center p-0 md:p-6 select-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0b1c24] via-[#03080a] to-[#010304] ${theme === 'pmce' ? 'theme-pmce' : theme === 'light' ? 'theme-light' : theme === 'contrast' ? 'theme-contrast' : ''}`}>
       {/* Background Holographic Sweep */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-10">
         <div className="absolute top-0 left-0 w-full h-[2px] bg-cyber-blue animate-scanline" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,#00e5ff1b,#00000000_60%)]" />
       </div>
 
-      <div className={`w-full max-w-lg bg-hud-bg md:rounded-[40px] border border-hud-border/80 neon-border-blue md:h-[840px] md:max-h-[92vh] flex flex-col overflow-hidden relative shadow-[0_0_50px_rgba(0,0,0,0.8),_0_0_30px_rgba(0,229,255,0.15)] ${theme === 'pmce' ? 'theme-pmce' : theme === 'light' ? 'theme-light' : theme === 'saude' ? 'theme-saude' : ''}`}>
+      <div className={`w-full max-w-lg bg-hud-bg md:rounded-[40px] border border-hud-border/80 neon-border-blue md:h-[840px] md:max-h-[92vh] flex flex-col overflow-hidden relative shadow-[0_0_50px_rgba(0,0,0,0.8),_0_0_30px_rgba(0,229,255,0.15)] ${theme === 'pmce' ? 'theme-pmce' : theme === 'light' ? 'theme-light' : theme === 'contrast' ? 'theme-contrast' : ''}`}>
         {/* CRT Scanline overlay effect */}
         <div className="absolute inset-0 scanlines pointer-events-none opacity-40 z-50 rounded-[40px]" />
 
@@ -89,7 +89,7 @@ export default function MilitaryMobileFrame({
         </div>
 
         {/* Core Screen Space with Custom military background */}
-        <div className={`flex-1 flex flex-col items-stretch overflow-y-auto relative p-0 ${theme === 'light' || theme === 'saude' ? 'bg-[#FFFFFF] text-slate-900' : 'bg-[#040d11]/95 text-slate-100'}`}>
+        <div className={`flex-1 flex flex-col items-stretch overflow-y-auto relative p-0 ${theme === 'light' ? 'bg-[#FFFFFF] text-slate-900' : theme === 'contrast' ? 'bg-[#030608] text-white' : 'bg-[#040d11]/95 text-slate-100'}`}>
           {children}
         </div>
 

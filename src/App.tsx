@@ -64,13 +64,22 @@ const isRosterDefault = (list: Militar[]) => {
   return list.every(m => MILITARES.some(dm => dm.id === m.id));
 };
 
+const healSpecialUsers = (list: Militar[]): Militar[] => {
+  return list.map(m => {
+    if ((m.role === 'ADMIN' || m.role === 'COMANDANTE') && m.acessoLiberado === false) {
+      return { ...m, acessoLiberado: true };
+    }
+    return m;
+  });
+};
+
 export default function App() {
   const [militares, setMilitares] = useState<Militar[]>(() => {
     try {
       const saved = localStorage.getItem('permucyber_militares');
-      if (saved) return JSON.parse(saved);
+      if (saved) return healSpecialUsers(JSON.parse(saved));
     } catch (e) {}
-    return MILITARES;
+    return healSpecialUsers(MILITARES);
   });
   const [selectedMilitarId, setSelectedMilitarId] = useState<string>(() => {
     return localStorage.getItem('permucyber_logged_id') || '';
@@ -448,12 +457,12 @@ export default function App() {
     // 1. Registra IMEDIATAMENTE os listeners em tempo real para sincronização instantânea
     const unsubMilitares = onSnapshot(collection(db, 'militares'), (snap) => {
       setFirebaseError(null);
-      const list = snap.docs.map(d => ({ ...d.data() as Militar, id: d.id }));
+      const list = healSpecialUsers(snap.docs.map(d => ({ ...d.data() as Militar, id: d.id })));
 
       const savedLocalMilStr = localStorage.getItem('permucyber_militares');
       let localMilList: Militar[] = [];
       try {
-        if (savedLocalMilStr) localMilList = JSON.parse(savedLocalMilStr);
+        if (savedLocalMilStr) localMilList = healSpecialUsers(JSON.parse(savedLocalMilStr));
       } catch (e) {}
 
       const hasCustomLocal = localMilList.length > 0 && !isRosterDefault(localMilList);
@@ -1186,17 +1195,21 @@ export default function App() {
   };
 
   const handleUpdateMilitarPin = async (id: string, newPin: string, email?: string) => {
-    const updates: any = { pinSegurança: newPin, acessoLiberado: false };
-    if (email) {
-      updates.email = email;
-    }
     try { 
       const target = militares.find(p => p.id === id);
+      const isSpecial = target?.role === 'ADMIN' || target?.role === 'COMANDANTE';
+      const updates: any = { pinSegurança: newPin, acessoLiberado: isSpecial ? true : false };
+      if (email) {
+        updates.email = email;
+      }
       if (target) {
         const updated = { ...target, ...updates };
         await atualizarDados(id, { dados_json: updated });
         setMilitares(prev => prev.map(p => p.id === id ? updated : p));
-        await appendAuditLog('INTEGRALIZAÇÃO', `Militar ID ${id} atualizou seu token / PIN de segurança criptográfica pessoal e e-mail (${email || 'não informado'}). Acesso bloqueado aguardando liberação do administrador.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+        const logMsg = isSpecial 
+          ? `Administrador/Comandante ID ${id} atualizou seu token / PIN de segurança pessoal e e-mail. Acesso mantido liberado.`
+          : `Militar ID ${id} atualizou seu token / PIN de segurança criptográfica pessoal e e-mail (${email || 'não informado'}). Acesso bloqueado aguardando liberação do administrador.`;
+        await appendAuditLog('INTEGRALIZAÇÃO', logMsg, loggedUser?.nomeGuerra || 'SISTEMA', logs);
       }
     } catch(e) { alert("Erro ao modificar PIN: " + (e as Error).message); }
   };
@@ -2042,7 +2055,7 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className={`flex flex-col h-screen items-center justify-center bg-hud-bg text-cyber-cyan space-y-4 ${config.theme === 'pmce' ? 'theme-pmce' : config.theme === 'light' ? 'theme-light' : config.theme === 'saude' ? 'theme-saude' : ''}`}>
+      <div className={`flex flex-col h-screen items-center justify-center bg-hud-bg text-cyber-cyan space-y-4 ${config.theme === 'pmce' ? 'theme-pmce' : config.theme === 'light' ? 'theme-light' : config.theme === 'contrast' ? 'theme-contrast' : ''}`}>
         <div className="w-12 h-12 border-2 border-cyber-cyan/30 border-t-cyber-cyan rounded-full animate-spin" />
         <div className="text-xs font-mono uppercase tracking-widest animate-pulse">Sincronizando Base de Dados Supabase (Principal)...</div>
       </div>

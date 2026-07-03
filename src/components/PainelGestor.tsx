@@ -1725,12 +1725,12 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
               Altere a paleta de cores geral do sistema tático em tempo real. A preferência selecionada é sincronizada instantaneamente na nuvem para todos os dispositivos conectados.
             </p>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => onUpdateConfig({ theme: 'neon' })}
-                className={`py-2 px-1.5 rounded-lg border font-mono text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
-                  (config.theme !== 'pmce' && config.theme !== 'light' && config.theme !== 'saude')
+                className={`py-2 px-1 rounded-lg border font-mono text-[9px] font-bold uppercase transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
+                  (config.theme !== 'pmce' && config.theme !== 'light' && config.theme !== 'contrast')
                     ? 'bg-cyber-blue/10 border-cyber-blue text-white shadow-[0_0_10px_rgba(0,242,255,0.15)] font-black'
                     : 'bg-black/40 border-hud-border/40 text-slate-400 hover:border-hud-border hover:text-slate-300'
                 }`}
@@ -1739,13 +1739,13 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                   <span className="w-1.5 h-1.5 rounded-full bg-cyber-blue shadow-[0_0_5px_#00f2ff]" />
                   <span className="w-1.5 h-1.5 rounded-full bg-cyber-green shadow-[0_0_5px_#00ff41]" />
                 </div>
-                <span className="tracking-tight text-[8.5px] whitespace-nowrap">Neon Original</span>
+                <span className="tracking-tight text-[8px] whitespace-nowrap">Neon Original</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onUpdateConfig({ theme: 'pmce' })}
-                className={`py-2 px-1.5 rounded-lg border font-mono text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
+                className={`py-2 px-1 rounded-lg border font-mono text-[9px] font-bold uppercase transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
                   (config.theme === 'pmce')
                     ? 'bg-cyber-blue/10 border-cyber-blue text-white shadow-[0_0_10px_rgba(0,242,255,0.15)] font-black'
                     : 'bg-black/40 border-hud-border/40 text-slate-400 hover:border-hud-border hover:text-slate-300'
@@ -1755,13 +1755,13 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                   <span className="w-1.5 h-1.5 rounded-full bg-[#006B3F] border border-white/20" />
                   <span className="w-1.5 h-1.5 rounded-full bg-[#FFD500] shadow-[0_0_5px_#FFD500]" />
                 </div>
-                <span className="tracking-tight text-[8.5px] whitespace-nowrap">PMCE Verde</span>
+                <span className="tracking-tight text-[8px] whitespace-nowrap">PMCE Verde</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onUpdateConfig({ theme: 'light' })}
-                className={`py-2 px-1.5 rounded-lg border font-mono text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
+                className={`py-2 px-1 rounded-lg border font-mono text-[9px] font-bold uppercase transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
                   (config.theme === 'light')
                     ? 'bg-cyber-blue/10 border-cyber-blue text-white shadow-[0_0_10px_rgba(0,242,255,0.15)] font-black'
                     : 'bg-black/40 border-hud-border/40 text-slate-400 hover:border-hud-border hover:text-slate-300'
@@ -1771,23 +1771,23 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                   <span className="w-1.5 h-1.5 rounded-full bg-white border border-slate-400" />
                   <span className="w-1.5 h-1.5 rounded-full bg-[#006B3F] border border-white/20" />
                 </div>
-                <span className="tracking-tight text-[8.5px] whitespace-nowrap">PMCE Branco</span>
+                <span className="tracking-tight text-[8px] whitespace-nowrap">PMCE Branco</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => onUpdateConfig({ theme: 'saude' })}
-                className={`py-2 px-1.5 rounded-lg border font-mono text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
-                  (config.theme === 'saude')
-                    ? 'bg-[#0C5A3E]/10 border-[#0C5A3E] text-white shadow-[0_0_10px_rgba(12,90,62,0.3)] font-black'
+                onClick={() => onUpdateConfig({ theme: 'contrast' })}
+                className={`py-2 px-1 rounded-lg border font-mono text-[9px] font-bold uppercase transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
+                  (config.theme === 'contrast')
+                    ? 'bg-cyber-blue/10 border-cyber-blue text-white shadow-[0_0_10px_rgba(0,242,255,0.15)] font-black'
                     : 'bg-black/40 border-hud-border/40 text-slate-400 hover:border-hud-border hover:text-slate-300'
                 }`}
               >
                 <div className="flex space-x-1 items-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#0C5A3E] border border-white/20" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-white border border-slate-400" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-black border border-white" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#00e5ff] shadow-[0_0_5px_#00e5ff]" />
                 </div>
-                <span className="tracking-tight text-[8.5px] whitespace-nowrap">PMCE Saúde</span>
+                <span className="tracking-tight text-[8px] whitespace-nowrap">Alto Contraste</span>
               </button>
             </div>
           </div>

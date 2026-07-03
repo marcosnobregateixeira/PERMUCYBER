@@ -159,7 +159,7 @@ export default function BiometricLogin({
 
     // Default or personalized pin security code check
     if (pin === userLogged?.pinSegurança) {
-      if (userLogged?.acessoLiberado === false) {
+      if (userLogged?.acessoLiberado === false && userLogged?.role !== 'ADMIN' && userLogged?.role !== 'COMANDANTE') {
         setErrorText('SUA CREDENCIAL FOI SALVA, MAS O SEU ACESSO ESTÁ BLOQUEADO AGUARDANDO LIBERAÇÃO DO ADMINISTRADOR.');
         return;
       }
@@ -298,29 +298,14 @@ export default function BiometricLogin({
                 <button
                   type="button"
                   onClick={() => {
-                    if (userLogged) {
-                      setActiveTab('CUSTOM_TOKEN');
-                    } else {
-                      setErrorText('Selecione um usuário primeiro.');
-                      setTimeout(() => setErrorText(null), 3000);
-                    }
+                    setErrorText('A MODIFICAÇÃO DE TOKEN FOI BLOQUEADA NESTA TÁBULA DE LOGIN PARA GARANTIR MÁXIMA SEGURANÇA.');
+                    setTimeout(() => setErrorText(null), 5000);
                   }}
-                  className={`flex-1 py-1.5 text-[9.5px] font-mono uppercase font-bold tracking-wider transition-all border-b-2 flex items-center justify-center space-x-1 relative ${
-                    activeTab === 'CUSTOM_TOKEN'
-                      ? 'border-cyber-green text-white bg-cyber-green/5'
-                      : userLogged
-                      ? 'border-transparent text-[#00ff66]/80 hover:text-[#00ff66] cursor-pointer'
-                      : 'border-transparent text-slate-600 cursor-not-allowed'
-                  }`}
+                  className="flex-1 py-1.5 text-[9.5px] font-mono uppercase font-bold tracking-wider transition-all border-b-2 border-transparent text-slate-500/70 hover:text-cyber-red cursor-not-allowed flex items-center justify-center space-x-1 relative"
                 >
-                  <Lock className={`w-3.5 h-3.5 ${userLogged ? 'text-cyber-green' : 'text-slate-600'}`} />
+                  <Lock className="w-3.5 h-3.5 text-cyber-red/80 shrink-0" />
                   <span>2. Modificar Token</span>
-                  {!userLogged && (
-                    <span className="absolute top-1.5 right-1 px-1 bg-cyber-red/20 text-cyber-red border border-cyber-red/35 rounded-sm text-[6.5px] scale-90">Bloqueado</span>
-                  )}
-                  {userLogged && (
-                    <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-cyber-green rounded-full animate-ping" />
-                  )}
+                  <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-cyber-red/20 text-cyber-red border border-cyber-red/30 rounded text-[6.5px] font-extrabold uppercase tracking-tighter">Bloqueado</span>
                 </button>
               </div>
 
