@@ -96,8 +96,16 @@ export default function BiometricLogin({
       return a.nomeGuerra.localeCompare(b.nomeGuerra);
     });
 
+  const isSearchActive = searchQuery.trim().length > 0;
+  const isCorrectSearch = userLogged && (
+    userLogged.nome.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    userLogged.nomeGuerra.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    searchQuery.toLowerCase().includes(userLogged.nomeGuerra.toLowerCase())
+  );
+  const shouldShowInfo = !!(userLogged && isSearchActive && isCorrectSearch);
+
   const handleStartScan = () => {
-    if (!userLogged || scanState === 'SCANNING') return;
+    if (!shouldShowInfo || !userLogged || scanState === 'SCANNING') return;
     setScanState('SCANNING');
     setErrorText(null);
 
@@ -252,7 +260,7 @@ export default function BiometricLogin({
                             key={u.id}
                             onMouseDown={() => {
                               onUserSelect(u.id);
-                              setSearchQuery('');
+                              setSearchQuery(`${u.patente} ${u.nomeGuerra}`);
                               setShowSuggestions(false);
                             }}
                             className="p-2 text-[11px] font-mono hover:bg-cyber-cyan/15 text-slate-200 hover:text-white cursor-pointer transition-all flex justify-between items-center"
@@ -332,7 +340,9 @@ export default function BiometricLogin({
                       <div className="min-w-0 flex-1">
                         <div className="text-[7.5px] text-cyber-cyan font-mono uppercase tracking-widest font-extrabold">PM Selecionado</div>
                         <div className="text-[12px] font-extrabold text-white truncate uppercase h-5 flex items-center">
-                          {userLogged ? userLogged.nome : (
+                          {userLogged ? (
+                            shouldShowInfo ? userLogged.nome : "🔒 IDENTIDADE CRIPTOGRAFADA"
+                          ) : (
                             <span className="flex space-x-1.5">
                               <span className="w-1.5 h-1.5 bg-cyber-cyan rounded-full animate-pulse"></span>
                               <span className="w-1.5 h-1.5 bg-cyber-cyan rounded-full animate-pulse [animation-delay:200ms]"></span>
@@ -342,7 +352,11 @@ export default function BiometricLogin({
                         </div>
                         <div className="text-[8.5px] font-mono text-slate-400 h-4">
                           {userLogged ? (
-                            <>ID: <span className="text-cyber-green font-bold">{userLogged.id}</span> • POST/GRAD: <span className="text-white uppercase font-bold">{userLogged.patente}</span></>
+                            shouldShowInfo ? (
+                              <>ID: <span className="text-cyber-green font-bold">{userLogged.id}</span> • POST/GRAD: <span className="text-white uppercase font-bold">{userLogged.patente}</span></>
+                            ) : (
+                              <span className="text-cyber-yellow/80 font-bold">PESQUISE SEU NOME PARA EXIBIR</span>
+                            )
                           ) : (
                             <span className="text-[7px] text-slate-600 opacity-40 uppercase tracking-tighter italic">Selecione um Terminal Militar...</span>
                           )}
@@ -353,12 +367,14 @@ export default function BiometricLogin({
                     <div className="border-t border-hud-border/40 pt-2 grid grid-cols-2 gap-2 text-[8.5px] font-mono">
                       <div>
                         <span className="text-slate-400 uppercase font-black">Setor:</span>
-                        <p className="text-slate-200 truncate h-3">{userLogged ? (userLogged.setor || userLogged.companhia) : '---'}</p>
+                        <p className="text-slate-200 truncate h-3">
+                          {userLogged ? (shouldShowInfo ? (userLogged.setor || userLogged.companhia) : 'PROTEGIDO') : '---'}
+                        </p>
                       </div>
                       <div>
                         <span className="text-slate-400 uppercase font-black">Biometria:</span>
-                        <p className={userLogged ? (userLogged.biometriaAtiva ? 'text-cyber-green font-bold' : 'text-cyber-red font-bold') : 'text-slate-700 font-bold h-3'}>
-                          {userLogged ? (userLogged.biometriaAtiva ? 'INTEGRADA' : 'INATIVA') : '---'}
+                        <p className={userLogged ? (shouldShowInfo ? (userLogged.biometriaAtiva ? 'text-cyber-green font-bold' : 'text-cyber-red font-bold') : 'text-slate-500 font-bold h-3') : 'text-slate-700 font-bold h-3'}>
+                          {userLogged ? (shouldShowInfo ? (userLogged.biometriaAtiva ? 'INTEGRADA' : 'INATIVA') : 'PROTEGIDA') : '---'}
                         </p>
                       </div>
                     </div>
@@ -367,9 +383,9 @@ export default function BiometricLogin({
                   {/* Fingerprint Laser scanning pad */}
                   <button
                     onClick={handleStartScan}
-                    disabled={!userLogged || scanState === 'SCANNING'}
+                    disabled={!shouldShowInfo || scanState === 'SCANNING'}
                     className={`relative w-36 h-36 rounded-full flex flex-col items-center justify-center focus:outline-none transition-all duration-300 border overflow-hidden cursor-pointer ${
-                      !userLogged 
+                      !shouldShowInfo 
                         ? 'bg-black/40 border-hud-border/20 grayscale cursor-not-allowed opacity-50'
                         : scanState === 'SCANNING'
                         ? 'bg-cyber-cyan/5 border-cyber-blue shadow-[0_0_25px_rgba(0,229,255,0.2)]'
@@ -393,7 +409,9 @@ export default function BiometricLogin({
 
                     <Fingerprint
                       className={`w-16 h-16 transition-all duration-300 ${
-                        scanState === 'SCANNING'
+                        !shouldShowInfo
+                          ? 'text-slate-600 scale-90'
+                          : scanState === 'SCANNING'
                           ? 'text-cyber-blue scale-105'
                           : scanState === 'GRANTED'
                           ? 'text-cyber-green scale-105'
@@ -403,8 +421,10 @@ export default function BiometricLogin({
                       }`}
                     />
 
-                    <span className="text-[8px] font-mono tracking-widest mt-1.5 uppercase text-cyber-cyan/80">
-                      {scanState === 'SCANNING'
+                    <span className="text-[8.5px] font-mono tracking-widest mt-1.5 uppercase text-cyber-cyan/80 text-center px-2">
+                      {!shouldShowInfo
+                        ? 'BUSQUE SEU NOME'
+                        : scanState === 'SCANNING'
                         ? 'AUTENTICANDO...'
                         : scanState === 'GRANTED'
                         ? 'AUTORIZADO'

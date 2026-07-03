@@ -374,3 +374,153 @@
 }
 
 
+/* ==========================================================================
+   DYNAMIC THEME: SAÚDE (DIRETORIA DE SAÚDE - MILITARY HEALTH GREEN & WHITE)
+   ========================================================================== */
+.theme-saude {
+  --color-cyber-blue: #0C5A3E;      /* Verde Saúde Principal (Verde Escuro Militar) */
+  --color-cyber-cyan: #137C58;      /* Verde Saúde Secundário */
+  --color-cyber-green: #10855c;     /* Verde Saúde Destaque */
+  --color-cyber-amber: #11523B;     /* Verde Escuro Adicional */
+  --color-cyber-red: #C62828;       /* Vermelho Alerta */
+  
+  --color-hud-bg: #FFFFFF;          /* Fundo interno branco impecável */
+  --color-hud-board: #F3F4F6;       /* Fundo de painel cinza claro (slate-100) */
+  --color-hud-card: #FFFFFF;        /* Fundo de card branco */
+  --color-hud-border: rgba(12, 90, 62, 0.2);
+  --color-hud-border-active: #0C5A3E; /* Borda ativa verde saúde */
+}
+
+/* Custom overrides in saude theme - subtle shadows, white card backgrounds, deep green accents */
+.theme-saude .neon-text-blue {
+  color: #0C5A3E !important;
+  text-shadow: none !important;
+}
+.theme-saude .neon-text-green {
+  color: #137C58 !important;
+  text-shadow: none !important;
+}
+.theme-saude .neon-text-red {
+  color: #C62828 !important;
+  text-shadow: none !important;
+}
+.theme-saude .neon-border-blue {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+.theme-saude .neon-border-green {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+.theme-saude .neon-border-cyan {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+.theme-saude .hologram-grid {
+  background-image: 
+    linear-gradient(rgba(12, 90, 62, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(12, 90, 62, 0.02) 1px, transparent 1px) !important;
+}
+.theme-saude ::-webkit-scrollbar-track {
+  background: #FFFFFF;
+}
+.theme-saude ::-webkit-scrollbar-thumb {
+  background: rgba(12, 90, 62, 0.2);
+}
+.theme-saude ::-webkit-scrollbar-thumb:hover {
+  background: #0C5A3E;
+}
+
+/* Background gradient shift for outer screen */
+.theme-saude.min-h-screen {
+  background: radial-gradient(ellipse at center, #F3F4F6 0%, #E5E7EB 60%, #D1D5DB 100%) !important;
+  color: #111827 !important;
+}
+
+/* Avoid hiding phrases and labels on light backgrounds */
+.theme-saude .text-white {
+  color: #111827 !important; /* Force to dark gray/black */
+}
+.theme-saude .text-slate-100 { color: #111827 !important; }
+.theme-saude .text-slate-200 { color: #1F2937 !important; }
+.theme-saude .text-slate-300 { color: #374151 !important; }
+.theme-saude .text-slate-400 { color: #4B5563 !important; }
+.theme-saude .text-slate-500 { color: #6B7280 !important; }
+
+.theme-saude .text-gray-100 { color: #111827 !important; }
+.theme-saude .text-gray-200 { color: #1F2937 !important; }
+.theme-saude .text-gray-300 { color: #374151 !important; }
+.theme-saude .text-gray-400 { color: #4B5563 !important; }
+.theme-saude .text-gray-500 { color: #6B7280 !important; }
+
+/* Keep specific text colors inside dark/colored containers legible */
+.theme-saude .bg-cyber-blue .text-white,
+.theme-saude .bg-cyber-green .text-white,
+.theme-saude .bg-cyber-red .text-white,
+.theme-saude .bg-cyber-amber .text-white,
+.theme-saude .bg-emerald-600 .text-white,
+.theme-saude .bg-red-600 .text-white,
+.theme-saude .bg-[#0C5A3E] .text-white,
+.theme-saude .bg-[#137C58] .text-white,
+.theme-saude .bg-black .text-white,
+.theme-saude .bg-slate-900 .text-white,
+.theme-saude button .text-white,
+.theme-saude button.bg-cyber-blue .text-white,
+.theme-saude button.bg-red-600 .text-white,
+.theme-saude button.bg-cyber-red .text-white,
+.theme-saude .bg-red-500\/20 .text-white,
+.theme-saude .bg-red-500\/10 .text-white,
+.theme-saude .bg-[#111827] .text-white,
+.theme-saude .bg-slate-800 .text-white,
+.theme-saude [class*="bg-cyber-"] .text-white {
+  color: #FFFFFF !important; /* Keep white text for buttons or banners with background fill */
+}
+
+/* Force specific colors for elements that have background colors */
+.theme-saude .bg-cyber-blue {
+  background-color: #0C5A3E !important;
+}
+.theme-saude .bg-cyber-cyan {
+  background-color: #137C58 !important;
+}
+.theme-saude .bg-cyber-amber {
+  background-color: #11523B !important;
+}
+.theme-saude .bg-cyber-green {
+  background-color: #137C58 !important;
+}
+.theme-saude .bg-cyber-red {
+  background-color: #C62828 !important;
+}
+
+/* Fix specific backgrounds that might look too dark or need adjustment */
+.theme-saude .bg-black,
+.theme-saude .bg-\[\#051115\],
+.theme-saude .bg-\[\#061217\],
+.theme-saude .bg-\[\#03080a\],
+.theme-saude .bg-\[\#040d10\] {
+  background-color: #F9FAFB !important; /* replace pure dark backgrounds with clean light ones */
+}
+
+/* Specific text inputs or textareas */
+.theme-saude input,
+.theme-saude textarea,
+.theme-saude select {
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
+  border-color: rgba(12, 90, 62, 0.3) !important;
+}
+
+.theme-saude input::placeholder,
+.theme-saude textarea::placeholder {
+  color: #9CA3AF !important;
+}
+
+/* Hologram sweep and scanlines should be very subtle in light mode */
+.theme-saude .scanlines {
+  background: linear-gradient(
+    rgba(255, 255, 255, 0) 50%, 
+    rgba(0, 0, 0, 0.05) 50%
+  ) !important;
+  opacity: 0.15 !important;
+}
+
+
+

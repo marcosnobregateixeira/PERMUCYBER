@@ -329,7 +329,7 @@ export default function App() {
           console.log("[App] Supabase conectado, mas nenhum dado encontrado na tabela 'dados_app'.");
         }
       } catch (err) {
-        console.error("[App] Erro no fetch inicial Supabase:", err);
+        console.warn("[App] Erro no fetch inicial Supabase (redundância via Firebase/Local ativa):", err);
       }
     };
 
@@ -2042,7 +2042,7 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className={`flex flex-col h-screen items-center justify-center bg-hud-bg text-cyber-cyan space-y-4 ${config.theme === 'pmce' ? 'theme-pmce' : config.theme === 'light' ? 'theme-light' : ''}`}>
+      <div className={`flex flex-col h-screen items-center justify-center bg-hud-bg text-cyber-cyan space-y-4 ${config.theme === 'pmce' ? 'theme-pmce' : config.theme === 'light' ? 'theme-light' : config.theme === 'saude' ? 'theme-saude' : ''}`}>
         <div className="w-12 h-12 border-2 border-cyber-cyan/30 border-t-cyber-cyan rounded-full animate-spin" />
         <div className="text-xs font-mono uppercase tracking-widest animate-pulse">Sincronizando Base de Dados Supabase (Principal)...</div>
       </div>
