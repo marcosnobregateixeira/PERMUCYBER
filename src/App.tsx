@@ -72,8 +72,12 @@ export default function App() {
     } catch (e) {}
     return MILITARES;
   });
-  const [selectedMilitarId, setSelectedMilitarId] = useState<string>('');
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [selectedMilitarId, setSelectedMilitarId] = useState<string>(() => {
+    return localStorage.getItem('permucyber_logged_id') || '';
+  });
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    return localStorage.getItem('permucyber_is_logged') === 'true';
+  });
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
@@ -298,6 +302,10 @@ export default function App() {
             else if (obj.hashAtual && obj.tipoEvento) newLogs.push(obj);
             else if (obj.deMilitarId && obj.paraMilitarId && obj.conteudo) newMessages.push(obj);
             else if (obj.quantidadeMilitares && obj.quantidadeEscalas && obj.militares) newBackups.push(obj);
+            else if (obj.brasaoEsquerdoUrl !== undefined || obj.theme !== undefined) {
+              setConfig(prev => ({ ...prev, ...obj }));
+              try { localStorage.setItem('permucyber_config', JSON.stringify(obj)); } catch (e) {}
+            }
           });
 
           if (newMilitares.length > 0) setMilitares(newMilitares.sort(sortMilitarByPatente));
@@ -369,6 +377,11 @@ export default function App() {
                 if (exists) return prev.map(m => m.id === obj.id ? obj : m).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
                 return [...prev, obj].sort((a,b) => a.timestamp.localeCompare(b.timestamp));
               });
+            } else if (obj.brasaoEsquerdoUrl !== undefined || obj.theme !== undefined) {
+              setConfig(prev => ({ ...prev, ...obj }));
+              try {
+                localStorage.setItem('permucyber_config', JSON.stringify(obj));
+              } catch (e) {}
             } else if (obj.quantidadeMilitares && obj.quantidadeEscalas && obj.militares) {
               setBackups(prev => {
                 const exists = prev.some(b => b.id === obj.id);
@@ -724,6 +737,7 @@ export default function App() {
 
   const handleRefreshAll = () => {
     setIsLoggedIn(false);
+    localStorage.removeItem('permucyber_is_logged');
     setCurrentTab('DASHBOARD');
     setActiveSwapScale(null);
     setActiveReviewPermuta(null);
@@ -731,7 +745,9 @@ export default function App() {
 
   const handleUserChange = (userId: string) => {
     setSelectedMilitarId(userId);
+    localStorage.setItem('permucyber_logged_id', userId);
     setIsLoggedIn(false);
+    localStorage.removeItem('permucyber_is_logged');
     setActiveSwapScale(null);
     setActiveReviewPermuta(null);
     setCurrentTab('DASHBOARD');
@@ -959,6 +975,18 @@ export default function App() {
   };
 
   const handleAddMilitarIndividual = async (militar: Militar) => {
+    // Prevent duplicate militar by name or matricula
+    const isDuplicate = militares.some(m => 
+      m.nome === militar.nome || 
+      (m.nomeGuerra === militar.nomeGuerra && m.patente === militar.patente) ||
+      (m.matricula && militar.matricula && m.matricula === militar.matricula)
+    );
+
+    if (isDuplicate) {
+      alert("ERRO DE DUPLICIDADE: Este policial (mesmo nome, matrícula ou nome de guerra) já está cadastrado no sistema.");
+      return;
+    }
+
     try {
       // Supabase (Principal) - Gravação Individual
       const result = await salvarDados(
@@ -968,6 +996,12 @@ export default function App() {
         militar,
         militar.id
       );
+      
+      try {
+        await setDoc(doc(db, 'militares', militar.id), sanitizeForFirestore(militar));
+      } catch(fbErr) {
+        console.warn("Erro ao salvar no Firebase:", fbErr);
+      }
 
       if (!result || !result.success) {
         throw new Error("Falha ao sincronizar com o Supabase.");
@@ -1060,6 +1094,9 @@ export default function App() {
           titulo: `POLICIAL: ${updatedMilitar.patente} ${updatedMilitar.nomeGuerra}`,
           dados_json: updatedMilitar 
         });
+        try {
+          await setDoc(doc(db, 'militares', id), sanitizeForFirestore(updatedMilitar));
+        } catch(fbErr) {}
       }
       
       setMilitares(prev => prev.map(p => p.id === id ? { ...p, nomeGuerra: newNome, nome: newNome.replace(/^(Sgto\.|Ten\.|Cb\.|Sd\.)\s*/i, '') } : p));
@@ -1084,6 +1121,11 @@ export default function App() {
           updatedMilitar,
           id
         );
+        try {
+          await setDoc(doc(db, 'militares', id), sanitizeForFirestore(updatedMilitar));
+        } catch(fbErr) {
+          console.warn("Erro ao salvar no Firebase:", fbErr);
+        }
       }
 
       setMilitares(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
@@ -1103,6 +1145,9 @@ export default function App() {
         militar,
         militar.id
       );
+      try {
+        await setDoc(doc(db, 'militares', militar.id), sanitizeForFirestore(militar));
+      } catch (fbErr) {}
     } catch (err) {
       console.warn(`Erro ao sincronizar militar ${militar.id} com Supabase:`, err);
     }
@@ -1203,7 +1248,9 @@ export default function App() {
     setMilitares(imported.sort(sortMilitarByPatente));
     if (imported.length > 0 && !imported.some(m => m.id === selectedMilitarId)) {
       setSelectedMilitarId(imported[0].id);
+      localStorage.setItem('permucyber_logged_id', imported[0].id);
       setIsLoggedIn(false);
+      localStorage.removeItem('permucyber_is_logged');
     }
     await appendAuditLog('INTEGRALIZAÇÃO', `Base de dados de militares atualizada por importação (.JSON) com sucesso (${imported.length} militares carregados).`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
     await generateBackup('AUTO', loggedUser?.nomeGuerra || 'SISTEMA', imported);
@@ -1228,6 +1275,9 @@ export default function App() {
       freshMessage,
       freshMessage.id
     );
+    try {
+      await setDoc(doc(db, 'messages', freshMessage.id), sanitizeForFirestore(freshMessage));
+    } catch(e){}
     
     const recipient = militares.find((m) => m.id === paraMilitarId)?.nomeGuerra || 'Auxiliar';
     await appendAuditLog('INTEGRALIZAÇÃO', `Transmissão de texto plano criptografada with sucesso de ${loggedUser.nomeGuerra} para ${recipient}. Protocolo seguro ativado.`, loggedUser.nomeGuerra, logs);
@@ -1235,6 +1285,20 @@ export default function App() {
 
   const handleCreatePermuta = async (novaPermuta: Permuta) => {
     if (!loggedUser) return;
+
+    // Strict duplicate check to avoid accidental double submissions
+    const isDuplicate = permutas.some(p => 
+      p.dataRealizacao === novaPermuta.dataRealizacao &&
+      p.militarSubstituidoId === novaPermuta.militarSubstituidoId &&
+      p.militarSubstitutoId === novaPermuta.militarSubstitutoId &&
+      !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status)
+    );
+
+    if (isDuplicate) {
+      console.warn("Prevenção de duplicidade: Permuta idêntica já existe.");
+      return;
+    }
+
     try {
       await salvarDados(
         SYSTEM_USER_ID,
@@ -1243,6 +1307,7 @@ export default function App() {
         novaPermuta,
         novaPermuta.id
       );
+      await setDoc(doc(db, 'permutas', novaPermuta.id), sanitizeForFirestore(novaPermuta));
     } catch (e) {
       console.error("Error creating permuta:", e);
     }
@@ -1664,6 +1729,7 @@ export default function App() {
         `Permuta homologada por ${gestorNome}`,
         { ...targetPermuta, status: 'APROVADO', gestorNome, dataAssinaturaGestor }
       );
+      await setDoc(doc(db, 'permutas', permutaId), sanitizeForFirestore({ ...targetPermuta, status: 'APROVADO', gestorNome, dataAssinaturaGestor }), { merge: true });
     } catch (sbErr) {
       console.warn("Aviso: Falha na gravação individual Supabase (Homologação):", sbErr);
     }
@@ -1713,6 +1779,7 @@ export default function App() {
             novaEscala,
             novaEscala.id
           );
+          await setDoc(doc(db, 'escalas', novaEscala.id), sanitizeForFirestore(novaEscala));
         } catch (e) {
           console.error("Error creating escala:", e);
         }
@@ -1849,6 +1916,7 @@ export default function App() {
         automatedMsg,
         automatedMsg.id
       );
+      await setDoc(doc(db, 'messages', automatedMsg.id), sanitizeForFirestore(automatedMsg));
     } catch (e) {
       console.error("Firestore error creating automated message:", e);
     }
@@ -1965,7 +2033,10 @@ export default function App() {
             userLogged={loggedUser}
             allUsers={militares}
             onUserSelect={handleUserChange}
-            onLoginSuccess={() => setIsLoggedIn(true)}
+            onLoginSuccess={() => {
+              setIsLoggedIn(true);
+              localStorage.setItem('permucyber_is_logged', 'true');
+            }}
             onUpdateMilitarPin={handleUpdateMilitarPin}
           />
         </div>
@@ -2054,7 +2125,7 @@ export default function App() {
                         const userPermutas = permutas.filter(p => p.militarSubstituidoId === loggedUser?.id || p.militarSubstitutoId === loggedUser?.id);
                         if (userPermutas.length === 0) {
                           return (
-                            <div className="bg-[#051115] border border-hud-border/40 p-6 rounded-xl text-center text-slate-500 font-sans text-xs">
+                            <div className="bg-[#051115] border border-hud-border/40 p-6 rounded-xl text-center text-slate-400 font-sans text-xs">
                               Nenhuma solicitação de troca encontrada. Para iniciar nova proposta, selecione uma escala na tela inicial do Dashboard.
                             </div>
                           );
@@ -2115,7 +2186,7 @@ export default function App() {
 
                                 <div className="flex justify-between items-start">
                                   <div className="min-w-0">
-                                    <span className="text-[8px] text-slate-500 font-mono uppercase tracking-tighter">Protocolo: nº {p.protocoloId}</span>
+                                    <span className="text-[8px] text-slate-400 font-mono uppercase tracking-tighter">Protocolo: nº {p.protocoloId}</span>
                                     <h4 className={`text-xs font-bold text-white tracking-wide mt-0.5 truncate ${isHomologated ? 'text-[11px]' : ''}`}>{p.postoServico}</h4>
                                   </div>
                                   <span className={`text-[9px] px-1.5 py-0.5 border rounded uppercase font-bold shrink-0 ${badgeStyle}`}>
@@ -2139,7 +2210,7 @@ export default function App() {
                                        <span className="text-cyber-green/70 mr-1.5 font-bold">✓</span>
                                        <span>{formatarDataBR(p.dataRealizacao)} • {p.turno}</span>
                                      </div>
-                                     <div className="text-[9px] text-slate-500 font-mono text-right leading-tight">
+                                     <div className="text-[9px] text-slate-400 font-mono text-right leading-tight">
                                         De: {origin?.nomeGuerra}<br/>
                                         Para: {dest?.nomeGuerra}
                                      </div>
@@ -2192,7 +2263,7 @@ export default function App() {
                                         Corrigir
                                       </button>
                                     ) : (
-                                      <div className="flex items-center justify-center text-[8px] text-slate-500 font-mono uppercase tracking-tighter border border-hud-border/30 rounded bg-hud-bg/20">
+                                      <div className="flex items-center justify-center text-[8px] text-slate-400 font-mono uppercase tracking-tighter border border-hud-border/30 rounded bg-hud-bg/20">
                                         Solicitação Ativa
                                       </div>
                                     )}
@@ -2389,7 +2460,7 @@ export default function App() {
 
           {/* Bottom Modern Tactical Navigation Bar */}
           {!activeSwapScale && !activeReviewPermuta && (
-            <div className="h-14 border-t border-hud-border bg-hud-board/90 px-3 flex items-center justify-between text-slate-500 relative z-30 font-mono text-[9px] select-none shadow-[0_-4px_10px_rgba(0,0,0,0.4)]">
+            <div className="h-14 border-t border-hud-border bg-hud-board/90 px-3 flex items-center justify-between text-slate-400 relative z-30 font-mono text-[9px] select-none shadow-[0_-4px_10px_rgba(0,0,0,0.4)]">
               
               <button
                 onClick={() => setCurrentTab('DASHBOARD')}
@@ -2427,6 +2498,7 @@ export default function App() {
               <button
                 onClick={() => {
                   setIsLoggedIn(false);
+                  localStorage.removeItem('permucyber_is_logged');
                   setCurrentTab('DASHBOARD');
                 }}
                 className="flex-1 flex flex-col items-center space-y-1 focus:outline-none transition-all text-cyber-red/80 hover:text-cyber-red hover:drop-shadow-[0_0_3px_rgba(255,0,51,0.4)]"

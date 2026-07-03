@@ -329,7 +329,7 @@ export default function PermutaFlow({
             </div>
             <div className="flex justify-between items-center text-[9.5px] text-slate-400 border-t border-hud-border/30 pt-1.5">
               <span>SISTEMA DE HASHING:</span>
-              <span className="text-slate-500 uppercase">SHA-256 SECURE</span>
+              <span className="text-slate-400 uppercase">SHA-256 SECURE</span>
             </div>
             <div className="text-[8.5px] text-cyber-green font-semibold uppercase tracking-wider flex items-center gap-1 mt-1 font-sans bg-cyber-green/10 px-2 py-1 rounded border border-cyber-green/35">
               <span className="w-1.5 h-1.5 bg-cyber-green rounded-full animate-ping shrink-0" />
@@ -465,7 +465,7 @@ export default function PermutaFlow({
                     ? 'bg-hud-bg/10 border-transparent text-slate-700 cursor-not-allowed grayscale'
                     : isSelected
                     ? 'bg-cyber-blue/15 border-cyber-blue text-white shadow-[0_0_8px_rgba(0,229,255,0.25)] font-bold cursor-pointer'
-                    : 'bg-[#03090b]/40 border-hud-border/40 text-slate-500 hover:border-hud-border/70 hover:bg-hud-card/50 cursor-pointer'
+                    : 'bg-[#03090b]/40 border-hud-border/40 text-slate-400 hover:border-hud-border/70 hover:bg-hud-card/50 cursor-pointer'
                 }`}
               >
                 <span className="z-10">{day}</span>
@@ -523,7 +523,7 @@ export default function PermutaFlow({
                 className={`text-[9.5px] font-mono px-2.5 py-0.5 rounded border transition-all cursor-pointer ${
                   useAIAdvice 
                     ? 'bg-cyber-green/10 text-cyber-green border-cyber-green/30' 
-                    : 'bg-hud-card text-slate-500 border-hud-border hover:text-white'
+                    : 'bg-hud-card text-slate-400 border-hud-border hover:text-white'
                 }`}
               >
                 {useAIAdvice ? 'Sugeridos por IA' : 'Todos os Policiais'}
@@ -562,7 +562,7 @@ export default function PermutaFlow({
 
                 if (filteredList.length === 0) {
                   return (
-                    <div className="text-center py-6 text-slate-500 text-xs font-mono border border-dashed border-hud-border/40 rounded-xl bg-[#03090b]/40">
+                    <div className="text-center py-6 text-slate-400 text-xs font-mono border border-dashed border-hud-border/40 rounded-xl bg-[#03090b]/40">
                       Nenhum policial encontrado para a pesquisa.
                     </div>
                   );
@@ -607,7 +607,7 @@ export default function PermutaFlow({
                           }`}>
                             {item.score}%
                           </span>
-                          <span className="text-[7px] text-slate-500 block uppercase">Compatibilidade</span>
+                          <span className="text-[7px] text-slate-400 block uppercase">Compatibilidade</span>
                         </div>
                       </div>
 
@@ -715,16 +715,16 @@ export default function PermutaFlow({
           
           <button
             type="submit"
-            disabled={!selectedSubstituteId}
+            disabled={!selectedSubstituteId || isSubmitting}
             className={`w-full text-xs font-bold py-2.5 rounded-lg font-mono uppercase transition-all flex items-center justify-center space-x-1.5 ${
-              selectedSubstituteId
+              selectedSubstituteId && !isSubmitting
                 ? 'bg-cyber-blue text-black hover:bg-cyber-cyan shadow-[0_0_15px_rgba(0,229,255,0.4)]'
-                : 'bg-hud-card border border-hud-border text-slate-500 cursor-not-allowed'
+                : 'bg-hud-card border border-hud-border text-slate-400 cursor-not-allowed'
             }`}
             id="transmit-permuta-btn"
           >
             <ShieldCheck className="w-4 h-4 shrink-0" />
-            <span>ENVIAR SOLICITAÇÃO</span>
+            <span>{isSubmitting ? 'ENVIANDO...' : 'ENVIAR SOLICITAÇÃO'}</span>
           </button>
         </div>
 

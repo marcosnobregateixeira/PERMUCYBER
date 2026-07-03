@@ -236,14 +236,14 @@ export default function BiometricLogin({
                     onFocus={() => setShowSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowSuggestions(false), 250)}
                     placeholder="Clique aqui para ver a lista ou digite..."
-                    className="w-full bg-[#051319] border border-cyber-cyan/35 text-xs font-mono text-white pl-8 pr-3 py-2 rounded-md outline-none focus:border-cyber-blue focus:shadow-[0_0_8px_rgba(0,229,255,0.15)] transition-all placeholder:text-slate-500"
+                    className="w-full bg-[#051319] border border-cyber-cyan/35 text-xs font-mono text-white pl-8 pr-3 py-2 rounded-md outline-none focus:border-cyber-blue focus:shadow-[0_0_8px_rgba(0,229,255,0.15)] transition-all placeholder:text-slate-400"
                   />
                   
                   {/* Floating results matched dropdown */}
                   {showSuggestions && (
                     <div className="absolute left-0 right-0 mt-1 bg-slate-950 border border-cyber-cyan/50 rounded-lg shadow-2xl max-h-48 overflow-y-auto z-50 p-1 divide-y divide-hud-border/40">
                       {filteredSuggestions.length === 0 ? (
-                        <div className="p-2.5 text-[10px] text-slate-500 font-mono italic">
+                        <div className="p-2.5 text-[10px] text-slate-400 font-mono italic">
                           Mapeamento analógico livre de registros para "{searchQuery}"
                         </div>
                       ) : (
@@ -352,11 +352,11 @@ export default function BiometricLogin({
 
                     <div className="border-t border-hud-border/40 pt-2 grid grid-cols-2 gap-2 text-[8.5px] font-mono">
                       <div>
-                        <span className="text-slate-500 uppercase font-black">Setor:</span>
+                        <span className="text-slate-400 uppercase font-black">Setor:</span>
                         <p className="text-slate-200 truncate h-3">{userLogged ? (userLogged.setor || userLogged.companhia) : '---'}</p>
                       </div>
                       <div>
-                        <span className="text-slate-500 uppercase font-black">Biometria:</span>
+                        <span className="text-slate-400 uppercase font-black">Biometria:</span>
                         <p className={userLogged ? (userLogged.biometriaAtiva ? 'text-cyber-green font-bold' : 'text-cyber-red font-bold') : 'text-slate-700 font-bold h-3'}>
                           {userLogged ? (userLogged.biometriaAtiva ? 'INTEGRADA' : 'INATIVA') : '---'}
                         </p>
@@ -487,7 +487,7 @@ export default function BiometricLogin({
                           placeholder="••••"
                           className="w-full bg-[#051319] border border-cyber-green/35 text-xs font-mono text-white p-2 text-center rounded-md outline-none focus:border-cyber-green focus:shadow-[0_0_8px_rgba(0,255,102,0.15)] transition-all tracking-[0.4em]"
                         />
-                        <p className="text-[8px] text-slate-500 font-mono">
+                        <p className="text-[8px] text-slate-400 font-mono">
                           Esse PIN de 4 dígitos será solicitado como autenticação de duplo fator.
                         </p>
                       </div>
@@ -508,7 +508,7 @@ export default function BiometricLogin({
                           placeholder="exemplo@pm.gov.br"
                           className="w-full bg-[#051319] border border-cyber-green/35 text-xs font-mono text-white p-2 rounded-md outline-none focus:border-cyber-green focus:shadow-[0_0_8px_rgba(0,255,102,0.15)] transition-all"
                         />
-                        <p className="text-[8px] text-slate-500 font-mono">
+                        <p className="text-[8px] text-slate-400 font-mono">
                           E-mail corporativo ou pessoal para liberação de acesso e auditoria de segurança.
                         </p>
                       </div>
@@ -594,7 +594,7 @@ export default function BiometricLogin({
                 <button
                   type="button"
                   onClick={() => setStage('BIOMETRIC')}
-                  className="text-slate-500 hover:text-white font-mono text-[9px] uppercase tracking-wider flex items-center space-x-1 border border-hud-border/40 px-2 py-1 rounded bg-hud-bg/20 cursor-pointer"
+                  className="text-slate-400 hover:text-white font-mono text-[9px] uppercase tracking-wider flex items-center space-x-1 border border-hud-border/40 px-2 py-1 rounded bg-hud-bg/20 cursor-pointer"
                 >
                   ◀ Voltar Biometria
                 </button>
@@ -654,7 +654,7 @@ export default function BiometricLogin({
                   className={`h-10 rounded-lg font-mono text-[9px] font-bold uppercase transition-all flex items-center justify-center focus:outline-none cursor-pointer ${
                     pin.length === 4
                       ? 'bg-cyber-green text-black hover:bg-cyber-green/90 shadow-[0_0_10px_rgba(0,255,102,0.4)]'
-                      : 'bg-hud-card border border-hud-border/40 text-slate-500 cursor-not-allowed'
+                      : 'bg-hud-card border border-hud-border/40 text-slate-400 cursor-not-allowed'
                   }`}
                 >
                   ENTRAR

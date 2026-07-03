@@ -274,13 +274,15 @@ export default function Dashboard({
             </div>
             
             {!isEditingAlert ? (
-              <marquee 
-                className="text-slate-200 mt-1 font-mono tracking-tight" 
-                scrollamount={alertSpeed}
-                style={{ fontSize: `${alertSize}px` }}
-              >
-                {alertText}
-              </marquee>
+              <div className="overflow-hidden mt-1 pb-1">
+                <marquee 
+                  className="text-slate-200 font-mono tracking-tight pt-1 leading-normal" 
+                  scrollamount={alertSpeed}
+                  style={{ fontSize: `${alertSize}px` }}
+                >
+                  {alertText}
+                </marquee>
+              </div>
             ) : (
               <div className="mt-2 space-y-2 animate-fade-in">
                 <input
@@ -429,7 +431,7 @@ export default function Dashboard({
                       <p className="text-[11px] text-slate-300 font-sans mt-1.5 leading-relaxed bg-black/40 border border-red-500/20 rounded p-2">
                         <strong>Motivo:</strong> {p.motivoSemEfeito}
                       </p>
-                      <div className="text-[9px] text-slate-500 font-mono mt-2 uppercase">
+                      <div className="text-[9px] text-slate-400 font-mono mt-2 uppercase">
                         Envolvidos: {subBy?.patente} {subBy?.nomeGuerra} ➔ {subTo?.patente} {subTo?.nomeGuerra}
                       </div>
                     </div>
@@ -709,7 +711,7 @@ export default function Dashboard({
                     ? 'bg-cyber-blue/15 border-cyber-blue text-white shadow-[0_0_8px_rgba(0,229,255,0.25)] font-bold'
                     : isTodayActual
                     ? 'bg-cyber-green/5 border-cyber-green/40 text-cyber-green'
-                    : 'bg-[#03090b]/40 border-hud-border/40 text-slate-500 hover:border-hud-border/70 hover:bg-hud-card/50'
+                    : 'bg-[#03090b]/40 border-hud-border/40 text-slate-400 hover:border-hud-border/70 hover:bg-hud-card/50'
                 }`}
               >
                 <span className="z-10">{day}</span>
@@ -735,7 +737,7 @@ export default function Dashboard({
           {(() => {
             if (selectedCalendarDay === null) {
               return (
-                 <div className="flex items-center space-x-2 text-[10px] text-slate-500 font-mono uppercase mt-4 opacity-70 justify-center">
+                 <div className="flex items-center space-x-2 text-[10px] text-slate-400 font-mono uppercase mt-4 opacity-70 justify-center">
                     <span>Aguardando seleção tática no calendário...</span>
                  </div>
               );
@@ -756,11 +758,11 @@ export default function Dashboard({
             if (isBlocked) {
               return (
                 <div className="flex items-center justify-between bg-hud-bg/40 p-2 rounded border border-hud-border/30">
-                  <div className="flex items-center space-x-2 text-[10px] text-slate-500 font-mono uppercase">
+                  <div className="flex items-center space-x-2 text-[10px] text-slate-400 font-mono uppercase">
                     <AlertOctagon className="w-4 h-4 text-slate-600" />
                     <span>Bloqueado: Apenas amanhã até 30 dias</span>
                   </div>
-                  <div className="text-[8px] bg-hud-border/20 px-2 py-1 rounded text-slate-500 border border-hud-border/30 font-bold">
+                  <div className="text-[8px] bg-hud-border/20 px-2 py-1 rounded text-slate-400 border border-hud-border/30 font-bold">
                     INDISPONÍVEL
                   </div>
                 </div>
@@ -929,7 +931,7 @@ export default function Dashboard({
                     <div className="p-8 text-center" id="empty-homologadas">
                       <Zap className="w-10 h-10 text-slate-600 mx-auto mb-2 animate-pulse" />
                       <p className="text-xs font-mono text-slate-400 uppercase">Nenhum registro homologado encontrado</p>
-                      <p className="text-[10px] text-slate-500 font-mono mt-1">Status operacional regular. Nenhum protocolo homologado nesta categoria.</p>
+                      <p className="text-[10px] text-slate-400 font-mono mt-1">Status operacional regular. Nenhum protocolo homologado nesta categoria.</p>
                     </div>
                   );
                 }
@@ -998,7 +1000,7 @@ export default function Dashboard({
             </div>
 
             {/* Footer lock indicator */}
-            <div className="p-3 bg-[#03090b] border-t border-hud-border text-center text-[8.5px] font-mono text-slate-500 tracking-wider flex items-center justify-center space-x-1.5" id="modal-footer">
+            <div className="p-3 bg-[#03090b] border-t border-hud-border text-center text-[8.5px] font-mono text-slate-400 tracking-wider flex items-center justify-center space-x-1.5" id="modal-footer">
               <Cpu className="w-3.5 h-3.5 text-cyber-cyan shrink-0 animate-spin" style={{ animationDuration: '4s' }} />
               <span>SISTEMA INTEGRALIZADO SOB ENCRIPTAÇÃO ASSIMÉTRICA MILITAR</span>
             </div>

@@ -87,7 +87,7 @@ export default function ValidadorPermuta({
             {/* Line item 1: Substituído */}
             <div className="flex items-start space-x-3 relative z-10">
               <div className="w-16 text-right shrink-0">
-                <span className="text-[8px] text-slate-500 block uppercase">SUBSTITUÍDO</span>
+                <span className="text-[8px] text-slate-400 block uppercase">SUBSTITUÍDO</span>
                 <span className="text-xs font-bold text-[#ffb300] leading-none block mt-0.5">
                   {militarSubstituido?.nomeGuerra}
                 </span>
@@ -112,7 +112,7 @@ export default function ValidadorPermuta({
             {/* Line item 2: Substituto */}
             <div className="flex items-start space-x-3 relative z-10">
               <div className="w-16 text-right shrink-0">
-                <span className="text-[8px] text-slate-500 block uppercase font-mono">SUBSTITUTO</span>
+                <span className="text-[8px] text-slate-400 block uppercase font-mono">SUBSTITUTO</span>
                 <span className="text-xs font-bold text-cyber-green leading-none block mt-0.5">
                   {militarSubstituto?.nomeGuerra}
                 </span>
@@ -219,7 +219,7 @@ export default function ValidadorPermuta({
                 className={`text-xs font-bold py-2 rounded-lg font-mono uppercase transition-all ${
                   altComment
                     ? 'bg-cyber-blue text-black hover:bg-cyber-cyan shadow-[0_0_8px_rgba(0,229,255,0.25)]'
-                    : 'bg-hud-card text-slate-500 border border-hud-border cursor-not-allowed'
+                    : 'bg-hud-card text-slate-400 border border-hud-border cursor-not-allowed'
                 }`}
                 id="submit-alteration-btn"
               >

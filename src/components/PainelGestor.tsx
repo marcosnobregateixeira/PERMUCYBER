@@ -869,7 +869,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
       {/* QUICK KPI METRIC CARDS */}
       <div className="grid grid-cols-2 gap-2 mb-4 text-center">
         <div className="bg-hud-card border border-hud-border p-2 rounded-lg flex flex-col justify-between min-h-[58px] text-left gap-1">
-          <span className="text-[7.5px] font-mono text-slate-500 block uppercase">FILA RATIF.</span>
+          <span className="text-[7.5px] font-mono text-slate-400 block uppercase">FILA RATIF.</span>
           <select
             value={verificarMilitarId}
             onChange={(e) => setVerificarMilitarId(e.target.value)}
@@ -914,7 +914,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
         </div>
         <div className="bg-hud-card border border-hud-border p-2 rounded-lg flex flex-col justify-between min-h-[58px] text-center">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[7.5px] font-mono text-slate-500 block uppercase">CONCLUÍDAS</span>
+            <span className="text-[7.5px] font-mono text-slate-400 block uppercase">CONCLUÍDAS</span>
             <select
               className="bg-[#020507] border border-hud-border rounded px-1 py-0.5 text-white text-[9px] font-mono focus:border-cyber-blue outline-none cursor-pointer max-w-[80px]"
               title="Datas das Permutas"
@@ -946,7 +946,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
           </div>
 
           {pendentesGestor.length === 0 ? (
-            <div className="bg-[#051115] border border-hud-border/40 p-6 rounded-xl text-center text-slate-500 font-mono text-xs">
+            <div className="bg-[#051115] border border-hud-border/40 p-6 rounded-xl text-center text-slate-400 font-mono text-xs">
               Mural limpo. Nenhuma permuta de serviço militar pendente de homologação na guarnição.
             </div>
           ) : (
@@ -981,7 +981,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                       </div>
                       <div className="text-right shrink-0 ml-1">
                         <span className="text-[9px] font-mono font-bold text-cyber-amber block">REVISAR</span>
-                        <span className="text-[8px] font-mono text-slate-500 block">{formatarDataBR(p.dataRealizacao)}</span>
+                        <span className="text-[8px] font-mono text-slate-400 block">{formatarDataBR(p.dataRealizacao)}</span>
                       </div>
                     </div>
 
@@ -1031,9 +1031,9 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                                 </span>
                               </div>
 
-                              <span className="text-[8px] font-mono text-slate-500 block uppercase">ÚLTIMAS 4 PERMUTAS PROTOCOLADAS (SOLICITAÇÕES/HISTÓRICO):</span>
+                              <span className="text-[8px] font-mono text-slate-400 block uppercase">ÚLTIMAS 4 PERMUTAS PROTOCOLADAS (SOLICITAÇÕES/HISTÓRICO):</span>
                               {ultimas4.length === 0 ? (
-                                <div className="text-[9px] font-mono text-slate-500 py-1 italic bg-[#040e11] rounded px-2">
+                                <div className="text-[9px] font-mono text-slate-400 py-1 italic bg-[#040e11] rounded px-2">
                                   Nenhuma permuta anterior encontrada para este militar no banco de dados.
                                 </div>
                               ) : (
@@ -1058,7 +1058,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                                           </span>
                                         </div>
                                         <div className="flex items-center space-x-1.5 shrink-0 ml-1">
-                                          <span className="text-[8px] text-slate-500 max-w-[80px] truncate uppercase font-sans">
+                                          <span className="text-[8px] text-slate-400 max-w-[80px] truncate uppercase font-sans">
                                             {subBy?.funcao || hPerm.postoServico} - {hPerm.turno}
                                           </span>
                                           <span className={`text-[7.5px] font-bold uppercase ${statusColor}`}>
@@ -1163,7 +1163,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                                 className={`px-2.5 py-1 rounded font-mono text-[9px] uppercase font-bold transition-all ${
                                   justificativaAjuste
                                     ? 'bg-cyber-cyan text-black hover:bg-cyber-blue'
-                                    : 'bg-hud-card text-slate-500 border border-hud-border cursor-not-allowed'
+                                    : 'bg-hud-card text-slate-400 border border-hud-border cursor-not-allowed'
                                 }`}
                                 id={`submit-commander-adjust-btn-${p.id}`}
                               >
@@ -1202,25 +1202,25 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                 <div className="flex space-x-1 border-b border-hud-border/40 pb-2 mb-3">
                   <button
                     onClick={() => setHistoricoFilter('TODAS')}
-                    className={`px-3 py-1 text-[9px] font-bold tracking-widest font-mono rounded ${historicoFilter === 'TODAS' ? 'bg-hud-border/60 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                    className={`px-3 py-1 text-[9px] font-bold tracking-widest font-mono rounded ${historicoFilter === 'TODAS' ? 'bg-hud-border/60 text-white' : 'text-slate-400 hover:text-slate-300'}`}
                   >
                     TODAS
                   </button>
                   <button
                     onClick={() => setHistoricoFilter('APROVADAS')}
-                    className={`px-3 py-1 text-[9px] font-bold tracking-widest font-mono rounded ${historicoFilter === 'APROVADAS' ? 'bg-cyber-green/20 text-cyber-green border border-cyber-green/30' : 'text-slate-500 hover:text-cyber-green/50'}`}
+                    className={`px-3 py-1 text-[9px] font-bold tracking-widest font-mono rounded ${historicoFilter === 'APROVADAS' ? 'bg-cyber-green/20 text-cyber-green border border-cyber-green/30' : 'text-slate-400 hover:text-cyber-green/50'}`}
                   >
                     APROVADA
                   </button>
                   <button
                     onClick={() => setHistoricoFilter('REJEITADAS')}
-                    className={`px-3 py-1 text-[9px] font-bold tracking-widest font-mono rounded ${historicoFilter === 'REJEITADAS' ? 'bg-cyber-red/20 text-cyber-red border border-cyber-red/30' : 'text-slate-500 hover:text-cyber-red/50'}`}
+                    className={`px-3 py-1 text-[9px] font-bold tracking-widest font-mono rounded ${historicoFilter === 'REJEITADAS' ? 'bg-cyber-red/20 text-cyber-red border border-cyber-red/30' : 'text-slate-400 hover:text-cyber-red/50'}`}
                   >
                     REJEITADA
                   </button>
                   <button
                     onClick={() => setHistoricoFilter('SEM_EFEITO')}
-                    className={`px-3 py-1 text-[9px] font-bold tracking-widest font-mono rounded ${historicoFilter === 'SEM_EFEITO' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30' : 'text-slate-500 hover:text-amber-500/50'}`}
+                    className={`px-3 py-1 text-[9px] font-bold tracking-widest font-mono rounded ${historicoFilter === 'SEM_EFEITO' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30' : 'text-slate-400 hover:text-amber-500/50'}`}
                   >
                     TORNAR SEM EFEITO
                   </button>
@@ -1233,7 +1233,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                   if (historicoFilter === 'SEM_EFEITO') return h.status === 'SEM_EFEITO';
                   return true;
                 }).length === 0 ? (
-                  <p className="text-slate-500 font-mono text-[10px] text-center py-2">Sem registros para o filtro selecionado.</p>
+                  <p className="text-slate-400 font-mono text-[10px] text-center py-2">Sem registros para o filtro selecionado.</p>
                 ) : (
                   <div className="space-y-2">
                     {historicoCompleto.filter(h => {
@@ -1283,7 +1283,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                             }`}>
                               {isApproved ? 'APROVADA' : h.status.replace(/_/g, ' ')}
                             </span>
-                            <span className="text-[7.5px] font-mono text-slate-500 block mt-0.5 uppercase tracking-tighter">Detalhes</span>
+                            <span className="text-[7.5px] font-mono text-slate-400 block mt-0.5 uppercase tracking-tighter">Detalhes</span>
                           </div>
                         </div>
 
@@ -1427,7 +1427,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                       <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border uppercase font-bold ${typeColor}`}>
                         {log.tipoEvento}
                       </span>
-                      <span className="text-[9px] font-mono text-slate-500">{log.timestamp}</span>
+                      <span className="text-[9px] font-mono text-slate-400">{log.timestamp}</span>
                     </div>
                     {onDeleteLog && (userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') && (
                       <button
@@ -1443,7 +1443,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
 
                   <p className="font-mono text-slate-200 text-[11px] leading-snug">{log.evento}</p>
                   
-                  <div className="border-t border-hud-border/30 pt-2 flex flex-col space-y-0.5 font-sans text-[8.5px] text-slate-500">
+                  <div className="border-t border-hud-border/30 pt-2 flex flex-col space-y-0.5 font-sans text-[8.5px] text-slate-400">
                     <div>
                       <span className="text-cyber-green">✓ Protocolado no Livro de Registro Digital</span>
                     </div>
@@ -1465,7 +1465,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
           
             <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="flex flex-col space-y-1 mb-2">
-                    <label className="text-[9px] font-mono text-slate-500 uppercase font-bold">Brasão Esquerdo (URL):</label>
+                    <label className="text-[9px] font-mono text-slate-400 uppercase font-bold">Brasão Esquerdo (URL):</label>
                     <input 
                         type="text" 
                         value={config.brasaoEsquerdoUrl} 
@@ -1475,7 +1475,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                     />
                 </div>
                 <div className="flex flex-col space-y-1 mb-2">
-                    <label className="text-[9px] font-mono text-slate-500 uppercase font-bold">Brasão Direito (URL):</label>
+                    <label className="text-[9px] font-mono text-slate-400 uppercase font-bold">Brasão Direito (URL):</label>
                     <input 
                         type="text" 
                         value={config.brasaoDireitoUrl} 
@@ -1485,11 +1485,11 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                     />
                 </div>
                 <div className="flex flex-col space-y-1">
-                    <label className="text-[9px] font-mono text-slate-500 uppercase font-bold">Início:</label>
+                    <label className="text-[9px] font-mono text-slate-400 uppercase font-bold">Início:</label>
                     <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="bg-[#020507] border border-hud-border rounded px-2 py-1 text-white" />
                 </div>
                 <div className="flex flex-col space-y-1">
-                    <label className="text-[9px] font-mono text-slate-500 uppercase font-bold">Fim:</label>
+                    <label className="text-[9px] font-mono text-slate-400 uppercase font-bold">Fim:</label>
                     <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="bg-[#020507] border border-hud-border rounded px-2 py-1 text-white" />
                 </div>
                 <select value={reportTipo} onChange={(e) => setReportTipo(e.target.value as 'GERAL' | 'INDIVIDUAL' | 'FUNCAO' | 'SETOR')} className="col-span-2 bg-[#020507] border border-hud-border rounded px-2 py-1 text-white mt-2">
@@ -1567,24 +1567,24 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                 <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
                     <div className="flex items-center space-x-2">
                       <Clock className="w-4 h-4 text-slate-400" />
-                      <p className="text-slate-700"><strong>Período:</strong> <span className="text-slate-500 font-medium">{dataInicio ? formatarDataBR(dataInicio) : 'INÍCIO'} a {dataFim ? formatarDataBR(dataFim) : 'ATUAL'}</span></p>
+                      <p className="text-slate-700"><strong>Período:</strong> <span className="text-slate-400 font-medium">{dataInicio ? formatarDataBR(dataInicio) : 'INÍCIO'} a {dataFim ? formatarDataBR(dataFim) : 'ATUAL'}</span></p>
                     </div>
                     {reportTipo === 'INDIVIDUAL' && (
                       <div className="flex items-center space-x-2">
                         <User className="w-4 h-4 text-slate-400" />
-                        <p className="text-slate-700"><strong>Policial:</strong> <span className="text-slate-500 font-medium">{allMilitares.find(m => m.id === reportMilitarId)?.nome || '...'}</span></p>
+                        <p className="text-slate-700"><strong>Policial:</strong> <span className="text-slate-400 font-medium">{allMilitares.find(m => m.id === reportMilitarId)?.nome || '...'}</span></p>
                       </div>
                     )}
                     {reportTipo === 'FUNCAO' && (
                       <div className="flex items-center space-x-2">
                         <User className="w-4 h-4 text-slate-400" />
-                        <p className="text-slate-700"><strong>Função:</strong> <span className="text-slate-500 font-medium">{reportFuncao || '...'}</span></p>
+                        <p className="text-slate-700"><strong>Função:</strong> <span className="text-slate-400 font-medium">{reportFuncao || '...'}</span></p>
                       </div>
                     )}
                     {reportTipo === 'SETOR' && (
                       <div className="flex items-center space-x-2">
                         <User className="w-4 h-4 text-slate-400" />
-                        <p className="text-slate-700"><strong>Setor:</strong> <span className="text-slate-500 font-medium">{reportSetor || '...'}</span></p>
+                        <p className="text-slate-700"><strong>Setor:</strong> <span className="text-slate-400 font-medium">{reportSetor || '...'}</span></p>
                       </div>
                     )}
                 </div>
@@ -1596,15 +1596,15 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div className="p-2 bg-white rounded border border-slate-100 shadow-sm">
                       <span className="block text-[10px] font-black text-slate-800">TURNO A</span>
-                      <span className="text-[9px] text-slate-500">06H às 18H</span>
+                      <span className="text-[9px] text-slate-400">06H às 18H</span>
                     </div>
                     <div className="p-2 bg-white rounded border border-slate-100 shadow-sm">
                       <span className="block text-[10px] font-black text-slate-800">TURNO B</span>
-                      <span className="text-[9px] text-slate-500">18H às 06H</span>
+                      <span className="text-[9px] text-slate-400">18H às 06H</span>
                     </div>
                     <div className="p-2 bg-white rounded border border-slate-100 shadow-sm">
                       <span className="block text-[10px] font-black text-slate-800">24H</span>
-                      <span className="text-[9px] text-slate-500">06H às 06H</span>
+                      <span className="text-[9px] text-slate-400">06H às 06H</span>
                     </div>
                   </div>
                 </div>
@@ -1658,7 +1658,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                                <td className="p-4 border-r border-slate-100 text-slate-800 font-medium text-center">
                                  {subdoObj}
                                </td>
-                               <td className="p-4 border-r border-slate-100 text-slate-500 italic text-[8.5px] leading-tight text-center">
+                               <td className="p-4 border-r border-slate-100 text-slate-400 italic text-[8.5px] leading-tight text-center">
                                  {homolLabel}
                                </td>
                                <td className="p-4 text-slate-700 font-bold text-[8.5px] leading-tight text-center uppercase">
@@ -1732,7 +1732,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                 className={`py-2 px-1.5 rounded-lg border font-mono text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
                   (config.theme !== 'pmce' && config.theme !== 'light')
                     ? 'bg-cyber-blue/10 border-cyber-blue text-white shadow-[0_0_10px_rgba(0,242,255,0.15)] font-black'
-                    : 'bg-black/40 border-hud-border/40 text-slate-500 hover:border-hud-border hover:text-slate-300'
+                    : 'bg-black/40 border-hud-border/40 text-slate-400 hover:border-hud-border hover:text-slate-300'
                 }`}
               >
                 <div className="flex space-x-1 items-center">
@@ -1748,7 +1748,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                 className={`py-2 px-1.5 rounded-lg border font-mono text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
                   (config.theme === 'pmce')
                     ? 'bg-cyber-blue/10 border-cyber-blue text-white shadow-[0_0_10px_rgba(0,242,255,0.15)] font-black'
-                    : 'bg-black/40 border-hud-border/40 text-slate-500 hover:border-hud-border hover:text-slate-300'
+                    : 'bg-black/40 border-hud-border/40 text-slate-400 hover:border-hud-border hover:text-slate-300'
                 }`}
               >
                 <div className="flex space-x-1 items-center">
@@ -1764,7 +1764,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                 className={`py-2 px-1.5 rounded-lg border font-mono text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
                   (config.theme === 'light')
                     ? 'bg-cyber-blue/10 border-cyber-blue text-white shadow-[0_0_10px_rgba(0,242,255,0.15)] font-black'
-                    : 'bg-black/40 border-hud-border/40 text-slate-500 hover:border-hud-border hover:text-slate-300'
+                    : 'bg-black/40 border-hud-border/40 text-slate-400 hover:border-hud-border hover:text-slate-300'
                 }`}
               >
                 <div className="flex space-x-1 items-center">
@@ -1787,7 +1787,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
               <p className="text-[10px] text-slate-400 mt-1 font-mono">
                 ID do Banco: <span className="text-cyber-cyan">ai-studio-04310fd5-eb17-4b14-bb8b-07b8d86368ad</span>
               </p>
-              <p className="text-[9.5px] text-slate-500 font-sans leading-tight">
+              <p className="text-[9.5px] text-slate-400 font-sans leading-tight">
                 Todas as alterações (oficiais, permutas e escalas) estão sendo sincronizadas automaticamente na nuvem em tempo real (cloud-persistent backend).
               </p>
             </div>
@@ -1957,7 +1957,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
               </span>
 
               {(!backups || backups.length === 0) ? (
-                <div className="text-[10px] text-slate-500 italic py-2.5 text-center bg-[#03090b]/50 rounded border border-hud-border/40">
+                <div className="text-[10px] text-slate-400 italic py-2.5 text-center bg-[#03090b]/50 rounded border border-hud-border/40">
                   Nenhuma imagem ou snapshot de segurança gerado nesta sessão. Adicione algo ao sistema para salvar automaticamente.
                 </div>
               ) : (
@@ -1974,7 +1974,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                         <div className="text-[9px] text-slate-400 mt-0.5">
                           Backup em: {bk.timestamp} | Autor: {bk.autor}
                         </div>
-                        <div className="text-[8px] font-mono text-slate-500">
+                        <div className="text-[8px] font-mono text-slate-400">
                           {bk.quantidadeMilitares} mil. | {bk.quantidadeEscalas} esc. | {bk.quantidadePermutas} per.
                         </div>
                       </div>
@@ -2023,7 +2023,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
             <div className="bg-hud-card border border-hud-border p-3 rounded-xl flex flex-col space-y-2.5 justify-between">
               <div>
                 <span className="text-[8.5px] font-mono text-slate-400 block uppercase font-bold">Importação Estrutural</span>
-                <p className="text-[10px] text-slate-500 leading-snug">Insira um novo arquivo (.JSON) com policiais para atualizar a base ativa.</p>
+                <p className="text-[10px] text-slate-400 leading-snug">Insira um novo arquivo (.JSON) com policiais para atualizar a base ativa.</p>
               </div>
               
               <input 
@@ -2084,7 +2084,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
             <div className="bg-hud-card border border-hud-border p-3 rounded-xl flex flex-col space-y-2.5 justify-between">
               <div>
                 <span className="text-[8.5px] font-mono text-slate-400 block uppercase font-bold">Reinicializar Conexão</span>
-                <p className="text-[10px] text-slate-500 leading-snug">Restaura todo o banco de dados simulador ao estado regimental padrão (default).</p>
+                <p className="text-[10px] text-slate-400 leading-snug">Restaura todo o banco de dados simulador ao estado regimental padrão (default).</p>
               </div>
 
               <button
@@ -2118,7 +2118,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
             {/* Search Input for Militares - MOVED UP FOR BETTER ACCESSIBILITY */}
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-3.5 w-3.5 text-slate-500 group-focus-within:text-cyber-cyan transition-colors" />
+                <Search className="h-3.5 w-3.5 text-slate-400 group-focus-within:text-cyber-cyan transition-colors" />
               </div>
               <input
                 type="text"
@@ -2130,7 +2130,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
               {militarSearchTerm && (
                 <button 
                   onClick={() => setMilitarSearchTerm('')}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-white"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white"
                 >
                   ×
                 </button>
@@ -2194,8 +2194,8 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                     <>
                       <div className="col-span-2 mt-1">
                         {!newMilitarForm.nome && !newMilitarForm.numero ? (
-                          <div className="bg-[#03090b] border border-hud-border/40 p-2 rounded flex items-center space-x-1.5 text-[9px] text-slate-500 font-mono">
-                            <Database className="w-3.5 h-3.5 text-slate-500" />
+                          <div className="bg-[#03090b] border border-hud-border/40 p-2 rounded flex items-center space-x-1.5 text-[9px] text-slate-400 font-mono">
+                            <Database className="w-3.5 h-3.5 text-slate-400" />
                             <span>Insira o Nome e Numeral para verificação de duplicidades em tempo real.</span>
                           </div>
                         ) : isDuplicate ? (
@@ -2256,7 +2256,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
               <span className="text-[9.5px] font-mono text-cyber-green uppercase tracking-wider block font-extrabold">
                 ✓ QUADRO ATIVO DE CREDENCIAIS
               </span>
-              <div className="flex items-center space-x-1 text-[8.5px] font-mono text-slate-500 uppercase">
+              <div className="flex items-center space-x-1 text-[8.5px] font-mono text-slate-400 uppercase">
                 <Search className="w-3 h-3 text-slate-600" />
                 <span>Busca Credenciais</span>
               </div>
@@ -2265,7 +2265,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
             {/* Search Input for Credentials */}
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-3.5 w-3.5 text-slate-500 group-focus-within:text-cyber-green transition-colors" />
+                <Search className="h-3.5 w-3.5 text-slate-400 group-focus-within:text-cyber-green transition-colors" />
               </div>
               <input
                 type="text"
@@ -2277,7 +2277,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
               {credencialSearchTerm && (
                 <button 
                   onClick={() => setCredencialSearchTerm('')}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-white text-xs font-bold"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white text-xs font-bold"
                 >
                   ×
                 </button>
@@ -2288,7 +2288,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
               {!credencialSearchTerm.trim() ? (
                 <div className="text-center py-6 border border-dashed border-hud-border/30 rounded-lg bg-black/10 flex flex-col items-center justify-center space-y-1.5">
                   <Search className="w-4 h-4 text-slate-600 animate-pulse" />
-                  <span className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">
+                  <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider">
                     Insira uma busca acima para listar credenciais
                   </span>
                 </div>
@@ -2356,7 +2356,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 font-sans">
                           <div>
-                            <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold">Policial Registrado</span>
+                            <span className="text-[8px] font-mono text-slate-400 block uppercase font-bold">Policial Registrado</span>
                             <span className="text-[11px] font-bold text-white uppercase">{u.nome} ({u.patente}) {u.funcao ? `- ${u.funcao}` : ''}</span>
                             
                             <div className="flex flex-wrap gap-1 mt-1">
@@ -2372,13 +2372,13 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
 
                             {u.email && (
                               <div className="text-[9px] font-mono text-slate-300 mt-1.5 flex items-center space-x-1">
-                                <span className="text-slate-500 font-bold uppercase">E-mail:</span>
+                                <span className="text-slate-400 font-bold uppercase">E-mail:</span>
                                 <span className="text-cyber-cyan truncate">{u.email}</span>
                               </div>
                             )}
 
                             <div className="text-[9.5px] font-mono mt-1.5 flex items-center space-x-2 flex-wrap gap-y-1">
-                              <span className="text-slate-500 font-bold uppercase">Acesso:</span>
+                              <span className="text-slate-400 font-bold uppercase">Acesso:</span>
                               {u.acessoLiberado === false ? (
                                 <span className="bg-cyber-red/15 text-cyber-red border border-cyber-red/35 px-1.5 py-0.2 rounded text-[7.5px] font-mono font-black uppercase tracking-wider animate-pulse">⚠️ BLOQUEADO</span>
                               ) : (
@@ -2413,7 +2413,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                             })()}
                           </div>
                           <div>
-                            <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold">Nome de Guerra (Editável)</span>
+                            <span className="text-[8px] font-mono text-slate-400 block uppercase font-bold">Nome de Guerra (Editável)</span>
                             <input
                               type="text"
                               value={u.nomeGuerra}
@@ -2422,7 +2422,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                             />
                           </div>
                           <div>
-                            <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold">Nível de Acesso (Cargo)</span>
+                            <span className="text-[8px] font-mono text-slate-400 block uppercase font-bold">Nível de Acesso (Cargo)</span>
                             <select 
                               value={u.role || 'USUARIO'} 
                               onChange={(e) => {
@@ -2438,7 +2438,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                             </select>
                           </div>
                           <div className="flex flex-col justify-end space-y-1">
-                            <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold">Ações de Cadastro</span>
+                            <span className="text-[8px] font-mono text-slate-400 block uppercase font-bold">Ações de Cadastro</span>
                             <div className="grid grid-cols-2 gap-2">
                               <button
                                 type="button"
@@ -2506,7 +2506,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                   ATUALIZAR DADOS DO POLICIAL
                 </span>
               </div>
-              <span className="text-[9px] font-mono text-slate-500 font-bold bg-slate-500/10 px-1.5 py-0.5 rounded">
+              <span className="text-[9px] font-mono text-slate-400 font-bold bg-slate-500/10 px-1.5 py-0.5 rounded">
                 ID: {editingMilitar.id}
               </span>
             </div>
@@ -2514,13 +2514,13 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
             <div className="flex space-x-1 border-b border-hud-border/30 pb-2">
               <button
                 onClick={() => setEditPolicialTab('GERAL')}
-                className={`flex-1 py-1 text-[10px] uppercase font-bold tracking-wider rounded ${editPolicialTab === 'GERAL' ? 'bg-cyber-cyan/10 text-cyber-cyan border border-cyber-cyan/30' : 'text-slate-500 hover:text-slate-300 bg-transparent'}`}
+                className={`flex-1 py-1 text-[10px] uppercase font-bold tracking-wider rounded ${editPolicialTab === 'GERAL' ? 'bg-cyber-cyan/10 text-cyber-cyan border border-cyber-cyan/30' : 'text-slate-400 hover:text-slate-300 bg-transparent'}`}
               >
                 Dados Gerais
               </button>
               <button
                 onClick={() => setEditPolicialTab('AFASTAMENTOS')}
-                className={`flex-1 py-1 text-[10px] uppercase font-bold tracking-wider rounded ${editPolicialTab === 'AFASTAMENTOS' ? 'bg-cyber-cyan/10 text-cyber-cyan border border-cyber-cyan/30' : 'text-slate-500 hover:text-slate-300 bg-transparent'}`}
+                className={`flex-1 py-1 text-[10px] uppercase font-bold tracking-wider rounded ${editPolicialTab === 'AFASTAMENTOS' ? 'bg-cyber-cyan/10 text-cyber-cyan border border-cyber-cyan/30' : 'text-slate-400 hover:text-slate-300 bg-transparent'}`}
               >
                 Afastamentos
               </button>
@@ -2779,7 +2779,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
               <div className="flex flex-col space-y-2">
                 <span className="text-[9px] font-mono text-slate-400 uppercase font-bold tracking-widest border-b border-hud-border pb-1">Registros de Afastamento</span>
                 {(!editingMilitar.afastamentos || editingMilitar.afastamentos.length === 0) ? (
-                  <p className="text-[10px] text-slate-500 italic py-2 text-center">Nenhum afastamento registrado.</p>
+                  <p className="text-[10px] text-slate-400 italic py-2 text-center">Nenhum afastamento registrado.</p>
                 ) : (
                   <div className="flex flex-col space-y-2">
                     {editingMilitar.afastamentos.map(af => {
@@ -2896,7 +2896,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
             <div className="bg-hud-card border border-hud-border p-3 rounded-xl flex items-center justify-between relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1.5 h-full bg-cyber-cyan/50" />
               <div>
-                <span className="text-[8.5px] font-mono text-slate-500 block uppercase font-bold tracking-widest">REDUNDÂNCIA SECUNDÁRIA (FALLBACK)</span>
+                <span className="text-[8.5px] font-mono text-slate-400 block uppercase font-bold tracking-widest">REDUNDÂNCIA SECUNDÁRIA (FALLBACK)</span>
                 <span className="text-xs font-bold text-white uppercase font-display tracking-wide">Firebase Firestore Cloud</span>
               </div>
               <div className="flex items-center space-x-1.5 bg-cyber-cyan/10 px-2 py-0.5 rounded border border-cyber-cyan/30">
@@ -3148,7 +3148,7 @@ VITE_SUPABASE_ANON_KEY="sua-anon-key-aqui"`}
               <button
                 type="button"
                 onClick={() => setSupabaseLogs(["[Console] Terminal limpo.", "[Console] Stand-by de redundância ativo."])}
-                className="text-right text-[8px] font-mono text-slate-500 hover:text-white uppercase transition-colors cursor-pointer self-end"
+                className="text-right text-[8px] font-mono text-slate-400 hover:text-white uppercase transition-colors cursor-pointer self-end"
               >
                 Limpar Console Log
               </button>
@@ -3166,7 +3166,7 @@ VITE_SUPABASE_ANON_KEY="sua-anon-key-aqui"`}
                 Sincronizando com as Nuvens...
               </div>
             ) : supabaseRecords.length === 0 ? (
-              <div className="text-center py-8 border border-dashed border-hud-border/40 rounded-lg bg-[#020507]/40 text-slate-500 font-mono text-[10px] uppercase">
+              <div className="text-center py-8 border border-dashed border-hud-border/40 rounded-lg bg-[#020507]/40 text-slate-400 font-mono text-[10px] uppercase">
                 Nenhum registro encontrado para seu usuário ativo. Insira novos registros acima!
               </div>
             ) : (
@@ -3199,7 +3199,7 @@ VITE_SUPABASE_ANON_KEY="sua-anon-key-aqui"`}
                             {JSON.stringify(rec.dados_json, null, 2)}
                           </div>
                         )}
-                        <span className="block text-[8px] font-mono text-slate-500">
+                        <span className="block text-[8px] font-mono text-slate-400">
                           ID: {rec.id} | Sincronizado em: {rec.criado_em ? new Date(rec.criado_em).toLocaleString() : 'Não informado'}
                         </span>
                       </div>
