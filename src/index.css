@@ -954,5 +954,230 @@
   border-color: #0057B8 !important;
 }
 
+/* ==========================================================================
+   EXCLUSIVE OVERRIDES FOR HARDCODED DARK BACKGROUNDS/TEXT IN PMCE CLARO CYBER
+   ========================================================================== */
+
+/* Primary white backgrounds for all deep container, body, and wrapper blocks */
+.theme-pmce-claro-cyber .bg-slate-950,
+.theme-pmce-claro-cyber .bg-slate-900,
+.theme-pmce-claro-cyber .bg-black,
+.theme-pmce-claro-cyber [class*="bg-[#01"],
+.theme-pmce-claro-cyber [class*="bg-[#04"],
+.theme-pmce-claro-cyber [class*="bg-[#05"],
+.theme-pmce-claro-cyber [class*="bg-[#07"],
+.theme-pmce-claro-cyber [class*="bg-[#0a"],
+.theme-pmce-claro-cyber [class*="bg-[#0b"],
+.theme-pmce-claro-cyber [class*="bg-[#0d"],
+.theme-pmce-claro-cyber [class*="bg-[#100706]"],
+.theme-pmce-claro-cyber [class*="bg-[#1c1204]"],
+.theme-pmce-claro-cyber [class*="bg-slate-950"],
+.theme-pmce-claro-cyber [class*="bg-slate-900"],
+.theme-pmce-claro-cyber [class*="bg-slate-850"],
+.theme-pmce-claro-cyber [class*="bg-[#051115]"],
+.theme-pmce-claro-cyber [class*="bg-[#051110]"] {
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
+  border-color: #D9E2EC !important;
+}
+
+/* Secondary off-white / light slate premium backgrounds for small inner cards, buttons, tabs, grids, and inputs */
+.theme-pmce-claro-cyber .bg-hud-board\/60,
+.theme-pmce-claro-cyber .bg-hud-bg\/60,
+.theme-pmce-claro-cyber [class*="bg-[#02"],
+.theme-pmce-claro-cyber [class*="bg-[#03"],
+.theme-pmce-claro-cyber [class*="bg-[#06"],
+.theme-pmce-claro-cyber [class*="bg-[#08"],
+.theme-pmce-claro-cyber [class*="bg-[#12"],
+.theme-pmce-claro-cyber [class*="bg-[#15"],
+.theme-pmce-claro-cyber [class*="bg-[#19"],
+.theme-pmce-claro-cyber [class*="bg-hud-bg/"],
+.theme-pmce-claro-cyber [class*="bg-hud-card/"],
+.theme-pmce-claro-cyber [class*="bg-slate-900/"],
+.theme-pmce-claro-cyber [class*="bg-slate-950/"],
+.theme-pmce-claro-cyber [class*="bg-black/"],
+.theme-pmce-claro-cyber [class*="bg-[#03090b]"] {
+  background-color: #F8FAFC !important;
+  color: #111827 !important;
+  border-color: #D9E2EC !important;
+}
+
+/* Specific elements inside secondary containers (e.g., input values) */
+.theme-pmce-claro-cyber .bg-\[\#03090b\] input,
+.theme-pmce-claro-cyber .bg-hud-bg\/60 input,
+.theme-pmce-claro-cyber .bg-[#03090b] select,
+.theme-pmce-claro-cyber .bg-[#03090b] input {
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
+  border-color: #D9E2EC !important;
+}
+
+/* Custom tactical and command alert ticker styling with dynamic contrast levels */
+.theme-pmce-claro-cyber [class*="bg-[#100706]"] {
+  background-color: #FFF5F5 !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+}
+.theme-pmce-claro-cyber [class*="bg-[#100706]"] span,
+.theme-pmce-claro-cyber [class*="bg-[#100706]"] marquee,
+.theme-pmce-claro-cyber [class*="bg-[#100706]"] button {
+  color: #9B1C1C !important;
+}
+
+/* Dynamic status alerts and command/system parameters */
+.theme-pmce-claro-cyber [class*="border-cyber-green"] {
+  border-color: rgba(31, 107, 66, 0.35) !important;
+}
+.theme-pmce-claro-cyber [class*="border-cyber-red"] {
+  border-color: rgba(220, 38, 38, 0.35) !important;
+}
+.theme-pmce-claro-cyber [class*="border-cyber-blue"] {
+  border-color: rgba(0, 87, 184, 0.3) !important;
+}
+.theme-pmce-claro-cyber [class*="border-cyber-amber"] {
+  border-color: rgba(217, 119, 6, 0.35) !important;
+}
+
+/* Numeric PIN entry and keyboard buttons styling */
+.theme-pmce-claro-cyber .bg-\[\#061217\] button,
+.theme-pmce-claro-cyber [class*="bg-[#06"] button {
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
+  border-color: #D9E2EC !important;
+}
+.theme-pmce-claro-cyber .bg-\[\#061217\] button:hover,
+.theme-pmce-claro-cyber [class*="bg-[#06"] button:hover {
+  background-color: rgba(0, 87, 184, 0.08) !important;
+  border-color: #0057B8 !important;
+}
+
+/* Comprehensive text color overrides to completely eliminate dark overlap bugs */
+.theme-pmce-claro-cyber .text-white,
+.theme-pmce-claro-cyber .text-slate-100,
+.theme-pmce-claro-cyber .text-slate-200,
+.theme-pmce-claro-cyber .text-slate-300,
+.theme-pmce-claro-cyber .text-gray-100,
+.theme-pmce-claro-cyber .text-gray-200,
+.theme-pmce-claro-cyber span.text-white,
+.theme-pmce-claro-cyber h3.text-white,
+.theme-pmce-claro-cyber h4.text-white,
+.theme-pmce-claro-cyber div.text-white,
+.theme-pmce-claro-cyber .bg-slate-950 span,
+.theme-pmce-claro-cyber .bg-slate-950 div,
+.theme-pmce-claro-cyber [class*="bg-[#07"] span,
+.theme-pmce-claro-cyber [class*="bg-[#07"] div,
+.theme-pmce-claro-cyber [class*="bg-[#05"] input,
+.theme-pmce-claro-cyber [class*="bg-[#05"] span {
+  color: #111827 !important;
+}
+
+/* Special high-contrast status and badge class updates */
+.theme-pmce-claro-cyber .bg-cyber-cyan\/10,
+.theme-pmce-claro-cyber .bg-cyber-cyan\/20,
+.theme-pmce-claro-cyber .bg-cyber-cyan\/15 {
+  background-color: rgba(0, 87, 184, 0.08) !important;
+  color: #0057B8 !important;
+  border-color: rgba(0, 87, 184, 0.2) !important;
+}
+.theme-pmce-claro-cyber .bg-cyber-blue\/10,
+.theme-pmce-claro-cyber .bg-cyber-blue\/20,
+.theme-pmce-claro-cyber .bg-cyber-blue\/15 {
+  background-color: rgba(31, 107, 66, 0.08) !important;
+  color: #1F6B42 !important;
+  border-color: rgba(31, 107, 66, 0.2) !important;
+}
+.theme-pmce-claro-cyber .bg-cyber-green\/10,
+.theme-pmce-claro-cyber .bg-cyber-green\/20,
+.theme-pmce-claro-cyber .bg-cyber-green\/15 {
+  background-color: rgba(47, 133, 90, 0.08) !important;
+  color: #2F855A !important;
+  border-color: rgba(47, 133, 90, 0.2) !important;
+}
+.theme-pmce-claro-cyber .bg-cyber-amber\/10,
+.theme-pmce-claro-cyber .bg-cyber-amber\/20,
+.theme-pmce-claro-cyber .bg-cyber-amber\/15 {
+  background-color: rgba(217, 119, 6, 0.08) !important;
+  color: #D97706 !important;
+  border-color: rgba(217, 119, 6, 0.2) !important;
+}
+.theme-pmce-claro-cyber .bg-cyber-red\/10,
+.theme-pmce-claro-cyber .bg-cyber-red\/20,
+.theme-pmce-claro-cyber .bg-cyber-red\/15 {
+  background-color: rgba(220, 38, 38, 0.08) !important;
+  color: #DC2626 !important;
+  border-color: rgba(220, 38, 38, 0.2) !important;
+}
+
+/* Modals, backdrop overlays, and dynamic visual popups */
+.theme-pmce-claro-cyber .fixed.inset-0 .bg-slate-950,
+.theme-pmce-claro-cyber .fixed.inset-0 .bg-black\/85 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
+.theme-pmce-claro-cyber .fixed.inset-0 .border-cyber-green\/50 {
+  border-color: #1F6B42 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Autocomplete suggestions dropdown and menu popovers */
+.theme-pmce-claro-cyber .bg-slate-950 .hover\:bg-cyber-cyan\/15:hover {
+  background-color: rgba(0, 87, 184, 0.06) !important;
+}
+.theme-pmce-claro-cyber .bg-slate-950 .text-slate-200 {
+  color: #111827 !important;
+}
+.theme-pmce-claro-cyber .bg-slate-950 .text-slate-400 {
+  color: #4B5563 !important;
+}
+.theme-pmce-claro-cyber .bg-slate-950 .border-cyber-cyan\/20,
+.theme-pmce-claro-cyber .bg-slate-950 .divide-hud-border\/40 > * {
+  border-color: #D9E2EC !important;
+}
+
+/* Tactical icons, key status codes, and security hashes */
+.theme-pmce-claro-cyber .text-\[\#00ff66\],
+.theme-pmce-claro-cyber .text-\[\#00ff66\]\/70,
+.theme-pmce-claro-cyber .text-cyber-green\/70,
+.theme-pmce-claro-cyber .text-\[\#00e5ff\],
+.theme-pmce-claro-cyber .text-\[\#00e5ff\]\/50,
+.theme-pmce-claro-cyber .text-\[\#00b0ff\]\/80 {
+  color: #0057B8 !important;
+}
+
+/* Primary colored buttons overrides (ensures white text and high-contrast icons) */
+.theme-pmce-claro-cyber .bg-cyber-green,
+.theme-pmce-claro-cyber button.bg-cyber-green,
+.theme-pmce-claro-cyber .bg-cyber-cyan,
+.theme-pmce-claro-cyber button.bg-cyber-cyan,
+.theme-pmce-claro-cyber .bg-cyber-blue,
+.theme-pmce-claro-cyber button.bg-cyber-blue {
+  background-color: #1F6B42 !important;
+  color: #FFFFFF !important;
+}
+.theme-pmce-claro-cyber .bg-cyber-green:hover,
+.theme-pmce-claro-cyber button.bg-cyber-green:hover,
+.theme-pmce-claro-cyber .bg-cyber-cyan:hover,
+.theme-pmce-claro-cyber button.bg-cyber-cyan:hover,
+.theme-pmce-claro-cyber .bg-cyber-blue:hover,
+.theme-pmce-claro-cyber button.bg-cyber-blue:hover {
+  background-color: #2F855A !important;
+}
+
+/* Force primary button elements with .text-black class to display white content safely */
+.theme-pmce-claro-cyber .text-black,
+.theme-pmce-claro-cyber button.text-black,
+.theme-pmce-claro-cyber .text-black span,
+.theme-pmce-claro-cyber .text-black svg {
+  color: #FFFFFF !important;
+}
+
+/* System dates, times, and default HTML browser calendar inputs */
+.theme-pmce-claro-cyber input[type="date"],
+.theme-pmce-claro-cyber input[type="time"] {
+  color: #111827 !important;
+  background-color: #FFFFFF !important;
+  border: 1.5px solid #D9E2EC !important;
+}
+
+/* Fim da configuração PMCE Claro Cyber */
+
 
 
