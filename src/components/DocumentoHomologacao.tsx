@@ -8,12 +8,9 @@ import {
   ShieldCheck, 
   Calendar, 
   Clock, 
-  QrCode, 
   FileSignature, 
   Award, 
-  Fingerprint,
-  User,
-  Activity
+  Fingerprint
 } from 'lucide-react';
 import { Permuta, Militar } from '../types';
 
@@ -57,6 +54,10 @@ export default function DocumentoHomologacao({
 }: DocumentoHomologacaoProps) {
   const substituido = allMilitares.find(m => m.id === permuta.militarSubstituidoId);
   const substituto = allMilitares.find(m => m.id === permuta.militarSubstitutoId);
+  const gestorObj = permuta.gestorNome ? allMilitares.find(m => 
+    m.nomeGuerra.toUpperCase() === permuta.gestorNome!.toUpperCase() ||
+    m.nome.toUpperCase().includes(permuta.gestorNome!.toUpperCase())
+  ) : undefined;
   
   const dateParts = obterPartesData(permuta.dataRealizacao);
   const dataExtenso = `${dateParts.dia} de ${dateParts.mesExtenso} de ${dateParts.ano}`;
@@ -70,11 +71,8 @@ export default function DocumentoHomologacao({
           <Award className="w-5 h-5 text-cyber-cyan shrink-0 animate-pulse" />
           <div>
             <h4 className="text-[12px] font-bold text-white uppercase tracking-wider">
-              CERTIDÃO OFICIAL DE HOMOLOGAÇÃO
+              CERTIDÃO
             </h4>
-            <span className="text-[8px] font-mono text-slate-400 block tracking-tight">
-              PROTOCOLO SEGURADO Nº {permuta.protocoloId}
-            </span>
           </div>
         </div>
         <div className={`rounded px-2 py-0.5 text-[9px] font-mono font-bold tracking-tight shrink-0 flex items-center space-x-1 border ${
@@ -119,17 +117,6 @@ export default function DocumentoHomologacao({
           </div>
         </div>
 
-        {/* POST DETAILS */}
-        <div className="bg-[#020709] p-2 rounded-lg border border-hud-border/40">
-          <span className="text-[8px] font-mono text-slate-400 uppercase font-bold tracking-wider block mb-1">
-            Posto de Serviço Militar
-          </span>
-          <div className="text-xs font-black text-white uppercase tracking-wide flex items-center space-x-2">
-            <Activity className="w-3.5 h-3.5 text-cyber-amber shrink-0" />
-            <span>{permuta.postoServico}</span>
-          </div>
-        </div>
-
         {/* SECTION 2: POLICIAIS SUBSTITUTO E SUBSTITUÍDO */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           
@@ -147,9 +134,6 @@ export default function DocumentoHomologacao({
               </div>
               <div className="text-[9px] text-slate-500 font-mono uppercase tracking-tight">
                 Comp/Setor: {substituido?.setor || substituido?.companhia || '—'}
-              </div>
-              <div className="text-[9px] text-slate-500 font-mono tracking-tighter truncate">
-                ID/CHAVE: {substituido?.id || '—'}
               </div>
               {permuta.assinaturaSubstituida && (
                 <div className="border-t border-hud-border/20 pt-1.5 mt-1.5 text-[8px] text-cyber-cyan/80 font-mono flex items-center">
@@ -174,9 +158,6 @@ export default function DocumentoHomologacao({
               </div>
               <div className="text-[9px] text-slate-500 font-mono uppercase tracking-tight">
                 Comp/Setor: {substituto?.setor || substituto?.companhia || '—'}
-              </div>
-              <div className="text-[9px] text-slate-500 font-mono tracking-tighter truncate">
-                ID/CHAVE: {substituto?.id || '—'}
               </div>
               {permuta.assinaturaSubstituta && (
                 <div className="border-t border-hud-border/20 pt-1.5 mt-1.5 text-[8px] text-cyber-green/80 font-mono flex items-center">
@@ -204,37 +185,17 @@ export default function DocumentoHomologacao({
 
           <div className="grid grid-cols-2 gap-2 text-[10px] font-sans">
             <div>
-              <span className="text-slate-400 block text-[9px]">Comandante de Turno:</span>
+              <span className="text-slate-400 block text-[9px]">CHEFE IMEDIATO/ESCALANTE:</span>
               <span className="text-white font-extrabold block text-[11px] uppercase">
-                {permuta.gestorNome || 'TENENTE BASTOS'}
+                {gestorObj ? `${gestorObj.patente} ${gestorObj.nomeGuerra}` : (permuta.gestorNome || 'SISTEMA')}
               </span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[9px]">Chancelado em:</span>
+              <span className="text-slate-400 block text-[9px]">Homologado em:</span>
               <span className="text-cyber-green font-bold block text-[10px] font-mono">
                 {permuta.dataAssinaturaGestor || '2026-06-20 12:44'}
               </span>
             </div>
-          </div>
-
-          <div className="border-t border-cyber-green/20 pt-1.5 mt-1 text-[8.5px] text-slate-400 leading-snug font-mono select-all">
-            <span className="text-cyber-green font-bold">STAMP:</span> {permuta.assinaturaGestor || `COMAS-CENTRAL::TEN. BASTOS::SECURE-CRYPTO-OK-${permuta.protocoloId.slice(-4).toUpperCase()}`}
-          </div>
-        </div>
-
-        {/* SECURITY PROOF & QR CODE */}
-        <div className="flex items-center justify-between bg-slate-900/60 p-2 border border-hud-border/40 rounded-lg">
-          <div className="min-w-0 flex-1 pr-2">
-            <span className="text-[7.5px] font-mono text-slate-400 block uppercase">CONEXÃO CRIPTOGRÁFICA REGIMENTAL</span>
-            <span className="text-[8.5px] font-mono text-cyber-cyan font-bold block truncate" title={permuta.auditoriaHash}>
-              HASH: {permuta.auditoriaHash}
-            </span>
-            <p className="text-[8px] text-slate-500 mt-1 leading-snug">
-              Este recibo confere validade oficial à permuta nos termos do Regulamento Geral de Escalas e Serviços.
-            </p>
-          </div>
-          <div className="w-12 h-12 bg-white rounded p-1 shrink-0 flex items-center justify-center relative">
-            <QrCode className="w-full h-full text-black" />
           </div>
         </div>
 

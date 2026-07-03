@@ -618,7 +618,8 @@ export default function Dashboard({
       )}
 
       {/* TURNS CALENDAR - CALENDÁRIO DE TURNOS */}
-      <div className="bg-hud-card border border-hud-border rounded-xl p-3.5 flex flex-col relative overflow-hidden">
+      {userLogged?.role !== 'COMANDANTE' && userLogged?.role !== 'ADMIN' && (
+        <div className="bg-hud-card border border-hud-border rounded-xl p-3.5 flex flex-col relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3 pb-2.5 border-b border-hud-border/30">
           <div className="flex flex-col">
             <h3 className="text-xs font-bold font-display text-white tracking-wider flex items-center uppercase">
@@ -843,6 +844,7 @@ export default function Dashboard({
           })()}
         </div>
       </div>
+      )}
 
 
 

@@ -2157,35 +2157,44 @@ export default function App() {
                       <div className="flex justify-between items-center mb-3">
                         <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center font-sans">
                           <History className="w-4 h-4 text-cyber-blue mr-1.5" />
-                          Minhas Solicitações de Troca
+                          {(loggedUser?.role === 'COMANDANTE' || loggedUser?.role === 'ADMIN') ? "Histórico Geral de Permutas" : "Minhas Solicitações de Troca"}
                         </h3>
-                        <button
-                          onClick={() => {
-                            setCurrentTab('DASHBOARD');
-                            // Create elegant ephemeral overlay notification
-                            const toastDiv = document.createElement('div');
-                            toastDiv.className = "fixed top-5 left-1/2 transform -translate-x-1/2 bg-[#021c22] text-[#00ff66] border border-[#00ff66]/40 px-5 py-3 rounded-xl text-center text-xs font-mono font-bold uppercase tracking-wider shadow-[0_0_20px_rgba(0,255,102,0.3)] z-50 cursor-pointer transition-all";
-                            toastDiv.innerHTML = "⚡ NOVA PROTOCOLIZAÇÃO:<br/><span className='text-white text-[11px] font-sans font-normal normal-case'>Selecione qualquer dia no painel tático para iniciar outra permuta.</span>";
-                            document.body.appendChild(toastDiv);
-                            setTimeout(() => {
-                              toastDiv.style.opacity = '0';
-                              setTimeout(() => toastDiv.remove(), 500);
-                            }, 4500);
-                          }}
-                          className="bg-cyber-blue/15 hover:bg-cyber-blue/35 text-cyber-cyan border border-cyber-cyan/35 hover:border-cyber-cyan/60 px-2.5 py-1 rounded text-[9.5px] font-mono font-bold transition-all uppercase flex items-center space-x-1 cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.1)] active:scale-95"
-                          id="btn-add-more-permuta"
-                        >
-                          <PlusCircle size={11} className="text-cyber-cyan animate-pulse shrink-0" />
-                          <span>SOLICITAR MAIS PERMUTA</span>
-                        </button>
+                        {loggedUser?.role !== 'COMANDANTE' && loggedUser?.role !== 'ADMIN' && (
+                          <button
+                            onClick={() => {
+                              setCurrentTab('DASHBOARD');
+                              // Create elegant ephemeral overlay notification
+                              const toastDiv = document.createElement('div');
+                              toastDiv.className = "fixed top-5 left-1/2 transform -translate-x-1/2 bg-[#021c22] text-[#00ff66] border border-[#00ff66]/40 px-5 py-3 rounded-xl text-center text-xs font-mono font-bold uppercase tracking-wider shadow-[0_0_20px_rgba(0,255,102,0.3)] z-50 cursor-pointer transition-all";
+                              toastDiv.innerHTML = "⚡ NOVA PROTOCOLIZAÇÃO:<br/><span className='text-white text-[11px] font-sans font-normal normal-case'>Selecione qualquer dia no painel tático para iniciar outra permuta.</span>";
+                              document.body.appendChild(toastDiv);
+                              setTimeout(() => {
+                                toastDiv.style.opacity = '0';
+                                setTimeout(() => toastDiv.remove(), 500);
+                              }, 4500);
+                            }}
+                            className="bg-cyber-blue/15 hover:bg-cyber-blue/35 text-cyber-cyan border border-cyber-cyan/35 hover:border-cyber-cyan/60 px-2.5 py-1 rounded text-[9.5px] font-mono font-bold transition-all uppercase flex items-center space-x-1 cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.1)] active:scale-95"
+                            id="btn-add-more-permuta"
+                          >
+                            <PlusCircle size={11} className="text-cyber-cyan animate-pulse shrink-0" />
+                            <span>SOLICITAR MAIS PERMUTA</span>
+                          </button>
+                        )}
                       </div>
 
                       {(() => {
-                        const userPermutas = permutas.filter(p => p.militarSubstituidoId === loggedUser?.id || p.militarSubstitutoId === loggedUser?.id);
+                        const isLeadership = loggedUser?.role === 'COMANDANTE' || loggedUser?.role === 'ADMIN';
+                        const userPermutas = isLeadership 
+                          ? permutas.filter(p => p.status === 'APROVADO' || p.status === 'REJEITADO' || p.status === 'REJEITADO_SUBSTITUTO')
+                          : permutas.filter(p => p.militarSubstituidoId === loggedUser?.id || p.militarSubstitutoId === loggedUser?.id);
+
                         if (userPermutas.length === 0) {
                           return (
                             <div className="bg-[#051115] border border-hud-border/40 p-6 rounded-xl text-center text-slate-400 font-sans text-xs">
-                              Nenhuma solicitação de troca encontrada. Para iniciar nova proposta, selecione uma escala na tela inicial do Dashboard.
+                              {isLeadership 
+                                ? "Nenhuma permuta homologada ou recusada registrada no sistema."
+                                : "Nenhuma solicitação de troca encontrada. Para iniciar nova proposta, selecione uma escala na tela inicial do Dashboard."
+                              }
                             </div>
                           );
                         }
