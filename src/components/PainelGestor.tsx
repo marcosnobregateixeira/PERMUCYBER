@@ -885,73 +885,75 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
       </div>
 
       {/* QUICK KPI METRIC CARDS */}
-      <div className="grid grid-cols-2 gap-2 mb-4 text-center">
-        <div className="bg-hud-card border border-hud-border p-2 rounded-lg flex flex-col justify-between min-h-[58px] text-left gap-1">
-          <span className="text-[7.5px] font-mono text-slate-400 block uppercase">FILA RATIF.</span>
-          <select
-            value={verificarMilitarId}
-            onChange={(e) => setVerificarMilitarId(e.target.value)}
-            className="w-full bg-[#020507] border border-hud-border rounded px-1 py-0.5 text-white text-[10px] font-mono focus:border-cyber-blue outline-none uppercase cursor-pointer mb-0.5"
-          >
-            <option value="">-- SELECIONE POLICIAL --</option>
-            {sortedMilitares.map(m => (
-              <option key={m.id} value={m.id} className="bg-[#03080a] text-white">
-                {m.patente} {m.nomeGuerra}
-              </option>
-            ))}
-          </select>
-          <div className="flex gap-1">
+      {activeSubTab === 'PEDIDOS' && (
+        <div className="grid grid-cols-2 gap-2 mb-4 text-center">
+          <div className="bg-hud-card border border-hud-border p-2 rounded-lg flex flex-col justify-between min-h-[58px] text-left gap-1">
+            <span className="text-[7.5px] font-mono text-slate-400 block uppercase">FILA RATIF.</span>
             <select
-              value={selecionadoMes}
-              onChange={(e) => setSelecionadoMes(Number(e.target.value))}
-              className="flex-1 bg-[#020507] border border-hud-border rounded px-1 py-0.5 text-white text-[9.5px] font-mono focus:border-cyber-blue outline-none uppercase cursor-pointer"
+              value={verificarMilitarId}
+              onChange={(e) => setVerificarMilitarId(e.target.value)}
+              className="w-full bg-[#020507] border border-hud-border rounded px-1 py-0.5 text-white text-[10px] font-mono focus:border-cyber-blue outline-none uppercase cursor-pointer mb-0.5"
             >
-              <option value={0}>JANEIRO</option>
-              <option value={1}>FEVEREIRO</option>
-              <option value={2}>MARÇO</option>
-              <option value={3}>ABRIL</option>
-              <option value={4}>MAIO</option>
-              <option value={5}>JUNHO</option>
-              <option value={6}>JULHO</option>
-              <option value={7}>AGOSTO</option>
-              <option value={8}>SETEMBRO</option>
-              <option value={9}>OUTUBRO</option>
-              <option value={10}>NOVEMBRO</option>
-              <option value={11}>DEZEMBRO</option>
-            </select>
-            <select
-              value={selecionadoAno}
-              onChange={(e) => setSelecionadoAno(Number(e.target.value))}
-              className="bg-[#020507] border border-hud-border rounded px-1 py-0.5 text-white text-[9.5px] font-mono focus:border-cyber-blue outline-none uppercase cursor-pointer"
-            >
-              <option value={2025}>2025</option>
-              <option value={2026}>2026</option>
-              <option value={2027}>2027</option>
-            </select>
-          </div>
-        </div>
-        <div className="bg-hud-card border border-hud-border p-2 rounded-lg flex flex-col justify-between min-h-[58px] text-center">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-[7.5px] font-mono text-slate-400 block uppercase">CONCLUÍDAS</span>
-            <select
-              className="bg-[#020507] border border-hud-border rounded px-1 py-0.5 text-white text-[9px] font-mono focus:border-cyber-blue outline-none cursor-pointer max-w-[80px]"
-              title="Datas das Permutas"
-            >
-              <option value="">DATAS</option>
-              {datasMesAtual.map(d => (
-                <option key={d} value={d}>{d}</option>
+              <option value="">-- SELECIONE POLICIAL --</option>
+              {sortedMilitares.map(m => (
+                <option key={m.id} value={m.id} className="bg-[#03080a] text-white">
+                  {m.patente} {m.nomeGuerra}
+                </option>
               ))}
             </select>
+            <div className="flex gap-1">
+              <select
+                value={selecionadoMes}
+                onChange={(e) => setSelecionadoMes(Number(e.target.value))}
+                className="flex-1 bg-[#020507] border border-hud-border rounded px-1 py-0.5 text-white text-[9.5px] font-mono focus:border-cyber-blue outline-none uppercase cursor-pointer"
+              >
+                <option value={0}>JANEIRO</option>
+                <option value={1}>FEVEREIRO</option>
+                <option value={2}>MARÇO</option>
+                <option value={3}>ABRIL</option>
+                <option value={4}>MAIO</option>
+                <option value={5}>JUNHO</option>
+                <option value={6}>JULHO</option>
+                <option value={7}>AGOSTO</option>
+                <option value={8}>SETEMBRO</option>
+                <option value={9}>OUTUBRO</option>
+                <option value={10}>NOVEMBRO</option>
+                <option value={11}>DEZEMBRO</option>
+              </select>
+              <select
+                value={selecionadoAno}
+                onChange={(e) => setSelecionadoAno(Number(e.target.value))}
+                className="bg-[#020507] border border-hud-border rounded px-1 py-0.5 text-white text-[9.5px] font-mono focus:border-cyber-blue outline-none uppercase cursor-pointer"
+              >
+                <option value={2025}>2025</option>
+                <option value={2026}>2026</option>
+                <option value={2027}>2027</option>
+              </select>
+            </div>
           </div>
-          <span className="text-xs font-black font-mono text-cyber-green uppercase leading-loose truncate">
-            {verificarMilitarId ? (
-              `${permutasMilitarMesAtual.length} TROCAS`
-            ) : (
-              `${permutasAprovadasMesAtual.length} TROCAS (GERAL)`
-            )}
-          </span>
+          <div className="bg-hud-card border border-hud-border p-2 rounded-lg flex flex-col justify-between min-h-[58px] text-center">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[7.5px] font-mono text-slate-400 block uppercase">CONCLUÍDAS</span>
+              <select
+                className="bg-[#020507] border border-hud-border rounded px-1 py-0.5 text-white text-[9px] font-mono focus:border-cyber-blue outline-none cursor-pointer max-w-[80px]"
+                title="Datas das Permutas"
+              >
+                <option value="">DATAS</option>
+                {datasMesAtual.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+            <span className="text-xs font-black font-mono text-cyber-green uppercase leading-loose truncate">
+              {verificarMilitarId ? (
+                `${permutasMilitarMesAtual.length} TROCAS`
+              ) : (
+                `${permutasAprovadasMesAtual.length} TROCAS (GERAL)`
+              )}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* MAIN VIEW PANES */}
       {activeSubTab === 'PEDIDOS' && (

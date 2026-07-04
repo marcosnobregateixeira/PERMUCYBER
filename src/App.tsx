@@ -517,7 +517,18 @@ export default function App() {
     const unsubPermutas = onSnapshot(collection(db, 'permutas'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as Permuta, id: d.id }));
-      setPermutas(list);
+      if (list.length > 0) {
+        setPermutas(list);
+      } else {
+        const savedLocalPermStr = localStorage.getItem('permucyber_permutas');
+        if (savedLocalPermStr) {
+          try {
+            setPermutas(JSON.parse(savedLocalPermStr));
+          } catch (e) {}
+        } else {
+          setPermutas([]);
+        }
+      }
     }, handleFirebaseError);
 
     const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => {
@@ -1446,6 +1457,113 @@ export default function App() {
     setCurrentTab('PERMUTAS');
   };
 
+  const syncBackupsAfterDeletion = async (
+    deletedPermutaId: string,
+    deletedEscalaIds: string[],
+    revertedEscalaId?: string,
+    revertedMilitarId?: string
+  ) => {
+    const updateBackupData = (bk: BackupSnapshot): BackupSnapshot => {
+      let updatedPermutas = bk.permutas || [];
+      if (deletedPermutaId) {
+        updatedPermutas = updatedPermutas.filter(p => p.id !== deletedPermutaId);
+      }
+
+      let updatedEscalas = bk.escalas || [];
+      if (deletedEscalaIds && deletedEscalaIds.length > 0) {
+        updatedEscalas = updatedEscalas.filter(e => !deletedEscalaIds.includes(e.id));
+      }
+      if (revertedEscalaId && revertedMilitarId) {
+        updatedEscalas = updatedEscalas.map(e => 
+          e.id === revertedEscalaId ? { ...e, militarId: revertedMilitarId } : e
+        );
+      }
+
+      return {
+        ...bk,
+        permutas: updatedPermutas,
+        quantidadePermutas: updatedPermutas.length,
+        escalas: updatedEscalas,
+        quantidadeEscalas: updatedEscalas.length
+      };
+    };
+
+    // 1. Update backups state
+    setBackups(prev => {
+      const updated = prev.map(updateBackupData);
+      
+      // Save updated to localStorage
+      updated.forEach(bk => {
+        try {
+          localStorage.setItem(`BACKUP_${bk.id}`, JSON.stringify(bk));
+        } catch (e) {}
+      });
+
+      return updated;
+    });
+
+    // 2. Clear all local localStorage backups keys directly
+    try {
+      const keysToUpdate: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('BACKUP_')) {
+          keysToUpdate.push(key);
+        }
+      }
+      keysToUpdate.forEach(key => {
+        const item = localStorage.getItem(key);
+        if (item) {
+          try {
+            const bk = JSON.parse(item);
+            const updatedBk = updateBackupData(bk);
+            localStorage.setItem(key, JSON.stringify(updatedBk));
+          } catch (e) {}
+        }
+      });
+
+      const savedBackups = localStorage.getItem('permucyber_backups');
+      if (savedBackups) {
+        const parsed = JSON.parse(savedBackups);
+        if (Array.isArray(parsed)) {
+          const updatedParsed = parsed.map(updateBackupData);
+          localStorage.setItem('permucyber_backups', JSON.stringify(updatedParsed));
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao atualizar backups locais:", e);
+    }
+
+    // 3. Clear cloud backups to prevent them from restoring old data
+    try {
+      const backupsSnap = await getDocs(collection(db, 'backups'));
+      for (const bDoc of backupsSnap.docs) {
+        const bkData = bDoc.data() as BackupSnapshot;
+        const hasDeletedPermuta = bkData.permutas && bkData.permutas.some(p => p.id === deletedPermutaId);
+        const hasDeletedEscala = bkData.escalas && bkData.escalas.some(e => deletedEscalaIds.includes(e.id));
+        const hasRevertedEscala = bkData.escalas && bkData.escalas.some(e => e.id === revertedEscalaId && e.militarId !== revertedMilitarId);
+
+        if (hasDeletedPermuta || hasDeletedEscala || hasRevertedEscala) {
+          const updatedBk = updateBackupData(bkData);
+          
+          // Save to Firestore
+          await setDoc(doc(db, 'backups', bDoc.id), sanitizeForFirestore(updatedBk));
+          
+          // Save to Supabase (via dados_app table with the backup ID)
+          await salvarDados(
+            SYSTEM_USER_ID,
+            `Cópia de Segurança ${bkData.tipo} [${bDoc.id}]`,
+            `Snapshot atualizado pós-exclusão`,
+            updatedBk,
+            bDoc.id
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao atualizar backups na nuvem:", err);
+    }
+  };
+
   const revertOrDeleteScaleForPermuta = async (targetPermuta: Permuta) => {
     const originalEscalaId = targetPermuta.escalaSubstituidaId;
     
@@ -1484,6 +1602,7 @@ export default function App() {
       
       const idsToDelete = [originalEscalaId, generatedEscala?.id].filter(Boolean) as string[];
       setEscalas(prev => prev.filter(e => !idsToDelete.includes(e.id)));
+      return { deletedIds: idsToDelete, revertedId: undefined, revertedMilitarId: undefined };
     } else {
       // It was an original official scale record. We revert it to the original owner!
       try {
@@ -1507,14 +1626,16 @@ export default function App() {
         ...e,
         militarId: targetPermuta.militarSubstituidoId
       } : e));
+      return { deletedIds: [], revertedId: originalEscalaId, revertedMilitarId: targetPermuta.militarSubstituidoId };
     }
   };
 
   const handleDeletePermuta = async (id: string) => {
     if (!loggedUser) return;
     const targetPermuta = permutas.find(p => p.id === id);
+    let scaleChanges = { deletedIds: [] as string[], revertedId: undefined as string | undefined, revertedMilitarId: undefined as string | undefined };
     if (targetPermuta && targetPermuta.status === 'APROVADO') {
-      await revertOrDeleteScaleForPermuta(targetPermuta);
+      scaleChanges = await revertOrDeleteScaleForPermuta(targetPermuta);
     }
     try {
       // Supabase/Firebase (Tabela Unificada) - Modo manual configurado no fallback
@@ -1531,9 +1652,15 @@ export default function App() {
     setPermutas(nextPermutas);
     await appendAuditLog('INTEGRALIZAÇÃO', `Protocolo de permuta excluído pelo militar solicitante.`, loggedUser.nomeGuerra, logs);
     
+    // Scrub this deleted permuta and its scale changes from ALL backups to prevent auto-restoration
+    await syncBackupsAfterDeletion(id, scaleChanges.deletedIds, scaleChanges.revertedId, scaleChanges.revertedMilitarId);
+
     // Auto backup ensures that subsequent auto-recovery files will also be clean of this deleted permuta
     try {
-      await generateBackup('AUTO', loggedUser.nomeGuerra, militares, escalas, nextPermutas);
+      const activeEscalas = escalas
+        .filter(e => !scaleChanges.deletedIds.includes(e.id))
+        .map(e => e.id === scaleChanges.revertedId ? { ...e, militarId: scaleChanges.revertedMilitarId! } : e);
+      await generateBackup('AUTO', loggedUser.nomeGuerra, militares, activeEscalas, nextPermutas);
     } catch (bErr) {
       console.error("Erro no auto-backup pós-exclusão:", bErr);
     }
