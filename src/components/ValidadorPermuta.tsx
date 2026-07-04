@@ -30,6 +30,7 @@ interface ValidadorPermutaProps {
   onBack: () => void;
   onAccept: (permutaId: string, assinatura: string) => void;
   onDecline: (permutaId: string) => void;
+  onCorrect?: (permuta: Permuta) => void;
   onRequestAlteration: (permutaId: string, comentario: string) => void;
 }
 
@@ -40,6 +41,7 @@ export default function ValidadorPermuta({
   onBack,
   onAccept,
   onDecline,
+  onCorrect,
   onRequestAlteration
 }: ValidadorPermutaProps) {
   const [altComment, setAltComment] = useState<string>('');
@@ -48,9 +50,20 @@ export default function ValidadorPermuta({
   const militarSubstituido = allMilitares.find(m => m.id === permuta.militarSubstituidoId);
   const militarSubstituto = allMilitares.find(m => m.id === permuta.militarSubstitutoId);
 
+  const isSubstituido = permuta.militarSubstituidoId === userLogged?.id;
+
   const handleAcceptClick = () => {
     const sigText = `CYBERSIGN::${userLogged?.nomeGuerra?.toUpperCase() || 'UNKNOWN'}::${Math.floor(Date.now()/100).toString(16).toUpperCase()}::ACCEPT-PEER`;
     onAccept(permuta.id, sigText);
+  };
+
+  const handleAdjustProposal = () => {
+    // When reviewing an alteration, the requester chooses to "adjust" by re-doing the flow
+    if (onCorrect) {
+      onCorrect(permuta);
+    } else {
+      onDecline(permuta.id);
+    }
   };
 
   const handleSendAlteration = () => {
@@ -69,8 +82,14 @@ export default function ValidadorPermuta({
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div>
-          <h2 className="text-sm font-bold text-white uppercase tracking-wider">REVISAR SOLICITAÇÃO</h2>
-          <p className="text-[10px] text-slate-400">Dados da proposta de troca de serviço entre colegas</p>
+          <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+            {isSubstituido ? 'REVISAR AJUSTE SOLICITADO' : 'REVISAR SOLICITAÇÃO'}
+          </h2>
+          <p className="text-[10px] text-slate-400">
+            {isSubstituido 
+              ? 'O colega sugeriu alterações na sua proposta de troca' 
+              : 'Dados da proposta de troca de serviço entre colegas'}
+          </p>
         </div>
       </div>
 
@@ -134,7 +153,9 @@ export default function ValidadorPermuta({
         {/* SENDER REMARKS IF THERE IS ONE */}
         {permuta.comentarioAlteracao && (
           <div className="bg-[#1c1204]/40 border border-[#ffb300]/20 p-3 rounded-lg text-xs leading-relaxed text-slate-300">
-            <span className="text-[8px] text-cyber-amber block font-bold uppercase mb-1">OBSERVAÇÃO DO SOLICITANTE:</span>
+            <span className="text-[8px] text-cyber-amber block font-bold uppercase mb-1">
+              {isSubstituido ? 'SUGESTÃO DO COLEGA:' : 'OBSERVAÇÃO DO SOLICITANTE:'}
+            </span>
             "{permuta.comentarioAlteracao}"
           </div>
         )}
@@ -145,37 +166,63 @@ export default function ValidadorPermuta({
             
             {/* BUTTONS ROW: DECLINE, CHANGE REQUEST, ACCEPT */}
             <div className="flex flex-col space-y-2 pt-2">
-              <button
-                type="button"
-                onClick={handleAcceptClick}
-                className="w-full text-xs font-bold py-3 rounded-lg font-mono uppercase transition-all flex items-center justify-center space-x-1.5 bg-cyber-green text-black hover:bg-[#00ff66]/90 shadow-[0_0_15px_rgba(0,255,102,0.4)]"
-                id="accept-swap-btn"
-              >
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>CONFIRMAR E ACEITAR TROCA</span>
-              </button>
+              {isSubstituido ? (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleAdjustProposal}
+                    className="w-full text-xs font-bold py-3 rounded-lg font-mono uppercase transition-all flex items-center justify-center space-x-1.5 bg-[#ffb300] text-black hover:bg-[#ffb300]/90 shadow-[0_0_15px_rgba(255,179,0,0.3)]"
+                    id="adjust-swap-requester-btn"
+                  >
+                    <Edit3 className="w-4 h-4 shrink-0" />
+                    <span>REFAZER PROPOSTA COM AJUSTES</span>
+                  </button>
 
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAltInput(true)}
-                  className="bg-[#12191c] border border-hud-border hover:bg-hud-card transition-all text-[11px] font-bold py-2.5 rounded-lg font-mono uppercase text-[#00e5ff] flex items-center justify-center"
-                  id="request-alteration-btn"
-                >
-                  <AlertTriangle className="w-3.5 h-3.5 mr-1" />
-                  <span>SUGERIR AJUSTE</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => onDecline(permuta.id)}
+                    className="w-full bg-cyber-red/10 border border-[#441118]/30 hover:bg-cyber-red/20 transition-all text-xs font-bold py-3 rounded-lg font-mono uppercase text-cyber-red flex items-center justify-center shadow-[0_0_10px_rgba(255,51,51,0.1)]"
+                    id="cancel-swap-requester-btn"
+                  >
+                    <XCircle className="w-4 h-4 mr-1.5" />
+                    <span>DESISTIR DESTA TROCA</span>
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleAcceptClick}
+                    className="w-full text-xs font-bold py-3 rounded-lg font-mono uppercase transition-all flex items-center justify-center space-x-1.5 bg-cyber-green text-black hover:bg-[#00ff66]/90 shadow-[0_0_15px_rgba(0,255,102,0.4)]"
+                    id="accept-swap-btn"
+                  >
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>CONFIRMAR E ACEITAR TROCA</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => onDecline(permuta.id)}
-                  className="bg-cyber-red/10 border border-[#441118]/30 hover:bg-cyber-red/20 transition-all text-[11px] font-bold py-2.5 rounded-lg font-mono uppercase text-cyber-red flex items-center justify-center"
-                  id="decline-swap-btn"
-                >
-                  <XCircle className="w-3.5 h-3.5 mr-1" />
-                  <span>RECUSAR PEDIDO</span>
-                </button>
-              </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowAltInput(true)}
+                      className="bg-[#12191c] border border-hud-border hover:bg-hud-card transition-all text-[11px] font-bold py-2.5 rounded-lg font-mono uppercase text-[#00e5ff] flex items-center justify-center"
+                      id="request-alteration-btn"
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5 mr-1" />
+                      <span>SUGERIR AJUSTE</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onDecline(permuta.id)}
+                      className="bg-cyber-red/10 border border-[#441118]/30 hover:bg-cyber-red/20 transition-all text-[11px] font-bold py-2.5 rounded-lg font-mono uppercase text-cyber-red flex items-center justify-center"
+                      id="decline-swap-btn"
+                    >
+                      <XCircle className="w-3.5 h-3.5 mr-1" />
+                      <span>RECUSAR PEDIDO</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
 
           </div>

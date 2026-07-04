@@ -475,62 +475,35 @@ export default function App() {
     const unsubMilitares = onSnapshot(collection(db, 'militares'), (snap) => {
       setFirebaseError(null);
       const list = healSpecialUsers(snap.docs.map(d => ({ ...d.data() as Militar, id: d.id })));
-
-      const savedLocalMilStr = localStorage.getItem('permucyber_militares');
-      let localMilList: Militar[] = [];
-      try {
-        if (savedLocalMilStr) localMilList = healSpecialUsers(JSON.parse(savedLocalMilStr));
-      } catch (e) {}
-
-      const hasCustomLocal = localMilList.length > 0 && !isRosterDefault(localMilList);
-      const isCloudDefault = list.length === 0 || isRosterDefault(list);
-
-      // Se o cloud estiver vazio ou for apenas o padrão, e o local tiver dados customizados,
-      // nós forçamos o upload dos dados locais para garantir que nada se perca.
-      if (hasCustomLocal && isCloudDefault) {
-        console.log("Detectado dados locais customizados e Cloud padrão/vazio. Sincronizando local -> cloud...");
-        localMilList.forEach(async (m) => {
-          await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
-        });
-        setMilitares(localMilList.sort(sortMilitarByPatente));
-      } else if (list.length > 0) {
-        // Se o cloud já tem dados (não é o padrão), nós aceitamos o cloud como verdade absoluta
-        // para permitir que novos aparelhos vejam os dados.
+      
+      if (list.length > 0) {
         setMilitares(list.sort(sortMilitarByPatente));
-      } else if (localMilList.length > 0) {
-        setMilitares(localMilList.sort(sortMilitarByPatente));
+      } else {
+        // Fallback for first run if cloud is empty
+        const savedLocalMilStr = localStorage.getItem('permucyber_militares');
+        if (savedLocalMilStr) {
+          try {
+            const localMilList = healSpecialUsers(JSON.parse(savedLocalMilStr));
+            setMilitares(localMilList.sort(sortMilitarByPatente));
+          } catch (e) {}
+        }
       }
-
       setIsLoading(false);
     }, handleFirebaseError);
 
     const unsubEscalas = onSnapshot(collection(db, 'escalas'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as Escala, id: d.id }));
-
-      const savedLocalEscStr = localStorage.getItem('permucyber_escalas');
-      let localEscList: Escala[] = [];
-      try {
-        if (savedLocalEscStr) localEscList = JSON.parse(savedLocalEscStr);
-      } catch (e) {}
-
-      const hasCustomLocal = localEscList.length > 0 && 
-                             (localEscList.length !== ESCALAS_INICIAIS.length || 
-                              !localEscList.every(e => ESCALAS_INICIAIS.some(de => de.id === e.id)));
-      const isCloudDefault = list.length === 0 || 
-                             (list.length === ESCALAS_INICIAIS.length && 
-                              list.every(e => ESCALAS_INICIAIS.some(de => de.id === e.id)));
-
-      if (hasCustomLocal && isCloudDefault) {
-        console.log("Detectado escalas locais customizadas. Sincronizando local -> cloud...");
-        localEscList.forEach(async (e) => {
-          await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e));
-        });
-        setEscalas(localEscList);
-      } else if (list.length > 0) {
+      
+      if (list.length > 0) {
         setEscalas(list);
-      } else if (localEscList.length > 0) {
-        setEscalas(localEscList);
+      } else {
+        const savedLocalEscStr = localStorage.getItem('permucyber_escalas');
+        if (savedLocalEscStr) {
+          try {
+            setEscalas(JSON.parse(savedLocalEscStr));
+          } catch (e) {}
+        }
       }
       setIsLoading(false);
     }, handleFirebaseError);
@@ -538,15 +511,7 @@ export default function App() {
     const unsubAlertas = onSnapshot(collection(db, 'alertas'), (snap) => {
       setFirebaseError(null);
       if (snap.empty) {
-        console.log("Seeding empty alertas collection in Firestore with default alerts.");
-        ALERTAS_INICIAIS.forEach(async (a) => {
-          try {
-            await setDoc(doc(db, 'alertas', a.id), sanitizeForFirestore(a));
-          } catch (e) {
-            console.error("Firestore error seeding alerta:", e);
-          }
-        });
-        setAlertas(ALERTAS_INICIAIS);
+        // Only seed if we haven't already marked as loaded
         return;
       }
       const list = snap.docs.map(d => ({ ...d.data() as Alerta, id: d.id }));
@@ -556,45 +521,12 @@ export default function App() {
     const unsubPermutas = onSnapshot(collection(db, 'permutas'), (snap) => {
       setFirebaseError(null);
       const list = snap.docs.map(d => ({ ...d.data() as Permuta, id: d.id }));
-
-      const savedLocalPermStr = localStorage.getItem('permucyber_permutas');
-      let localPermList: Permuta[] = [];
-      try {
-        if (savedLocalPermStr) localPermList = JSON.parse(savedLocalPermStr);
-      } catch (e) {}
-
-      const hasCustomLocal = localPermList.length > 0 && 
-                             (localPermList.length !== PERMUTAS_INICIAIS.length || 
-                              !localPermList.every(p => PERMUTAS_INICIAIS.some(dp => dp.id === p.id)));
-      const isCloudDefault = list.length === 0 || 
-                             (list.length === PERMUTAS_INICIAIS.length && 
-                              list.every(p => PERMUTAS_INICIAIS.some(dp => dp.id === p.id)));
-
-      if (hasCustomLocal && isCloudDefault) {
-        console.log("Detectado permutas locais customizadas. Sincronizando local -> cloud...");
-        localPermList.forEach(async (p) => {
-          await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore(p));
-        });
-        setPermutas(localPermList);
-      } else if (list.length > 0) {
-        setPermutas(list);
-      } else if (localPermList.length > 0) {
-        setPermutas(localPermList);
-      }
+      setPermutas(list);
     }, handleFirebaseError);
 
     const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => {
       setFirebaseError(null);
       if (snap.empty) {
-        console.log("Seeding empty logs collection in Firestore.");
-        LOGS_INICIAIS.forEach(async (l) => {
-          try {
-            await setDoc(doc(db, 'logs', l.id), sanitizeForFirestore(l));
-          } catch (e) {
-            console.error("Firestore error seeding log:", e);
-          }
-        });
-        setLogs(LOGS_INICIAIS);
         return;
       }
       const list = snap.docs.map(d => ({ ...d.data() as BlockchainLog, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
@@ -604,15 +536,6 @@ export default function App() {
     const unsubMessages = onSnapshot(collection(db, 'messages'), (snap) => {
       setFirebaseError(null);
       if (snap.empty) {
-        console.log("Seeding empty messages collection in Firestore.");
-        CHATS_INICIAIS.forEach(async (m) => {
-          try {
-            await setDoc(doc(db, 'messages', m.id), sanitizeForFirestore(m));
-          } catch (e) {
-            console.error("Firestore error seeding message:", e);
-          }
-        });
-        setMessages(CHATS_INICIAIS);
         return;
       }
       const list = snap.docs.map(d => ({ ...d.data() as ChatMessage, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
@@ -1548,17 +1471,40 @@ export default function App() {
     await appendAuditLog('INTEGRALIZAÇÃO', `Protocolo de permuta excluído pelo militar solicitante.`, loggedUser.nomeGuerra, logs);
   };
 
+  const handleCorrectPermuta = async (p: Permuta) => {
+    if (!loggedUser) return;
+    let esc = escalas.find(e => e.id === p.escalaSubstituidaId);
+    if (!esc) {
+      esc = {
+        id: p.escalaSubstituidaId,
+        militarId: p.militarSubstituidoId,
+        postoServico: p.postoServico,
+        data: p.dataRealizacao,
+        horaInicio: p.horaInicio,
+        horaFim: p.horaFim,
+        turno: p.turno as any
+      };
+    }
+    await handleDeletePermuta(p.id);
+    setActiveSwapScale(esc);
+    setActiveReviewPermuta(null);
+  };
+
   const handleClearAllLogs = async () => {
     if (!loggedUser || (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN')) return;
     
+    const confirm = window.confirm("ATENÇÃO: Deseja realmente excluir TODOS os registros de auditoria da nuvem e localmente? Esta ação é irreversível.");
+    if (!confirm) return;
+
     try {
-      for (const log of logs) {
-        await deletarDados(log.id);
-      }
+      // Deletar em paralelo para ser mais rápido
+      await Promise.all(logs.map(log => deletarDados(log.id)));
       setLogs([]);
-      await appendAuditLog('INTEGRALIZAÇÃO', `Todos os logs de auditoria anteriores foram excluídos permanentemente por comando de ${loggedUser.nomeGuerra}.`, loggedUser.nomeGuerra, []);
+      localStorage.removeItem('permucyber_logs');
+      await appendAuditLog('INTEGRALIZAÇÃO', `Limpeza total do livro de auditoria realizada por ${loggedUser.nomeGuerra}.`, loggedUser.nomeGuerra, []);
     } catch (e) {
       console.error("Erro ao limpar logs:", e);
+      alert("Houve um erro ao tentar excluir alguns registros da nuvem.");
     }
   };
 
@@ -2146,6 +2092,7 @@ export default function App() {
                 onBack={() => setActiveReviewPermuta(null)}
                 onAccept={handleAcceptPermuta}
                 onDecline={handleDeclinePermuta}
+                onCorrect={handleCorrectPermuta}
                 onRequestAlteration={handleRequestAlteration}
               />
             ) : (
@@ -2298,6 +2245,16 @@ export default function App() {
                                   </div>
                                 </div>
 
+                                {/* Review adjustment request from colleague */}
+                                {p.status === 'ALTERACAO_SOLICITADA' && p.militarSubstituidoId === loggedUser?.id && (
+                                  <button
+                                    onClick={() => setActiveReviewPermuta(p)}
+                                    className="w-full bg-[#1c1204] border border-cyber-amber/50 hover:bg-[#2a1b06] transition-all text-[10px] font-semibold font-mono text-cyber-amber py-1.5 rounded-md mt-1.5 uppercase flex items-center justify-center"
+                                  >
+                                    REVISAR AJUSTE SOLICITADO
+                                  </button>
+                                )}
+
                                 {/* Clicking to evaluate if peer requested alteração or actions are pending */}
                                 {p.status === 'PENDENTE_SUBSTITUTO' && p.militarSubstitutoId === loggedUser?.id && (
                                   <button
@@ -2309,26 +2266,11 @@ export default function App() {
                                 )}
 
                                 {p.militarSubstituidoId === loggedUser?.id && 
-                                 (p.status === 'PENDENTE_SUBSTITUTO' || p.status === 'PENDENTE_GESTOR' || p.status === 'AJUSTE_GESTOR') && (
+                                 (p.status === 'PENDENTE_SUBSTITUTO' || p.status === 'PENDENTE_GESTOR' || p.status === 'AJUSTE_GESTOR' || p.status === 'ALTERACAO_SOLICITADA') && (
                                   <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-hud-border/30">
-                                    {p.status === 'AJUSTE_GESTOR' ? (
+                                    {(p.status === 'AJUSTE_GESTOR' || p.status === 'ALTERACAO_SOLICITADA') ? (
                                       <button 
-                                        onClick={async () => {
-                                          let esc = escalas.find(e => e.id === p.escalaSubstituidaId);
-                                          if (!esc) {
-                                            esc = {
-                                              id: p.escalaSubstituidaId,
-                                              militarId: p.militarSubstituidoId,
-                                              postoServico: p.postoServico,
-                                              data: p.dataRealizacao,
-                                              horaInicio: p.horaInicio,
-                                              horaFim: p.horaFim,
-                                              turno: p.turno as any
-                                            };
-                                          }
-                                          await handleDeletePermuta(p.id);
-                                          setActiveSwapScale(esc);
-                                        }}
+                                        onClick={() => handleCorrectPermuta(p)}
                                         className="bg-cyber-blue/10 border border-cyber-blue/40 text-cyber-blue text-[10px] font-bold py-2 rounded uppercase hover:bg-cyber-blue/20 transition-all flex items-center justify-center cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.05)]"
                                       >
                                         Corrigir

@@ -226,44 +226,45 @@ export async function deletarDados(
 ): Promise<{ success: boolean; source: 'firebase' | 'supabase' | 'both' }> {
   
   const supabaseId = toSupabaseFriendlyUUID(id);
-
-  if (sourceHint === 'firebase') {
-    console.log("[Fallback DB] Deletando diretamente no Firebase por indicação de Hint...");
-    await deleteDoc(doc(db, TABLE_NAME, id));
-    return { success: true, source: 'firebase' };
-  }
-
   let deletedInSupabase = false;
   let deletedInFirebase = false;
 
-  // 1. Tenta Supabase primeiro (Principal)
-  const supabaseClient = getSupabase();
-  if (supabaseClient) {
-    try {
-      console.log(`[Fallback DB] Removendo registro do Supabase (ID Real: ${id}, ID Supabase: ${supabaseId})...`);
-      const { error } = await supabaseClient.from(TABLE_NAME).delete().eq('id', supabaseId);
-      if (!error) {
-        deletedInSupabase = true;
-        console.log("[Fallback DB] ✓ Registro removido do Supabase com sucesso.");
-      } else {
-        console.warn("[Fallback DB] Falha ao deletar no Supabase:", error.message);
+  // 1. Tenta Supabase (Principal)
+  if (!sourceHint || sourceHint === 'supabase') {
+    const supabaseClient = getSupabase();
+    if (supabaseClient) {
+      try {
+        console.log(`[Fallback DB] Removendo registro do Supabase (ID Real: ${id}, ID Supabase: ${supabaseId})...`);
+        const { error } = await supabaseClient.from(TABLE_NAME).delete().eq('id', supabaseId);
+        if (!error) {
+          deletedInSupabase = true;
+          console.log("[Fallback DB] ✓ Registro removido do Supabase.");
+        } else {
+          console.warn("[Fallback DB] Falha ao deletar no Supabase:", error.message);
+        }
+      } catch (err) {
+        console.warn("[Fallback DB] Erro ao deletar no Supabase:", err);
       }
-    } catch (err) {
-      console.warn("[Fallback DB] Erro ao deletar no Supabase:", err);
     }
   }
 
-  // 2. Tenta Firebase (Apenas se solicitado via Hint ou se Supabase falhar criticamente e desejar fallback)
-  // Removida deleção automática para tornar o Firebase manual.
-  
-  if (!deletedInSupabase && !sourceHint) {
-    console.warn("[Fallback DB] Registro não removido pois o Firebase está em modo MANUAL.");
+  // 2. Tenta Firebase (Sempre tenta se não houver hint, para garantir remoção total)
+  if (!sourceHint || sourceHint === 'firebase') {
+    try {
+      console.log(`[Fallback DB] Removendo registro do Firebase (ID: ${id})...`);
+      const docRef = doc(db, TABLE_NAME, id);
+      await deleteDoc(docRef);
+      deletedInFirebase = true;
+      console.log("[Fallback DB] ✓ Registro removido do Firebase.");
+    } catch (err) {
+      console.warn("[Fallback DB] Falha ao deletar no Firebase:", err);
+    }
   }
 
   return {
-    success: deletedInSupabase,
-    source: deletedInSupabase ? 'supabase' : 'firebase'
-  } as any;
+    success: deletedInSupabase || deletedInFirebase,
+    source: (deletedInSupabase && deletedInFirebase) ? 'both' : deletedInSupabase ? 'supabase' : 'firebase'
+  };
 }
 
 /**
