@@ -156,8 +156,8 @@ export default function Dashboard({
     }
     return {
       type: 'PRONTO',
-      label: 'APTO / PRONTO OPERACIONAL',
-      detail: 'Escala e permutas ativas',
+      label: 'APTO(A)',
+      detail: '',
       color: 'text-cyber-cyan bg-cyber-cyan/10 border-cyber-cyan/35'
     };
   };
@@ -374,7 +374,9 @@ export default function Dashboard({
               return (
                 <div className={`mt-1 inline-flex flex-col px-1.5 py-0.5 rounded border text-[8px] font-mono leading-tight ${mStatus.color}`}>
                   <span className="font-bold uppercase tracking-wider">{mStatus.label}</span>
-                  <span className="text-[7.5px] opacity-85 font-sans mt-0.5">{mStatus.detail}</span>
+                  {mStatus.detail && (
+                    <span className="text-[7.5px] opacity-85 font-sans mt-0.5">{mStatus.detail}</span>
+                  )}
                 </div>
               );
             })()}
@@ -728,21 +730,14 @@ export default function Dashboard({
 
         {/* Selected day header in standard format: 00-00-0000 */}
         <div className="mt-3 bg-hud-bg/85 border border-hud-border/60 p-2.5 rounded-lg min-h-[92px]">
-          <div className="text-xs font-mono text-slate-400 mb-1.5 flex justify-between items-center">
-            <span className="tracking-wider">DATA SELECIONADA:</span>
+          <div className="text-xs font-mono text-slate-400 mb-1.5 flex justify-center items-center">
             <span className="text-cyber-cyan font-bold text-base tracking-widest">
               {selectedCalendarDay ? formatarDataBR(`2026-${currentMonthConfig.monthCode}-${selectedCalendarDay.toString().padStart(2, '0')}`) : 'SELECIONE O DIA'}
             </span>
           </div>
 
           {(() => {
-            if (selectedCalendarDay === null) {
-              return (
-                 <div className="flex items-center space-x-2 text-[10px] text-slate-400 font-mono uppercase mt-4 opacity-70 justify-center">
-                    <span>Aguardando seleção tática no calendário...</span>
-                 </div>
-              );
-            }
+            if (selectedCalendarDay === null) return null;
 
             const todayStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
             const actualToday = new Date(todayStr);
