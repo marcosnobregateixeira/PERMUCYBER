@@ -1,6 +1,7 @@
 import { collection, doc, setDoc, getDocs, deleteDoc, query, where, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { supabase, getSupabase } from './supabase';
+import { sanitizeForFirestore } from './firebaseUtils';
 
 /**
  * Interface para representar a estrutura dos dados que serão armazenados
@@ -167,10 +168,17 @@ export async function salvarDados(
     console.log("[Fallback DB] Supabase não configurado ou offline. Direcionando direto para o Firebase.");
   }
 
-  // --- FASE 2: REDUNDÂNCIA NO FIREBASE (REMOVIDA AUTOMÁTICA) ---
-  // O Firebase agora é manual. 
-  console.error(`[Fallback DB] Erro: Supabase indisponível para salvar ${recordId}.`);
-  return { success: false, source: 'supabase', id: recordId, data: { ...record, origem: 'supabase' } } as any;
+  // --- FASE 2: REDUNDÂNCIA NO FIREBASE ---
+  try {
+    console.log(`[Fallback DB] Gravando redundância no Firebase (ID: ${recordId})...`);
+    const docRef = doc(db, TABLE_NAME, recordId);
+    await setDoc(docRef, sanitizeForFirestore(record));
+    console.log("[Fallback DB] ✓ Redundância salva no Firebase.");
+  } catch (err) {
+    console.warn("[Fallback DB] Falha na redundância do Firebase:", err);
+  }
+
+  return { success: true, source: 'supabase', id: recordId, data: { ...record, origem: 'supabase' } };
 }
 
 export async function atualizarDados(
