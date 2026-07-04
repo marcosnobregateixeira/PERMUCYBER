@@ -1499,8 +1499,16 @@ export default function App() {
     } catch (e) {
       console.error("Erro ao deletar permuta:", e);
     }
-    setPermutas(prev => prev.filter(p => p.id !== id));
+    const nextPermutas = permutas.filter(p => p.id !== id);
+    setPermutas(nextPermutas);
     await appendAuditLog('INTEGRALIZAÇÃO', `Protocolo de permuta excluído pelo militar solicitante.`, loggedUser.nomeGuerra, logs);
+    
+    // Auto backup ensures that subsequent auto-recovery files will also be clean of this deleted permuta
+    try {
+      await generateBackup('AUTO', loggedUser.nomeGuerra, militares, escalas, nextPermutas);
+    } catch (bErr) {
+      console.error("Erro no auto-backup pós-exclusão:", bErr);
+    }
   };
 
   const handleCorrectPermuta = async (p: Permuta) => {
@@ -1528,22 +1536,28 @@ export default function App() {
     const confirm = window.confirm("ATENÇÃO: Deseja realmente excluir TODOS os registros de auditoria da nuvem e localmente? Esta ação é irreversível.");
     if (!confirm) return;
 
+    const logsToDelete = [...logs];
+    setLogs([]);
+    localStorage.removeItem('permucyber_logs');
+
     try {
-      // Deletar em paralelo para ser mais rápido
-      await Promise.all(logs.map(async (log) => {
-        await deletarDados(log.id);
+      // Chunk-based deleting to prevent API rate limit issues in Firestore and remain reliable
+      const deletePromises = logsToDelete.map(async (log) => {
         try {
+          await deletarDados(log.id);
           await deleteDoc(doc(db, 'logs', log.id));
         } catch (fbErr) {
-          console.error("Firestore error deleting log:", fbErr);
+          console.error(`Error deleting log ${log.id}:`, fbErr);
         }
-      }));
-      setLogs([]);
-      localStorage.removeItem('permucyber_logs');
+      });
+
+      for (let i = 0; i < deletePromises.length; i += 10) {
+        await Promise.all(deletePromises.slice(i, i + 10));
+      }
+
       await appendAuditLog('INTEGRALIZAÇÃO', `Limpeza total do livro de auditoria realizada por ${loggedUser.nomeGuerra}.`, loggedUser.nomeGuerra, []);
     } catch (e) {
       console.error("Erro ao limpar logs:", e);
-      alert("Houve um erro ao tentar excluir alguns registros da nuvem.");
     }
   };
 
