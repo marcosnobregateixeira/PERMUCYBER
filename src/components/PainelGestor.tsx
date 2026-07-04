@@ -744,6 +744,8 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const pendentesGestor = permutas.filter(p => p.status === 'PENDENTE_GESTOR');
+  const homologadas = permutas.filter(p => p.status === 'APROVADO');
+  
   const historicoCompleto = permutas
     .filter(p => p.status !== 'PENDENTE_GESTOR' && p.status !== 'PENDENTE_SUBSTITUTO')
     .sort((a, b) => new Date(a.dataRealizacao).getTime() - new Date(b.dataRealizacao).getTime());
@@ -1717,7 +1719,6 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
 
       {activeSubTab === 'SISTEMA' && (
         <div className="space-y-4 animate-fade-in font-sans">
-          
           {/* Top Informative Banner with subtle styling */}
           <div className="bg-[#051115] border border-cyber-cyan/35 p-3.5 rounded-xl flex flex-col space-y-1.5 shadow-md">
             <span className="text-[10px] font-mono text-cyber-cyan uppercase tracking-wider font-extrabold flex items-center">

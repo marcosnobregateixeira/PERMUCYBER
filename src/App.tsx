@@ -183,6 +183,39 @@ export default function App() {
     setExpandedMonths(prev => ({ ...prev, [monthKey]: !prev[monthKey] }));
   };
 
+  // --- LIMPEZA DE REGISTROS ZUMBIS (04, 05, 13 JULHO) ---
+  useEffect(() => {
+    const cleanupZombies = () => {
+      const targetDates = ['2026-07-04', '2026-07-05', '2026-07-13'];
+      
+      setPermutas(prev => {
+        const filtered = prev.filter(p => !targetDates.includes(p.dataRealizacao));
+        if (filtered.length !== prev.length) {
+          try { localStorage.setItem('permucyber_permutas', JSON.stringify(filtered)); } catch (e) {}
+        }
+        return filtered;
+      });
+
+      // Limpar também de backups locais se existirem
+      const savedBackups = localStorage.getItem('permucyber_backups');
+      if (savedBackups) {
+        try {
+          const backupsList = JSON.parse(savedBackups);
+          const cleanedBackups = backupsList.map((b: any) => ({
+            ...b,
+            permutas: b.permutas?.filter((p: any) => !targetDates.includes(p.dataRealizacao))
+          }));
+          localStorage.setItem('permucyber_backups', JSON.stringify(cleanedBackups));
+          setBackups(cleanedBackups);
+        } catch (e) {}
+      }
+    };
+
+    // Executa após um pequeno delay para garantir que os dados iniciais foram carregados
+    const timer = setTimeout(cleanupZombies, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Synchronize dynamic local changes to localStorage as a fallback database
   useEffect(() => {
     if (militares) {
