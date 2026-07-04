@@ -45,7 +45,7 @@ import { db, auth } from './firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { sanitizeForFirestore } from './firebaseUtils';
 import { setSupabaseCredentials, getSupabase } from './supabase';
-import { salvarDados, deletarDados, atualizarDados, SYSTEM_USER_ID } from './databaseFallback';
+import { salvarDados, deletarDados, atualizarDados, SYSTEM_USER_ID, toSupabaseFriendlyUUID } from './databaseFallback';
 
 const PATENTE_ORDER: Record<string, number> = {
   'CEL': 1, 'TC': 2, 'MAJ': 3, 'CAP': 4, '1ºTEN': 5, '2ºTEN': 6, 'ASP. OF': 7, 
@@ -185,37 +185,37 @@ export default function App() {
 
   // Synchronize dynamic local changes to localStorage as a fallback database
   useEffect(() => {
-    if (militares && militares.length > 0) {
+    if (militares) {
       try { localStorage.setItem('permucyber_militares', JSON.stringify(militares)); } catch (e) {}
     }
   }, [militares]);
 
   useEffect(() => {
-    if (escalas && escalas.length > 0) {
+    if (escalas) {
       try { localStorage.setItem('permucyber_escalas', JSON.stringify(escalas)); } catch (e) {}
     }
   }, [escalas]);
 
   useEffect(() => {
-    if (alertas && alertas.length > 0) {
+    if (alertas) {
       try { localStorage.setItem('permucyber_alertas', JSON.stringify(alertas)); } catch (e) {}
     }
   }, [alertas]);
 
   useEffect(() => {
-    if (permutas && permutas.length > 0) {
+    if (permutas) {
       try { localStorage.setItem('permucyber_permutas', JSON.stringify(permutas)); } catch (e) {}
     }
   }, [permutas]);
 
   useEffect(() => {
-    if (logs && logs.length > 0) {
+    if (logs) {
       try { localStorage.setItem('permucyber_logs', JSON.stringify(logs)); } catch (e) {}
     }
   }, [logs]);
 
   useEffect(() => {
-    if (messages && messages.length > 0) {
+    if (messages) {
       try { localStorage.setItem('permucyber_messages', JSON.stringify(messages)); } catch (e) {}
     }
   }, [messages]);
@@ -330,25 +330,21 @@ export default function App() {
             }
           });
 
-          if (newMilitares.length > 0) {
-            const uniqueMil = newMilitares.filter((m, idx, arr) => arr.findIndex(x => x.id === m.id) === idx);
-            setMilitares(uniqueMil.sort(sortMilitarByPatente));
-          }
-          if (newEscalas.length > 0) {
-            const uniqueEsc = newEscalas.filter((e, idx, arr) => arr.findIndex(x => x.id === e.id) === idx);
-            setEscalas(uniqueEsc);
-          }
-          if (newPermutas.length > 0) {
-            const uniquePerm = newPermutas.filter((p, idx, arr) => arr.findIndex(x => x.id === p.id) === idx);
-            setPermutas(uniquePerm);
-          }
-          if (newAlertas.length > 0) {
-            const uniqueAl = newAlertas.filter((a, idx, arr) => arr.findIndex(x => x.id === a.id) === idx);
-            setAlertas(uniqueAl);
-          }
-          if (newLogs.length > 0) setLogs(newLogs.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
-          if (newMessages.length > 0) setMessages(newMessages.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
-          if (newBackups.length > 0) setBackups(newBackups.sort((a,b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 3));
+          const uniqueMil = newMilitares.filter((m, idx, arr) => arr.findIndex(x => x.id === m.id) === idx);
+          setMilitares(uniqueMil.length > 0 ? uniqueMil.sort(sortMilitarByPatente) : []);
+
+          const uniqueEsc = newEscalas.filter((e, idx, arr) => arr.findIndex(x => x.id === e.id) === idx);
+          setEscalas(uniqueEsc);
+
+          const uniquePerm = newPermutas.filter((p, idx, arr) => arr.findIndex(x => x.id === p.id) === idx);
+          setPermutas(uniquePerm);
+
+          const uniqueAl = newAlertas.filter((a, idx, arr) => arr.findIndex(x => x.id === a.id) === idx);
+          setAlertas(uniqueAl);
+
+          setLogs(newLogs.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
+          setMessages(newMessages.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
+          setBackups(newBackups.sort((a,b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 3));
         } else {
           console.log("[App] Supabase conectado, mas nenhum dado encontrado na tabela 'dados_app'.");
         }
@@ -428,14 +424,14 @@ export default function App() {
           } else if (payload.eventType === 'DELETE') {
             const deletedId = payload.old.id;
             // Como o payload old só tem o ID no Supabase realtime por padrão, 
-            // precisamos tentar remover de todas as listas onde o ID bata
-            setMilitares(prev => prev.filter(m => m.id !== deletedId));
-            setEscalas(prev => prev.filter(e => e.id !== deletedId));
-            setPermutas(prev => prev.filter(p => p.id !== deletedId));
-            setAlertas(prev => prev.filter(a => a.id !== deletedId));
-            setLogs(prev => prev.filter(l => l.id !== deletedId));
-            setMessages(prev => prev.filter(m => m.id !== deletedId));
-            setBackups(prev => prev.filter(b => b.id !== deletedId).slice(0, 3));
+            // precisamos tentar remover de todas as listas onde o ID bata (UUID ou ID original)
+            setMilitares(prev => prev.filter(m => m.id !== deletedId && toSupabaseFriendlyUUID(m.id) !== deletedId));
+            setEscalas(prev => prev.filter(e => e.id !== deletedId && toSupabaseFriendlyUUID(e.id) !== deletedId));
+            setPermutas(prev => prev.filter(p => p.id !== deletedId && toSupabaseFriendlyUUID(p.id) !== deletedId));
+            setAlertas(prev => prev.filter(a => a.id !== deletedId && toSupabaseFriendlyUUID(a.id) !== deletedId));
+            setLogs(prev => prev.filter(l => l.id !== deletedId && toSupabaseFriendlyUUID(l.id) !== deletedId));
+            setMessages(prev => prev.filter(m => m.id !== deletedId && toSupabaseFriendlyUUID(m.id) !== deletedId));
+            setBackups(prev => prev.filter(b => b.id !== deletedId && toSupabaseFriendlyUUID(b.id) !== deletedId).slice(0, 3));
           }
         }
       )
@@ -981,6 +977,11 @@ export default function App() {
       
       // Supabase/Firebase (Tabela Unificada) - Modo manual configurado no fallback
       await deletarDados(id);
+      try {
+        await deleteDoc(doc(db, 'militares', id));
+      } catch (fbErr) {
+        console.error("Erro ao deletar militar no Firestore:", fbErr);
+      }
       
       // Optimistic update
       const updated = militares.filter(m => m.id !== id);
@@ -997,6 +998,11 @@ export default function App() {
     try {
       for (const p of permutas) {
         await deletarDados(p.id);
+        try {
+          await deleteDoc(doc(db, 'permutas', p.id));
+        } catch (fbErr) {
+          console.error("Erro ao deletar permuta no Firestore:", fbErr);
+        }
       }
       setPermutas([]);
       await appendAuditLog('INTEGRALIZAÇÃO', 'Todas as solicitações de permutas foram excluídas permanentemente do banco de dados.', loggedUser?.nomeGuerra || 'SISTEMA', logs);
@@ -1015,6 +1021,11 @@ export default function App() {
           continue; // Keep the active user to prevent lockout
         }
         await deletarDados(m.id);
+        try {
+          await deleteDoc(doc(db, 'militares', m.id));
+        } catch (fbErr) {
+          console.error("Erro ao deletar militar no Firestore:", fbErr);
+        }
       }
       if (activeUser) {
         setMilitares([activeUser]);
@@ -1414,6 +1425,11 @@ export default function App() {
       // It was a dynamically created/generated scale. We should delete it!
       try {
         await deletarDados(originalEscalaId);
+        try {
+          await deleteDoc(doc(db, 'escalas', originalEscalaId));
+        } catch (fbErr) {
+          console.error("Firestore error deleting generated escala:", fbErr);
+        }
       } catch (e) {
         console.error("Error deleting generated escala:", e);
       }
@@ -1428,6 +1444,11 @@ export default function App() {
       if (generatedEscala && generatedEscala.id !== originalEscalaId) {
         try {
           await deletarDados(generatedEscala.id);
+          try {
+            await deleteDoc(doc(db, 'escalas', generatedEscala.id));
+          } catch (fbErr) {
+            console.error("Firestore error deleting generated escala by match:", fbErr);
+          }
         } catch (e) {
           console.error("Error deleting generated escala by match:", e);
         }
@@ -1440,9 +1461,15 @@ export default function App() {
       try {
         const escalaOriginal = escalas.find(e => e.id === originalEscalaId);
         if (escalaOriginal) {
+          const updatedEscala = { ...escalaOriginal, militarId: targetPermuta.militarSubstituidoId };
           await atualizarDados(originalEscalaId, { 
-            dados_json: { ...escalaOriginal, militarId: targetPermuta.militarSubstituidoId } 
+            dados_json: updatedEscala 
           });
+          try {
+            await setDoc(doc(db, 'escalas', originalEscalaId), sanitizeForFirestore(updatedEscala));
+          } catch (fbErr) {
+            console.error("Firestore error updating reverted escala:", fbErr);
+          }
         }
       } catch (e) {
         console.error("Error reverting escala:", e);
@@ -1464,6 +1491,11 @@ export default function App() {
     try {
       // Supabase/Firebase (Tabela Unificada) - Modo manual configurado no fallback
       await deletarDados(id);
+      try {
+        await deleteDoc(doc(db, 'permutas', id));
+      } catch (fbErr) {
+        console.error("Erro ao deletar permuta no Firestore:", fbErr);
+      }
     } catch (e) {
       console.error("Erro ao deletar permuta:", e);
     }
@@ -1498,7 +1530,14 @@ export default function App() {
 
     try {
       // Deletar em paralelo para ser mais rápido
-      await Promise.all(logs.map(log => deletarDados(log.id)));
+      await Promise.all(logs.map(async (log) => {
+        await deletarDados(log.id);
+        try {
+          await deleteDoc(doc(db, 'logs', log.id));
+        } catch (fbErr) {
+          console.error("Firestore error deleting log:", fbErr);
+        }
+      }));
       setLogs([]);
       localStorage.removeItem('permucyber_logs');
       await appendAuditLog('INTEGRALIZAÇÃO', `Limpeza total do livro de auditoria realizada por ${loggedUser.nomeGuerra}.`, loggedUser.nomeGuerra, []);
@@ -1512,6 +1551,11 @@ export default function App() {
     if (!loggedUser || (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN')) return;
     try {
       await deletarDados(logId);
+      try {
+        await deleteDoc(doc(db, 'logs', logId));
+      } catch (fbErr) {
+        console.error("Firestore error deleting log:", fbErr);
+      }
       setLogs(prev => prev.filter(l => l.id !== logId));
     } catch (e) {
       console.error("Erro ao deletar registro de auditoria:", e);

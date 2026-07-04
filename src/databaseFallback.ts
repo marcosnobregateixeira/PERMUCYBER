@@ -31,7 +31,7 @@ function isValidUUID(uuid: string) {
  * Converte qualquer string em um formato UUID válido para o Supabase (Postgres).
  * Isso é determinístico e permite usar IDs customizados (como 'M-1127') em colunas UUID.
  */
-function toSupabaseFriendlyUUID(str: string): string {
+export function toSupabaseFriendlyUUID(str: string): string {
   if (isValidUUID(str)) return str;
   
   // Converter para Hex (cada char vira 2 hex digits)
