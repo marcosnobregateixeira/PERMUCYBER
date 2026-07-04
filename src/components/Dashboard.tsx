@@ -509,7 +509,7 @@ export default function Dashboard({
             </div>
             <div>
               <h3 className="text-lg font-bold font-display text-white uppercase tracking-wider neon-text-amber" style={{ textShadow: '0 0 10px rgba(255,179,0,0.8)' }}>
-                Ação Requerida (Gestor)
+                Ação Requerida
               </h3>
               <p className="text-[10px] sm:text-xs font-mono text-cyber-amber uppercase mt-0.5">
                 Existem {pendentesGestor.length} permuta(s) pendente(s) de homologação

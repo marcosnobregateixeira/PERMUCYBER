@@ -42,7 +42,7 @@ import {
 } from 'lucide-react';
 
 import { db, auth } from './firebase';
-import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDocs, getDoc, query, orderBy } from 'firebase/firestore';
 import { sanitizeForFirestore } from './firebaseUtils';
 import { setSupabaseCredentials, getSupabase } from './supabase';
 import { salvarDados, deletarDados, atualizarDados, SYSTEM_USER_ID, toSupabaseFriendlyUUID } from './databaseFallback';
@@ -559,9 +559,26 @@ export default function App() {
             merged.push(localBk);
           }
         });
-        return merged.sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 3);
+        return merged.sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 5);
       });
     }, handleFirebaseError);
+
+    // Função para limpar backups antigos no Firestore
+    const cleanupOldBackups = async () => {
+      try {
+        const backupsSnap = await getDocs(query(collection(db, 'backups'), orderBy('timestamp', 'desc')));
+        if (backupsSnap.size > 5) {
+          const docsToDelete = backupsSnap.docs.slice(5);
+          for (const docSnap of docsToDelete) {
+            await deleteDoc(doc(db, 'backups', docSnap.id));
+          }
+          console.log(`[CLEANUP] Deletados ${docsToDelete.length} backups antigos.`);
+        }
+      } catch (e) {
+        console.error("[CLEANUP] Erro ao limpar backups:", e);
+      }
+    };
+    cleanupOldBackups();
 
     const unsubConfig = onSnapshot(doc(db, 'settings', 'config'), (snap) => {
       setFirebaseError(null);
@@ -1667,6 +1684,7 @@ export default function App() {
     
     const nextPermutas = permutas.filter(p => p.id !== id);
     setPermutas(nextPermutas);
+    localStorage.setItem('permucyber_permutas', JSON.stringify(nextPermutas));
     await appendAuditLog('INTEGRALIZAÇÃO', `Protocolo de permuta excluído pelo militar solicitante.`, loggedUser.nomeGuerra, logs);
     
     // Scrub this deleted permuta and its scale changes from ALL backups to prevent auto-restoration

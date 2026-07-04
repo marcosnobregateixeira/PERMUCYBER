@@ -465,29 +465,7 @@ export default function PermutaFlow({
         {/* Selected date details */}
         <div className="mt-3 bg-[#030d11] p-2.5 rounded-lg border border-hud-border/40 flex flex-col space-y-1.5">
           <div className="flex justify-between items-center text-[10px]">
-            <span className="text-slate-400">Data e Posto do Serviço a Permutar:</span>
             <span className="text-cyber-cyan font-bold font-mono">{formatarDataBR(selectedDate)}</span>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-[8px] text-slate-400 block uppercase font-mono">Posto de Serviço</span>
-            <div className="w-full bg-[#020709] border border-hud-border rounded-lg px-2.5 py-1.5 text-xs text-white font-bold">
-              {postoServico}
-            </div>
-          </div>
-
-          <div className="text-[9.5px] leading-normal mt-1">
-            {getDayScale(parseInt(selectedDate.split('-')[2])) ? (
-              <span className="text-cyber-amber font-mono flex items-center">
-                <span className="w-1.5 h-1.5 bg-cyber-amber rounded-full mr-1.5 animate-pulse" />
-                Você possui escala oficial neste dia ({postoServico}).
-              </span>
-            ) : (
-              <span className="text-slate-400 font-mono flex items-center">
-                <span className="w-1.5 h-1.5 bg-slate-500 rounded-full mr-1.5" />
-                Sem escala oficial nesta data. Proposta de serviço avulsa.
-              </span>
-            )}
           </div>
         </div>
       </div>
@@ -511,7 +489,7 @@ export default function PermutaFlow({
                     : 'bg-hud-card text-slate-400 border-hud-border hover:text-white'
                 }`}
               >
-                {useAIAdvice ? 'Sugeridos por IA' : 'Todos os Policiais'}
+                Todos os Policiais
               </button>
             </div>
           </div>
