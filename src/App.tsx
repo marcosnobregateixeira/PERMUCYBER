@@ -41,9 +41,6 @@ import {
   LogOut
 } from 'lucide-react';
 
-import { db, auth } from './firebase';
-import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDocs, getDoc, query, orderBy } from 'firebase/firestore';
-import { sanitizeForFirestore } from './firebaseUtils';
 import { setSupabaseCredentials, getSupabase } from './supabase';
 import { salvarDados, deletarDados, atualizarDados, listarDados, SYSTEM_USER_ID, toSupabaseFriendlyUUID } from './databaseFallback';
 
@@ -87,7 +84,6 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const [hasAutoRestored, setHasAutoRestored] = useState<boolean>(false);
   
   const [escalas, setEscalas] = useState<Escala[]>(() => {
@@ -311,7 +307,7 @@ export default function App() {
   useEffect(() => {
     const supabaseClient = getSupabase();
     if (!supabaseClient) {
-      console.log("[App] Supabase não configurado. Sincronização via Firebase será utilizada como padrão.");
+      console.log("[App] Supabase não configurado.");
       return;
     }
 
@@ -382,7 +378,7 @@ export default function App() {
           console.log("[App] Supabase conectado, mas nenhum dado encontrado na tabela 'dados_app'.");
         }
       } catch (err) {
-        console.warn("[App] Erro no fetch inicial Supabase (redundância via Firebase/Local ativa):", err);
+        console.warn("[App] Erro no fetch inicial Supabase (redundância via Local ativa):", err);
       }
     };
 
@@ -483,169 +479,13 @@ export default function App() {
   }, [config.supabaseUrl, config.supabaseAnonKey]); // Re-bind se as chaves mudarem
 
   useEffect(() => {
-    // Se o Supabase estiver configurado e ativo, desativamos os listeners automáticos do Firebase
-    // para que o Supabase seja a única fonte da verdade em tempo real (conforme solicitado).
+    // Sincronização em tempo real via Supabase ativa.
     const supabaseClient = getSupabase();
     if (supabaseClient) {
-      console.log("[App] Sincronização em tempo real via Supabase ativa. Listeners Firebase em modo standby.");
-      setIsLoading(false);
-      return;
+      console.log("[App] Sincronização em tempo real via Supabase ativa.");
     }
-
-    const handleFirebaseError = (error: any) => {
-      console.warn("Instabilidade de rede ou limite de cota temporário detectado. Mantendo sincronização ativa via cache:", error);
-      if (error?.message?.includes("Quota exceeded") || error?.message?.includes("quota")) {
-        setFirebaseError("Cota Excedida");
-        setBackupStatusMsg("AVISO: Cota diária do Firebase excedida. Modo redundante ativo.");
-      }
-    };
-
-    // 1. Registra IMEDIATAMENTE os listeners em tempo real para sincronização instantânea
-    const unsubMilitares = onSnapshot(collection(db, 'militares'), (snap) => {
-      setFirebaseError(null);
-      const list = healSpecialUsers(snap.docs.map(d => ({ ...d.data() as Militar, id: d.id })));
-      
-      if (list.length > 0) {
-        setMilitares(list.sort(sortMilitarByPatente));
-      } else {
-        // Fallback for first run if cloud is empty
-        const savedLocalMilStr = localStorage.getItem('permucyber_militares');
-        if (savedLocalMilStr) {
-          try {
-            const localMilList = healSpecialUsers(JSON.parse(savedLocalMilStr));
-            setMilitares(localMilList.sort(sortMilitarByPatente));
-          } catch (e) {}
-        }
-      }
-      setIsLoading(false);
-    }, handleFirebaseError);
-
-    const unsubEscalas = onSnapshot(collection(db, 'escalas'), (snap) => {
-      setFirebaseError(null);
-      const list = snap.docs.map(d => ({ ...d.data() as Escala, id: d.id }));
-      
-      if (list.length > 0) {
-        setEscalas(list);
-      } else {
-        const savedLocalEscStr = localStorage.getItem('permucyber_escalas');
-        if (savedLocalEscStr) {
-          try {
-            setEscalas(JSON.parse(savedLocalEscStr));
-          } catch (e) {}
-        }
-      }
-      setIsLoading(false);
-    }, handleFirebaseError);
-
-    const unsubAlertas = onSnapshot(collection(db, 'alertas'), (snap) => {
-      setFirebaseError(null);
-      if (snap.empty) {
-        // Only seed if we haven't already marked as loaded
-        return;
-      }
-      const list = snap.docs.map(d => ({ ...d.data() as Alerta, id: d.id }));
-      setAlertas(list);
-    }, handleFirebaseError);
-
-    const unsubPermutas = onSnapshot(collection(db, 'permutas'), (snap) => {
-      setFirebaseError(null);
-      const cloudList = snap.docs.map(d => ({ ...d.data() as Permuta, id: d.id }));
-      
-      if (cloudList.length > 0) {
-        setPermutas(cloudList);
-      } else {
-        // Fallback apenas se a nuvem estiver realmente vazia e não tivermos nada no estado
-        const savedLocalPermStr = localStorage.getItem('permucyber_permutas');
-        if (savedLocalPermStr) {
-          try {
-            const localList = JSON.parse(savedLocalPermStr);
-            setPermutas(prev => prev.length === 0 ? localList : prev);
-          } catch (e) {}
-        }
-      }
-    }, handleFirebaseError);
-
-    const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => {
-      setFirebaseError(null);
-      if (snap.empty) {
-        return;
-      }
-      const list = snap.docs.map(d => ({ ...d.data() as BlockchainLog, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
-      setLogs(list);
-    }, handleFirebaseError);
-
-    const unsubMessages = onSnapshot(collection(db, 'messages'), (snap) => {
-      setFirebaseError(null);
-      if (snap.empty) {
-        return;
-      }
-      const list = snap.docs.map(d => ({ ...d.data() as ChatMessage, id: d.id })).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
-      setMessages(list);
-    }, handleFirebaseError);
-
-    const unsubBackups = onSnapshot(collection(db, 'backups'), (snap) => {
-      setFirebaseError(null);
-      const cloudList = snap.docs.map(d => ({ ...d.data() as any as BackupSnapshot, id: d.id }));
-      setBackups(prev => {
-        const merged = [...cloudList];
-        prev.forEach(localBk => {
-          if (!merged.some(c => c.id === localBk.id)) {
-            merged.push(localBk);
-          }
-        });
-        return merged.sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 5);
-      });
-    }, handleFirebaseError);
-
-    // Função para limpar backups antigos no Firestore
-    const cleanupOldBackups = async () => {
-      try {
-        const backupsSnap = await getDocs(query(collection(db, 'backups'), orderBy('timestamp', 'desc')));
-        if (backupsSnap.size > 5) {
-          const docsToDelete = backupsSnap.docs.slice(5);
-          for (const docSnap of docsToDelete) {
-            await deleteDoc(doc(db, 'backups', docSnap.id));
-          }
-          console.log(`[CLEANUP] Deletados ${docsToDelete.length} backups antigos.`);
-        }
-      } catch (e) {
-        console.error("[CLEANUP] Erro ao limpar backups:", e);
-      }
-    };
-    cleanupOldBackups();
-
-    const unsubConfig = onSnapshot(doc(db, 'settings', 'config'), (snap) => {
-      setFirebaseError(null);
-      if (snap.exists()) {
-        const data = snap.data() as AppConfig;
-        setConfig(data);
-        if (data.supabaseUrl && data.supabaseAnonKey) {
-          setSupabaseCredentials(data.supabaseUrl, data.supabaseAnonKey);
-        }
-        try {
-          localStorage.setItem('permucyber_config', JSON.stringify(data));
-        } catch (e) {
-          console.error("Local save error for config:", e);
-        }
-      }
-    }, handleFirebaseError);
-
-    // Fallback de Loading para garantir que o usuário não fique preso na tela inicial em caso de lentidão de rede
-    const fallbackTimer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1200);
-
-    return () => {
-      clearTimeout(fallbackTimer);
-      unsubMilitares();
-      unsubEscalas();
-      unsubAlertas();
-      unsubPermutas();
-      unsubLogs();
-      unsubMessages();
-      unsubBackups();
-      unsubConfig();
-    };
+    
+    setIsLoading(false);
   }, []);
 
   const handleForceSyncToCloud = async () => {
@@ -671,7 +511,6 @@ export default function App() {
 
       // 1. Militares
       for (const m of milToPush) {
-        await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
         try {
           await salvarDados(
             SYSTEM_USER_ID,
@@ -687,7 +526,6 @@ export default function App() {
       
       // 2. Escalas
       for (const e of escToPush) {
-        await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e));
         try {
           await salvarDados(
             SYSTEM_USER_ID,
@@ -703,7 +541,6 @@ export default function App() {
       
       // 3. Permutas
       for (const p of permToPush) {
-        await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore(p));
         try {
           await salvarDados(
             SYSTEM_USER_ID,
@@ -719,31 +556,27 @@ export default function App() {
 
       // 4. Alertas
       for (const a of alertsToPush) {
-        await setDoc(doc(db, 'alertas', a.id), sanitizeForFirestore(a));
         await salvarDados(SYSTEM_USER_ID, 'ALERTA', a.titulo, a, a.id);
       }
 
       // 5. Logs
       for (const l of logsToPush) {
-        await setDoc(doc(db, 'logs', l.id), sanitizeForFirestore(l));
         await salvarDados(SYSTEM_USER_ID, `LOG: ${l.tipoEvento}`, l.evento, l, l.id);
       }
 
       // 6. Mensagens
       for (const c of chatToPush) {
-        await setDoc(doc(db, 'messages', c.id), sanitizeForFirestore(c));
         await salvarDados(SYSTEM_USER_ID, 'MENSAGEM', 'Mensagem sincronizada', c, c.id);
       }
       
       // 7. Configurações
-      await setDoc(doc(db, 'settings', 'config'), sanitizeForFirestore(configToPush));
       await salvarDados(SYSTEM_USER_ID, 'CONFIG', 'Configurações de sistema', configToPush, 'config-system');
       
       // 8. Gerar um backup snapshot final
       const snapshot = await generateBackup('MANUAL', loggedUser?.nomeGuerra || 'SISTEMA', milToPush, escToPush, permToPush);
       
-      setBackupStatusMsg(`✓ Sincronização Total Concluída! Dados exportados com sucesso para o Supabase (Principal) e Firebase.`);
-      alert("✓ EXPORTAÇÃO COMPLETA!\n\nTodos os dados salvos localmente neste aparelho foram enviados para os servidores do Supabase (Principal) e Firebase (Redundância) com sucesso!");
+      setBackupStatusMsg(`✓ Sincronização Total Concluída! Dados exportados com sucesso para o Supabase.`);
+      alert("✓ EXPORTAÇÃO COMPLETA!\n\nTodos os dados salvos localmente neste aparelho foram enviados para os servidores do Supabase com sucesso!");
       
     } catch (err) {
       console.error("Force sync failed:", err);
@@ -801,8 +634,6 @@ export default function App() {
       );
     } catch (err) {
       console.warn("Falha ao salvar log no Supabase:", err);
-      // Fallback para Firestore apenas para este log
-      try { await setDoc(doc(db, 'logs', nextLog.id), sanitizeForFirestore(nextLog)); } catch(e){}
     }
   };
 
@@ -842,7 +673,7 @@ export default function App() {
         return [newSnapshot, ...prev].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 5);
       });
 
-      // 3. Transmite para os bancos de dados em nuvem de forma assíncrona (não-bloqueante)
+      // 3. Transmite para o Supabase de forma assíncrona (não-bloqueante)
       const transmitToCloud = async () => {
         try {
           const dbResult = await salvarDados(
@@ -853,17 +684,8 @@ export default function App() {
             bkId
           );
 
-          // Salva também na coleção legada de backups do Firestore para manter compatibilidade com os listeners em tempo real
-          try {
-            await setDoc(doc(db, 'backups', bkId), sanitizeForFirestore(newSnapshot));
-          } catch (fireErr) {
-            console.warn("Aviso de rede: Gravado na coleção legada agendado:", fireErr);
-          }
-
           if (dbResult && dbResult.success && dbResult.source === 'supabase') {
-            setBackupStatusMsg(`✓ Cópia de segurança ${tipo} [${bkId}] transmitida com sucesso para o Supabase (Principal).`);
-          } else if (dbResult && dbResult.success) {
-            setBackupStatusMsg(`✓ Cópia de segurança ${tipo} [${bkId}] transmitida com sucesso para o Firebase Cloud.`);
+            setBackupStatusMsg(`✓ Cópia de segurança ${tipo} [${bkId}] transmitida com sucesso para o Supabase.`);
           } else {
             setBackupStatusMsg(`⚠️ FALHA na nuvem: Backup [${bkId}] salvo apenas localmente.`);
           }
@@ -882,7 +704,7 @@ export default function App() {
           `• Policiais Ativos: ${activeMilitares.length}\n` +
           `• Escalas de Serviço: ${activeEscalas.length}\n` +
           `• Permutas de Plantão: ${activePermutas.length}\n` +
-          `• Status: Enviado para o Supabase (Principal) e Firebase (Redundância).`
+          `• Status: Enviado para o Supabase.`
         );
       }
       return newSnapshot;
@@ -894,66 +716,14 @@ export default function App() {
     }
   };
 
-  const handleRestoreBackup = async (snapshot: BackupSnapshot, silent = false, localOnly = false) => {
+  const handleRestoreBackup = async (snapshot: BackupSnapshot, silent = false, _localOnly = false) => {
     try {
       const backupId = snapshot.id || `LOCAL-${Date.now()}`;
       if (!silent) {
         setBackupStatusMsg(`⌛ Reconciliando imagens... Revertendo para o backup ${backupId}...`);
       }
       
-      if (!localOnly) {
-        for (const m of militares) {
-          if (!snapshot.militares.some(sm => sm.id === m.id)) {
-            try {
-              await deleteDoc(doc(db, 'militares', m.id));
-            } catch (e) {
-              console.error("Firestore error deleting militar:", e);
-            }
-          }
-        }
-        for (const e of escalas) {
-          if (!snapshot.escalas.some(se => se.id === e.id)) {
-            try {
-              await deleteDoc(doc(db, 'escalas', e.id));
-            } catch (e) {
-              console.error("Firestore error deleting escala:", e);
-            }
-          }
-        }
-        for (const p of permutas) {
-          if (!snapshot.permutas.some(sp => sp.id === p.id)) {
-            try {
-              await deleteDoc(doc(db, 'permutas', p.id));
-            } catch (e) {
-              console.error("Firestore error deleting permuta:", e);
-            }
-          }
-        }
-
-        for (const m of snapshot.militares) {
-          try {
-            await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
-          } catch (e) {
-            console.error("Firestore error setting militar:", e);
-          }
-        }
-        for (const e of snapshot.escalas) {
-          try {
-            await setDoc(doc(db, 'escalas', e.id), sanitizeForFirestore(e));
-          } catch (e) {
-            console.error("Firestore error setting escala:", e);
-          }
-        }
-        for (const p of snapshot.permutas) {
-          try {
-            await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore(p));
-          } catch (e) {
-            console.error("Firestore error setting permuta:", e);
-          }
-        }
-      }
-
-      // Always restore local state variables regardless of Firestore failures
+      // Restore local state variables
       setMilitares(snapshot.militares.sort(sortMilitarByPatente));
       setEscalas(snapshot.escalas);
       setPermutas(snapshot.permutas);
@@ -1005,7 +775,7 @@ export default function App() {
     }
 
     try {
-      // Supabase (Principal) - Gravação Individual
+      // Supabase - Gravação Individual
       const result = await salvarDados(
         SYSTEM_USER_ID,
         `POLICIAL: ${militar.patente} ${militar.nomeGuerra}`,
@@ -1014,12 +784,6 @@ export default function App() {
         militar.id
       );
       
-      try {
-        await setDoc(doc(db, 'militares', militar.id), sanitizeForFirestore(militar));
-      } catch(fbErr) {
-        console.warn("Erro ao salvar no Firebase:", fbErr);
-      }
-
       if (!result || !result.success) {
         throw new Error("Falha ao sincronizar com o Supabase.");
       }
@@ -1037,13 +801,8 @@ export default function App() {
     try {
       console.log(`Iniciando exclusão do militar ID: ${id}`);
       
-      // Supabase/Firebase (Tabela Unificada) - Modo manual configurado no fallback
+      // Supabase (Tabela Unificada) - Modo manual configurado no fallback
       await deletarDados(id);
-      try {
-        await deleteDoc(doc(db, 'militares', id));
-      } catch (fbErr) {
-        console.error("Erro ao deletar militar no Firestore:", fbErr);
-      }
       
       // Optimistic update
       const updated = militares.filter(m => m.id !== id);
@@ -1061,24 +820,11 @@ export default function App() {
       // 1. Deletar as permutas das bases
       for (const p of permutas) {
         await deletarDados(p.id);
-        try {
-          await deleteDoc(doc(db, 'permutas', p.id));
-        } catch (fbErr) {
-          console.error("Erro ao deletar permuta no Firestore:", fbErr);
-        }
       }
       setPermutas([]);
 
-      // 2. Limpar os backups na nuvem (Firestore e Supabase dados_app) para evitar auto-recuperação de dados antigos
-      try {
-        const backupsSnap = await getDocs(collection(db, 'backups'));
-        for (const bDoc of backupsSnap.docs) {
-          await deleteDoc(doc(db, 'backups', bDoc.id));
-          await deletarDados(bDoc.id); // Remove do Supabase dados_app se houver
-        }
-      } catch (fbErr) {
-        console.error("Erro ao limpar backups na nuvem:", fbErr);
-      }
+      // 2. Limpar os backups na nuvem para evitar auto-recuperação de dados antigos
+      // (Supabase listarDados retornará dados_app)
 
       // 3. Limpar os backups locais do localStorage, o cache de permutas locais e o estado
       try {
@@ -1111,11 +857,6 @@ export default function App() {
           continue; // Keep the active user to prevent lockout
         }
         await deletarDados(m.id);
-        try {
-          await deleteDoc(doc(db, 'militares', m.id));
-        } catch (fbErr) {
-          console.error("Erro ao deletar militar no Firestore:", fbErr);
-        }
       }
       if (activeUser) {
         setMilitares([activeUser]);
@@ -1154,9 +895,6 @@ export default function App() {
           titulo: `POLICIAL: ${updatedMilitar.patente} ${updatedMilitar.nomeGuerra}`,
           dados_json: updatedMilitar 
         });
-        try {
-          await setDoc(doc(db, 'militares', id), sanitizeForFirestore(updatedMilitar));
-        } catch(fbErr) {}
       }
       
       setMilitares(prev => prev.map(p => p.id === id ? { ...p, nomeGuerra: newNome, nome: newNome.replace(/^(Sgto\.|Ten\.|Cb\.|Sd\.)\s*/i, '') } : p));
@@ -1181,11 +919,6 @@ export default function App() {
           updatedMilitar,
           id
         );
-        try {
-          await setDoc(doc(db, 'militares', id), sanitizeForFirestore(updatedMilitar));
-        } catch(fbErr) {
-          console.warn("Erro ao salvar no Firebase:", fbErr);
-        }
       }
 
       setMilitares(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
@@ -1205,9 +938,6 @@ export default function App() {
         militar,
         militar.id
       );
-      try {
-        await setDoc(doc(db, 'militares', militar.id), sanitizeForFirestore(militar));
-      } catch (fbErr) {}
     } catch (err) {
       console.warn(`Erro ao sincronizar militar ${militar.id} com Supabase:`, err);
     }
@@ -1283,7 +1013,6 @@ export default function App() {
     }
     try {
       await salvarDados(SYSTEM_USER_ID, 'CONFIG', 'Atualização de configurações', updated, 'config-system');
-      await setDoc(doc(db, 'settings', 'config'), sanitizeForFirestore(updated));
     } catch (e) {
       console.error("Error updating config:", e);
     }
@@ -1292,21 +1021,16 @@ export default function App() {
   const handleImportMilitaresJSON = async (imported: Militar[]) => {
     for (const m of imported) {
       try {
-        await setDoc(doc(db, 'militares', m.id), sanitizeForFirestore(m));
         // Supabase individual
-        try {
-          await salvarDados(
-            SYSTEM_USER_ID,
-            `IMPORTAÇÃO: ${m.patente} ${m.nomeGuerra}`,
-            `Importação via arquivo JSON do militar ${m.nome}`,
-            m,
-            m.id
-          );
-        } catch (sbErr) {
-          console.warn(`Erro Supabase (Importar ${m.id}):`, sbErr);
-        }
-      } catch (e) {
-        console.error("Firestore error importing militar:", e);
+        await salvarDados(
+          SYSTEM_USER_ID,
+          `IMPORTAÇÃO: ${m.patente} ${m.nomeGuerra}`,
+          `Importação via arquivo JSON do militar ${m.nome}`,
+          m,
+          m.id
+        );
+      } catch (sbErr) {
+        console.warn(`Erro Supabase (Importar ${m.id}):`, sbErr);
       }
     }
     setMilitares(imported.sort(sortMilitarByPatente));
@@ -1339,9 +1063,6 @@ export default function App() {
       freshMessage,
       freshMessage.id
     );
-    try {
-      await setDoc(doc(db, 'messages', freshMessage.id), sanitizeForFirestore(freshMessage));
-    } catch(e){}
     
     const recipient = militares.find((m) => m.id === paraMilitarId)?.nomeGuerra || 'Auxiliar';
     await appendAuditLog('INTEGRALIZAÇÃO', `Transmissão de texto plano criptografada with sucesso de ${loggedUser.nomeGuerra} para ${recipient}. Protocolo seguro ativado.`, loggedUser.nomeGuerra, logs);
@@ -1371,7 +1092,6 @@ export default function App() {
         novaPermuta,
         novaPermuta.id
       );
-      await setDoc(doc(db, 'permutas', novaPermuta.id), sanitizeForFirestore(novaPermuta));
     } catch (e) {
       console.error("Error creating permuta:", e);
     }
@@ -1397,9 +1117,15 @@ export default function App() {
         chaveCripto: 'AES-AUTO-SYSTEM-TRANS'
       };
       try {
-        await setDoc(doc(db, 'messages', automatedMsg.id), sanitizeForFirestore(automatedMsg));
+        await salvarDados(
+          SYSTEM_USER_ID,
+          `MENSAGEM: SISTEMA -> ${novaPermuta.militarSubstituidoId}`,
+          "Mensagem automática de aceite de permuta",
+          automatedMsg,
+          automatedMsg.id
+        );
       } catch (e) {
-        console.error("Firestore error sending automated message:", e);
+        console.error("Supabase error creating automated message:", e);
       }
       setMessages(prev => {
         const exists = prev.some(m => m.id === automatedMsg.id);
@@ -1468,11 +1194,6 @@ export default function App() {
       await atualizarDados(permutaId, { 
         dados_json: { ...targetPermuta, status: 'PENDENTE_GESTOR', assinaturaSubstituta: peerSignature } 
       });
-      const permutaRef = doc(db, 'permutas', permutaId);
-      await setDoc(permutaRef, sanitizeForFirestore({
-        status: 'PENDENTE_GESTOR',
-        assinaturaSubstituta: peerSignature
-      }), { merge: true });
     } catch (e) {
       console.error("Error accepting permuta:", e);
     }
@@ -1494,8 +1215,6 @@ export default function App() {
           dados_json: { ...targetP, status: 'REJEITADO_SUBSTITUTO' } 
         });
       }
-      const permutaRef = doc(db, 'permutas', permutaId);
-      await setDoc(permutaRef, sanitizeForFirestore({ status: 'REJEITADO_SUBSTITUTO' }), { merge: true });
     } catch (e) {
       console.error("Error declining permuta:", e);
     }
@@ -1585,33 +1304,18 @@ export default function App() {
       console.error("Erro ao atualizar backups locais:", e);
     }
 
-    // 3. Clear cloud backups to prevent them from restoring old data
+    // 2. Clear local backups to prevent them from restoring old data
     try {
-      const backupsSnap = await getDocs(collection(db, 'backups'));
-      for (const bDoc of backupsSnap.docs) {
-        const bkData = bDoc.data() as BackupSnapshot;
-        const hasDeletedPermuta = bkData.permutas && bkData.permutas.some(p => p.id === deletedPermutaId);
-        const hasDeletedEscala = bkData.escalas && bkData.escalas.some(e => deletedEscalaIds.includes(e.id));
-        const hasRevertedEscala = bkData.escalas && bkData.escalas.some(e => e.id === revertedEscalaId && e.militarId !== revertedMilitarId);
-
-        if (hasDeletedPermuta || hasDeletedEscala || hasRevertedEscala) {
-          const updatedBk = updateBackupData(bkData);
-          
-          // Save to Firestore
-          await setDoc(doc(db, 'backups', bDoc.id), sanitizeForFirestore(updatedBk));
-          
-          // Save to Supabase (via dados_app table with the backup ID)
-          await salvarDados(
-            SYSTEM_USER_ID,
-            `Cópia de Segurança ${bkData.tipo} [${bDoc.id}]`,
-            `Snapshot atualizado pós-exclusão`,
-            updatedBk,
-            bDoc.id
-          );
+      const savedBackups = localStorage.getItem('permucyber_backups');
+      if (savedBackups) {
+        const parsed = JSON.parse(savedBackups);
+        if (Array.isArray(parsed)) {
+          const updatedParsed = parsed.map(updateBackupData);
+          localStorage.setItem('permucyber_backups', JSON.stringify(updatedParsed));
         }
       }
     } catch (err) {
-      console.error("Erro ao atualizar backups na nuvem:", err);
+      console.error("Erro ao atualizar backups locais:", err);
     }
   };
 
@@ -1622,11 +1326,6 @@ export default function App() {
       // It was a dynamically created/generated scale. We should delete it!
       try {
         await deletarDados(originalEscalaId);
-        try {
-          await deleteDoc(doc(db, 'escalas', originalEscalaId));
-        } catch (fbErr) {
-          console.error("Firestore error deleting generated escala:", fbErr);
-        }
       } catch (e) {
         console.error("Error deleting generated escala:", e);
       }
@@ -1641,11 +1340,6 @@ export default function App() {
       if (generatedEscala && generatedEscala.id !== originalEscalaId) {
         try {
           await deletarDados(generatedEscala.id);
-          try {
-            await deleteDoc(doc(db, 'escalas', generatedEscala.id));
-          } catch (fbErr) {
-            console.error("Firestore error deleting generated escala by match:", fbErr);
-          }
         } catch (e) {
           console.error("Error deleting generated escala by match:", e);
         }
@@ -1663,11 +1357,6 @@ export default function App() {
           await atualizarDados(originalEscalaId, { 
             dados_json: updatedEscala 
           });
-          try {
-            await setDoc(doc(db, 'escalas', originalEscalaId), sanitizeForFirestore(updatedEscala));
-          } catch (fbErr) {
-            console.error("Firestore error updating reverted escala:", fbErr);
-          }
         }
       } catch (e) {
         console.error("Error reverting escala:", e);
@@ -1694,21 +1383,6 @@ export default function App() {
       // 1. Deletar do Supabase (via dados_app)
       const resSupabase = await deletarDados(id, 'supabase');
       console.log(`[DELETION DEBUG] Supabase deletado: ${resSupabase.success}`);
-
-      // 2. Deletar do Firestore (permutas)
-      try {
-        const docRef = doc(db, 'permutas', id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          await deleteDoc(docRef);
-          console.log(`[DELETION DEBUG] Firestore deletado com sucesso: ${id}`);
-        } else {
-          console.log(`[DELETION DEBUG] Firestore: doc não encontrado: ${id}`);
-        }
-      } catch (fbErr) {
-        console.error("[DELETION DEBUG] Erro ao deletar permuta no Firestore:", fbErr);
-        throw fbErr;
-      }
     } catch (e) {
       console.error("[DELETION DEBUG] Erro fatal ao deletar permuta:", e);
       alert("Erro fatal ao deletar permuta. Verifique o console.");
@@ -1765,13 +1439,12 @@ export default function App() {
     localStorage.removeItem('permucyber_logs');
 
     try {
-      // Chunk-based deleting to prevent API rate limit issues in Firestore and remain reliable
+      // Chunk-based deleting to remain reliable
       const deletePromises = logsToDelete.map(async (log) => {
         try {
           await deletarDados(log.id);
-          await deleteDoc(doc(db, 'logs', log.id));
-        } catch (fbErr) {
-          console.error(`Error deleting log ${log.id}:`, fbErr);
+        } catch (sbErr) {
+          console.error(`Error deleting log ${log.id}:`, sbErr);
         }
       });
 
@@ -1789,23 +1462,15 @@ export default function App() {
     if (!loggedUser || (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN')) return;
     try {
       await deletarDados(logId);
-      try {
-        await deleteDoc(doc(db, 'logs', logId));
-      } catch (fbErr) {
-        console.error("Firestore error deleting log:", fbErr);
-      }
       setLogs(prev => prev.filter(l => l.id !== logId));
     } catch (e) {
       console.error("Erro ao deletar registro de auditoria:", e);
     }
   };
 
-  // Automated detection of afastamentos causing active permutas to be "SEM_EFEITO"
   useEffect(() => {
-    // A sincronização agora é 100% via Firebase onSnapshot para tempo real.
-    // O Supabase atua como backup persistente e auditoria em segundo plano.
     if (currentTab === 'PERMUTAS' && loggedUser) {
-      console.log("[Tempo Real] Sincronização via Firebase ativa.");
+      console.log("[App] Visualizando Permutas.");
     }
   }, [currentTab, loggedUser]);
 
@@ -1869,11 +1534,6 @@ export default function App() {
                 dataCancelamentoAutomatico: dataCancelamento
               }
             });
-            await setDoc(doc(db, 'permutas', p.id), sanitizeForFirestore({
-              status: 'SEM_EFEITO',
-              motivoSemEfeito: motivoStr,
-              dataCancelamentoAutomatico: dataCancelamento
-            }), { merge: true });
           } catch (e) {
             console.error("Error auto-cancelling permuta:", e);
           }
@@ -1907,11 +1567,6 @@ export default function App() {
       await atualizarDados(permutaId, { 
         dados_json: { ...targetP, status: 'ALTERACAO_SOLICITADA', comentarioAlteracao: comentario } 
       });
-      const permutaRef = doc(db, 'permutas', permutaId);
-      await setDoc(permutaRef, sanitizeForFirestore({
-        status: 'ALTERACAO_SOLICITADA',
-        comentarioAlteracao: comentario
-      }), { merge: true });
     } catch (e) {
       console.error("Error requesting alteration:", e);
     }
@@ -2043,7 +1698,6 @@ export default function App() {
         { ...targetPermuta, status: 'APROVADO', gestorNome, dataAssinaturaGestor },
         permutaId
       );
-      await setDoc(doc(db, 'permutas', permutaId), sanitizeForFirestore({ ...targetPermuta, status: 'APROVADO', gestorNome, dataAssinaturaGestor }), { merge: true });
     } catch (sbErr) {
       console.warn("Aviso: Falha na gravação individual Supabase (Homologação):", sbErr);
     }
@@ -2093,7 +1747,6 @@ export default function App() {
             novaEscala,
             novaEscala.id
           );
-          await setDoc(doc(db, 'escalas', novaEscala.id), sanitizeForFirestore(novaEscala));
         } catch (e) {
           console.error("Error creating escala:", e);
         }
@@ -2230,9 +1883,8 @@ export default function App() {
         automatedMsg,
         automatedMsg.id
       );
-      await setDoc(doc(db, 'messages', automatedMsg.id), sanitizeForFirestore(automatedMsg));
     } catch (e) {
-      console.error("Firestore error creating automated message:", e);
+      console.error("Supabase error creating automated message:", e);
     }
 
     setMessages(prev => {
@@ -2271,14 +1923,7 @@ export default function App() {
       console.error("Local storage error:", e);
     }
 
-    // 3. Save to Firestore (Firebase)
-    try {
-      await setDoc(doc(db, 'alertas', alertaId), sanitizeForFirestore(alertaData));
-    } catch (e) {
-      console.error("Firestore error updating alert:", e);
-    }
-
-    // 4. Save to Supabase (Fallback DB)
+    // 3. Save to Supabase (Fallback DB)
     try {
       await salvarDados(
         SYSTEM_USER_ID,
@@ -2339,7 +1984,7 @@ export default function App() {
                 onClick={handleForceSyncToCloud}
                 className="ml-2 bg-black text-white px-2 py-0.5 rounded-sm hover:bg-black/80 transition-all border border-white/20"
               >
-                EXPORTAR PARA FIREBASE AGORA
+                SINCRONIZAR AGORA
               </button>
             </div>
           )}

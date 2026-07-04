@@ -1,24 +1,21 @@
-import { collection, doc, setDoc, getDocs, deleteDoc, query, where, getDoc } from 'firebase/firestore';
-import { db } from './firebase';
 import { supabase, getSupabase } from './supabase';
-import { sanitizeForFirestore } from './firebaseUtils';
 
 /**
  * Interface para representar a estrutura dos dados que serão armazenados
- * tanto no Firestore (Firebase) quanto na tabela correspondente do Supabase.
+ * exclusivamente na tabela correspondente do Supabase.
  */
 export interface AppDataRecord {
-  id: string;          // No Firebase será a ID do doc, no Supabase será um UUID
+  id: string;          // UUID no Supabase
   user_id: string;     // Identificação do usuário proprietário do registro
   titulo: string;      // Título descritivo
   descricao: string;   // Descrição detalhada
   dados_json: any;     // Dados complementares em formato JSON
   criado_em?: string;  // Data de criação
-  origem?: 'supabase' | 'firebase'; // Origem física de onde este registro foi lido ou gravado
+  origem?: 'supabase' | 'local'; // Identificador de persistência
 }
 
 /**
- * Nome da coleção no Firestore e da tabela no Supabase
+ * Nome da tabela no Supabase
  */
 const TABLE_NAME = 'dados_app';
 export const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
@@ -30,18 +27,15 @@ function isValidUUID(uuid: string) {
 
 /**
  * Converte qualquer string em um formato UUID válido para o Supabase (Postgres).
- * Isso é determinístico e permite usar IDs customizados (como 'M-1127') em colunas UUID.
  */
 export function toSupabaseFriendlyUUID(str: string): string {
   if (isValidUUID(str)) return str;
   
-  // Converter para Hex (cada char vira 2 hex digits)
   let hex = "";
   for (let i = 0; i < str.length; i++) {
     hex += str.charCodeAt(i).toString(16);
   }
   
-  // Preencher até 32 caracteres com um sufixo fixo para evitar colisões simples
   const suffix = "abcdef0123456789";
   const fullHex = (hex + suffix.repeat(2)).substring(0, 32);
   
@@ -55,31 +49,14 @@ export function toSupabaseFriendlyUUID(str: string): string {
 }
 
 /**
- * Auxiliar para verificar se o erro disparado indica excesso de cotas no Firebase
- */
-function isFirebaseQuotaError(error: any): boolean {
-  if (!error) return false;
-  const errMsg = String(error.message || error).toLowerCase();
-  return (
-    errMsg.includes('quota exceeded') || 
-    errMsg.includes('quota') || 
-    errMsg.includes('resource exhausted') || 
-    errMsg.includes('exhausted')
-  );
-}
-
-/**
- * Auxiliar para gerar um UUID compatível com ambos os bancos
+ * Auxiliar para gerar um UUID
  */
 export function generateUUID(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     try {
       return crypto.randomUUID();
-    } catch (e) {
-      // Ignora erro de contexto não seguro e faz o fallback
-    }
+    } catch (e) {}
   }
-  // Fallback padrão RFC4122 v4
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
@@ -88,9 +65,8 @@ export function generateUUID(): string {
 }
 
 /**
- * 1. SALVAR DADOS (CRIAR REGISTRO)
- * Tenta salvar no Supabase primeiro (opção principal). Se falhar ou estiver indisponível,
- * salva no Firebase Firestore (fallback).
+ * 1. SALVAR DADOS (CRIAR/UPSERT REGISTRO)
+ * Utiliza exclusivamente o Supabase para persistência.
  */
 export async function salvarDados(
   userId: string,
@@ -98,14 +74,9 @@ export async function salvarDados(
   descricao: string,
   dadosJson: any,
   customId?: string
-): Promise<{ success: boolean; source: 'firebase' | 'supabase'; id: string; data: AppDataRecord }> {
-  // Gerar um ID único que sirva para ambos os bancos ou usar o fornecido
+): Promise<{ success: boolean; source: 'supabase'; id: string; data: AppDataRecord }> {
   const recordId = customId || generateUUID();
-  
-  // UUID específico para o Supabase (se recordId não for UUID, convertemos determinísticamente)
   const supabaseRecordId = toSupabaseFriendlyUUID(recordId);
-
-  // Garantir que o userId seja um UUID válido para o Supabase (colunas UUID são estritas)
   const finalUserId = (userId && isValidUUID(userId)) ? userId : SYSTEM_USER_ID;
 
   const record: AppDataRecord = {
@@ -117,271 +88,133 @@ export async function salvarDados(
     criado_em: new Date().toISOString()
   };
 
-  // --- FASE 1: TENTAR SUPABASE PRIMEIRO (PRINCIPAL) ---
   const supabaseClient = getSupabase();
-  if (supabaseClient) {
-    try {
-      console.log(`[Fallback DB] Tentando salvar registro [${record.titulo}] no Supabase (ID Real: ${recordId}, ID Supabase: ${supabaseRecordId})...`);
-      
-      const { data, error } = await supabaseClient
-        .from(TABLE_NAME)
-        .upsert(
-          {
-            id: supabaseRecordId,
-            user_id: finalUserId,
-            titulo: titulo,
-            descricao: descricao,
-            dados_json: dadosJson, // Armazenar apenas os dados brutos, sem o wrapper AppDataRecord
-            criado_em: record.criado_em
-          },
-          { onConflict: 'id' }
-        )
-        .select();
-
-      if (error) {
-        console.error("[Fallback DB] ❌ Erro retornado pelo Supabase:", JSON.stringify(error));
-        const detailMsg = error.message || "Erro desconhecido";
-        const hintMsg = error.hint ? ` | Dica: ${error.hint}` : "";
-        const codeMsg = error.code ? ` (Código: ${error.code})` : "";
-        
-        // Se o erro for de coluna inexistente, logar aviso específico
-        if (error.code === '42703') {
-           console.warn(`[Fallback DB] 🚨 Aviso: Coluna inexistente detectada. Verifique se a tabela '${TABLE_NAME}' tem as colunas: id, user_id, titulo, descricao, dados_json, criado_em.`);
-        }
-
-        throw new Error(`${detailMsg}${hintMsg}${codeMsg}`);
-      }
-
-      console.log("[Fallback DB] ✓ Registro salvo com sucesso no Supabase!");
-      const savedData = data && data.length > 0 ? data[0] : record;
-      return { success: true, source: 'supabase', id: recordId, data: { ...savedData, origem: 'supabase' } };
-    } catch (supabaseError: any) {
-      console.warn(`[Fallback DB] ⚠️ Supabase falhou (ID: ${recordId}). Causa:`, supabaseError.message || supabaseError);
-      
-      if (supabaseError.message?.includes('RLS') || supabaseError.code === '42501') {
-        console.warn("[Fallback DB] 🚨 Dica: O erro parece ser de permissão (RLS). Verifique as políticas no painel do Supabase.");
-      }
-      
-      console.log("[Fallback DB] Acionando fallback automático do Firebase...");
-    }
-  } else {
-    console.log("[Fallback DB] Supabase não configurado ou offline. Direcionando direto para o Firebase.");
+  if (!supabaseClient) {
+    console.error("[Fallback DB] Supabase não configurado.");
+    return { success: false, source: 'supabase', id: recordId, data: record };
   }
 
-  // --- FASE 2: REDUNDÂNCIA NO FIREBASE ---
   try {
-    console.log(`[Fallback DB] Gravando redundância no Firebase (ID: ${recordId})...`);
+    console.log(`[Fallback DB] Gravando no Supabase (ID: ${recordId})...`);
     
-    // Identificar a coleção real-time correta
-    let targetCollection = TABLE_NAME;
-    const searchString = titulo || '';
-    if (searchString.startsWith('PERMUTA:')) targetCollection = 'permutas';
-    else if (searchString.startsWith('ESCALA:')) targetCollection = 'escalas';
-    else if (searchString.startsWith('MILITAR:')) targetCollection = 'militares';
-    else if (searchString.startsWith('ALERTA:')) targetCollection = 'alertas';
-    else if (searchString.startsWith('MENSAGEM:')) targetCollection = 'messages';
+    const { data, error } = await supabaseClient
+      .from(TABLE_NAME)
+      .upsert(
+        {
+          id: supabaseRecordId,
+          user_id: finalUserId,
+          titulo: titulo,
+          descricao: descricao,
+          dados_json: dadosJson,
+          criado_em: record.criado_em
+        },
+        { onConflict: 'id' }
+      )
+      .select();
 
-    const docRef = doc(db, targetCollection, recordId);
-    await setDoc(docRef, sanitizeForFirestore(record));
-    console.log(`[Fallback DB] ✓ Redundância salva no Firebase (Coleção: ${targetCollection}).`);
-  } catch (err) {
-    console.warn("[Fallback DB] Falha na redundância do Firebase:", err);
+    if (error) throw new Error(error.message);
+
+    console.log("[Fallback DB] ✓ Registro salvo no Supabase.");
+    const savedData = data && data.length > 0 ? data[0] : record;
+    return { success: true, source: 'supabase', id: recordId, data: { ...savedData, origem: 'supabase' } };
+  } catch (err: any) {
+    console.error("[Fallback DB] Erro Supabase:", err.message);
+    return { success: false, source: 'supabase', id: recordId, data: record };
   }
-
-  return { success: true, source: 'supabase', id: recordId, data: { ...record, origem: 'supabase' } };
 }
 
+/**
+ * 2. ATUALIZAR DADOS
+ */
 export async function atualizarDados(
   id: string,
   fields: Partial<Omit<AppDataRecord, 'id' | 'user_id' | 'criado_em'>>,
-  sourceHint?: 'firebase' | 'supabase'
-): Promise<{ success: boolean; source: 'firebase' | 'supabase' | 'both' }> {
-  
+  _sourceHint?: string
+): Promise<{ success: boolean; source: 'supabase' }> {
   const supabaseId = toSupabaseFriendlyUUID(id);
-  let updatedInSupabase = false;
-  let updatedInFirebase = false;
+  const supabaseClient = getSupabase();
 
-  // --- TENTATIVA SUPABASE (PRINCIPAL) ---
-  if (!sourceHint || sourceHint === 'supabase') {
-    const supabaseClient = getSupabase();
-    if (supabaseClient) {
-      try {
-        console.log(`[Fallback DB] Atualizando no Supabase (ID: ${id})...`);
-        const { error } = await supabaseClient
-          .from(TABLE_NAME)
-          .update(fields)
-          .eq('id', supabaseId);
+  if (!supabaseClient) return { success: false, source: 'supabase' };
 
-        if (!error) {
-          updatedInSupabase = true;
-          console.log("[Fallback DB] ✓ Atualizado no Supabase.");
-        }
-      } catch (err) {
-        console.warn("[Fallback DB] Falha ao atualizar no Supabase:", err);
-      }
-    }
-  }
-
-  // --- REDUNDÂNCIA NO FIREBASE (PARA TEMPO REAL) ---
   try {
-    console.log(`[Fallback DB] Sincronizando atualização no Firebase (ID: ${id})...`);
-    // Se os campos contiverem dados_json, tentamos identificar a coleção correta
-    let targetCollection = TABLE_NAME;
-    const searchString = fields.titulo || '';
-    if (searchString.startsWith('PERMUTA:')) targetCollection = 'permutas';
-    else if (searchString.startsWith('ESCALA:')) targetCollection = 'escalas';
-    else if (searchString.startsWith('MILITAR:')) targetCollection = 'militares';
-    else if (searchString.startsWith('ALERTA:')) targetCollection = 'alertas';
-    else if (searchString.startsWith('MENSAGEM:')) targetCollection = 'messages';
+    console.log(`[Fallback DB] Atualizando no Supabase (ID: ${id})...`);
+    const { error } = await supabaseClient
+      .from(TABLE_NAME)
+      .update(fields)
+      .eq('id', supabaseId);
 
-    const docRef = doc(db, targetCollection, id);
-    await setDoc(docRef, sanitizeForFirestore(fields), { merge: true });
-    updatedInFirebase = true;
-    console.log(`[Fallback DB] ✓ Sincronizado no Firebase (Coleção: ${targetCollection}).`);
+    if (error) throw new Error(error.message);
+    return { success: true, source: 'supabase' };
   } catch (err) {
-    console.warn("[Fallback DB] Falha na sincronização do Firebase:", err);
+    console.warn("[Fallback DB] Erro ao atualizar no Supabase:", err);
+    return { success: false, source: 'supabase' };
   }
-
-  return { 
-    success: updatedInSupabase || updatedInFirebase, 
-    source: (updatedInSupabase && updatedInFirebase) ? 'both' : updatedInSupabase ? 'supabase' : 'firebase' 
-  };
 }
 
 /**
  * 3. DELETAR DADOS
- * Tenta deletar no Supabase primeiro. Deleta também no Firebase para manter sincronia
- * e garantir remoção de dados íntegra.
  */
 export async function deletarDados(
   id: string,
-  sourceHint?: 'firebase' | 'supabase'
-): Promise<{ success: boolean; source: 'firebase' | 'supabase' | 'both' }> {
-  
+  _sourceHint?: string
+): Promise<{ success: boolean; source: 'supabase' }> {
   const supabaseId = toSupabaseFriendlyUUID(id);
-  let deletedInSupabase = false;
-  let deletedInFirebase = false;
+  const supabaseClient = getSupabase();
 
-  // 1. Tenta Supabase (Principal)
-  if (!sourceHint || sourceHint === 'supabase') {
-    const supabaseClient = getSupabase();
-    if (supabaseClient) {
-      try {
-        console.log(`[Fallback DB] Removendo registro do Supabase (ID Real: ${id}, ID Supabase: ${supabaseId})...`);
-        const { error } = await supabaseClient.from(TABLE_NAME).delete().eq('id', supabaseId);
-        if (!error) {
-          deletedInSupabase = true;
-          console.log("[Fallback DB] ✓ Registro removido do Supabase.");
-        } else {
-          console.warn("[Fallback DB] Falha ao deletar no Supabase:", error.message);
-        }
-      } catch (err) {
-        console.warn("[Fallback DB] Erro ao deletar no Supabase:", err);
-      }
-    }
+  if (!supabaseClient) return { success: false, source: 'supabase' };
+
+  try {
+    console.log(`[Fallback DB] Removendo do Supabase (ID: ${id})...`);
+    const { error } = await supabaseClient.from(TABLE_NAME).delete().eq('id', supabaseId);
+    if (error) throw new Error(error.message);
+    return { success: true, source: 'supabase' };
+  } catch (err) {
+    console.warn("[Fallback DB] Erro ao deletar no Supabase:", err);
+    return { success: false, source: 'supabase' };
   }
-
-  // 2. Tenta Firebase (Sempre tenta se não houver hint, para garantir remoção total)
-  if (!sourceHint || sourceHint === 'firebase') {
-    try {
-      console.log(`[Fallback DB] Removendo registro do Firebase (ID: ${id})...`);
-      
-      // Tentar deletar em todas as possíveis coleções para garantir limpeza
-      const collections = [TABLE_NAME, 'permutas', 'escalas', 'militares'];
-      for (const coll of collections) {
-        try {
-          await deleteDoc(doc(db, coll, id));
-        } catch (e) {}
-      }
-      
-      deletedInFirebase = true;
-      console.log("[Fallback DB] ✓ Registro removido do Firebase.");
-    } catch (err) {
-      console.warn("[Fallback DB] Falha ao deletar no Firebase:", err);
-    }
-  }
-
-  return {
-    success: deletedInSupabase || deletedInFirebase,
-    source: (deletedInSupabase && deletedInFirebase) ? 'both' : deletedInSupabase ? 'supabase' : 'firebase'
-  };
 }
 
 /**
- * 4. LISTAR REGISTROS DE UM USUÁRIO
- * Tenta buscar do Supabase primeiro (opção principal). Se falhar ou estiver com cota estourada,
- * consulta o Firebase Firestore para garantir continuidade de uso sem interrupções.
+ * 4. LISTAR REGISTROS
  */
 export async function listarDados(
   userId: string
-): Promise<{ success: boolean; data: AppDataRecord[]; sourcesUsed: ('firebase' | 'supabase')[] }> {
+): Promise<{ success: boolean; data: AppDataRecord[]; sourcesUsed: 'supabase'[] }> {
   const result: AppDataRecord[] = [];
-  const sourcesUsed: ('firebase' | 'supabase')[] = [];
-
-  // --- FASE 1: OBTER DO SUPABASE PRIMEIRO (PRINCIPAL) ---
   const supabaseClient = getSupabase();
-  if (supabaseClient) {
-    try {
-      console.log("[Fallback DB] Buscando registros no Supabase para o usuário:", userId);
-      const { data, error } = await supabaseClient
-        .from(TABLE_NAME)
-        .select('*')
-        .eq('user_id', userId);
 
-      if (error) {
-        console.error("[Fallback DB] Erro ao consultar Supabase:", error.message);
-      } else if (data) {
-        data.forEach((row: any) => {
-          // Tentar recuperar o ID original do JSON se ele foi "UUID-ficado" para o Supabase
-          const originalId = row.dados_json?.id || row.id;
-          
-          result.push({
-            id: originalId,
-            user_id: row.user_id,
-            titulo: row.titulo,
-            descricao: row.descricao,
-            dados_json: row.dados_json,
-            criado_em: row.criado_em,
-            origem: 'supabase'
-          });
+  if (!supabaseClient) return { success: false, data: [], sourcesUsed: [] };
+
+  try {
+    console.log("[Fallback DB] Buscando no Supabase para usuário:", userId);
+    const { data, error } = await supabaseClient
+      .from(TABLE_NAME)
+      .select('*')
+      .eq('user_id', userId);
+
+    if (error) throw new Error(error.message);
+
+    if (data) {
+      data.forEach((row: any) => {
+        const originalId = row.dados_json?.id || row.id;
+        result.push({
+          id: originalId,
+          user_id: row.user_id,
+          titulo: row.titulo,
+          descricao: row.descricao,
+          dados_json: row.dados_json,
+          criado_em: row.criado_em,
+          origem: 'supabase'
         });
-        sourcesUsed.push('supabase');
-        console.log(`[Fallback DB] ✓ ${data.length} registros carregados do Supabase.`);
-      }
-    } catch (err) {
-      console.error("[Fallback DB] Erro catastrófico ao ler do Supabase:", err);
-    }
-  }
-
-  // --- FASE 2: OBTER DO FIREBASE (Fallback se Supabase falhou ou retornou vazio) ---
-  if (sourcesUsed.length === 0 || result.length === 0) {
-    try {
-      if ((window as any).simulateFirebaseOffline === true) {
-        throw new Error("SimulatedFirebaseError: Quota exceeded (Simulado pelo painel de controle)");
-      }
-      console.log("[Fallback DB] Consultando dados no Firebase Firestore (Fallback)...");
-      const q = query(collection(db, TABLE_NAME), where('user_id', '==', userId));
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach((doc) => {
-        // Evitar duplicados caso já tivéssemos trazido do Supabase
-        if (!result.some(r => r.id === doc.id)) {
-          result.push({ ...(doc.data() as AppDataRecord), id: doc.id, origem: 'firebase' });
-        }
       });
-      sourcesUsed.push('firebase');
-      console.log(`[Fallback DB] ✓ ${result.length} registros obtidos do Firebase.`);
-    } catch (firebaseError: any) {
-      console.warn("[Fallback DB] ⚠️ Falha ao ler dados do Firebase Firestore:", firebaseError);
     }
-  }
-
-  return {
-    success: true,
-    data: result.sort((a, b) => {
+    return { success: true, data: result.sort((a, b) => {
       const dateA = a.criado_em ? new Date(a.criado_em).getTime() : 0;
       const dateB = b.criado_em ? new Date(b.criado_em).getTime() : 0;
-      return dateB - dateA; // Ordenado decrescente (mais recentes primeiro)
-    }),
-    sourcesUsed
-  };
+      return dateB - dateA;
+    }), sourcesUsed: ['supabase'] };
+  } catch (err) {
+    console.error("[Fallback DB] Erro ao listar do Supabase:", err);
+    return { success: false, data: [], sourcesUsed: [] };
+  }
 }
