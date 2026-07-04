@@ -788,7 +788,7 @@ export default function App() {
       setBackups(prev => {
         const exists = prev.some(b => b.id === newSnapshot.id);
         if (exists) return prev;
-        return [newSnapshot, ...prev].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 3);
+        return [newSnapshot, ...prev].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 5);
       });
 
       // 3. Transmite para os bancos de dados em nuvem de forma assíncrona (não-bloqueante)
@@ -1638,16 +1638,33 @@ export default function App() {
       scaleChanges = await revertOrDeleteScaleForPermuta(targetPermuta);
     }
     try {
-      // Supabase/Firebase (Tabela Unificada) - Modo manual configurado no fallback
-      await deletarDados(id);
+      console.log(`[DELETION DEBUG] Tentando deletar permuta: ${id}`);
+      
+      // 1. Deletar do Supabase (via dados_app)
+      const resSupabase = await deletarDados(id, 'supabase');
+      console.log(`[DELETION DEBUG] Supabase deletado: ${resSupabase.success}`);
+
+      // 2. Deletar do Firestore (permutas)
       try {
-        await deleteDoc(doc(db, 'permutas', id));
+        const docRef = doc(db, 'permutas', id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          await deleteDoc(docRef);
+          console.log(`[DELETION DEBUG] Firestore deletado com sucesso: ${id}`);
+        } else {
+          console.log(`[DELETION DEBUG] Firestore: doc não encontrado: ${id}`);
+        }
       } catch (fbErr) {
-        console.error("Erro ao deletar permuta no Firestore:", fbErr);
+        console.error("[DELETION DEBUG] Erro ao deletar permuta no Firestore:", fbErr);
+        throw fbErr;
       }
     } catch (e) {
-      console.error("Erro ao deletar permuta:", e);
+      console.error("[DELETION DEBUG] Erro fatal ao deletar permuta:", e);
+      alert("Erro fatal ao deletar permuta. Verifique o console.");
     }
+    
+    // ... rest of the function ...
+    
     const nextPermutas = permutas.filter(p => p.id !== id);
     setPermutas(nextPermutas);
     await appendAuditLog('INTEGRALIZAÇÃO', `Protocolo de permuta excluído pelo militar solicitante.`, loggedUser.nomeGuerra, logs);
