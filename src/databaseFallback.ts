@@ -171,9 +171,19 @@ export async function salvarDados(
   // --- FASE 2: REDUNDÂNCIA NO FIREBASE ---
   try {
     console.log(`[Fallback DB] Gravando redundância no Firebase (ID: ${recordId})...`);
-    const docRef = doc(db, TABLE_NAME, recordId);
+    
+    // Identificar a coleção real-time correta
+    let targetCollection = TABLE_NAME;
+    const searchString = titulo || '';
+    if (searchString.startsWith('PERMUTA:')) targetCollection = 'permutas';
+    else if (searchString.startsWith('ESCALA:')) targetCollection = 'escalas';
+    else if (searchString.startsWith('MILITAR:')) targetCollection = 'militares';
+    else if (searchString.startsWith('ALERTA:')) targetCollection = 'alertas';
+    else if (searchString.startsWith('MENSAGEM:')) targetCollection = 'messages';
+
+    const docRef = doc(db, targetCollection, recordId);
     await setDoc(docRef, sanitizeForFirestore(record));
-    console.log("[Fallback DB] ✓ Redundância salva no Firebase.");
+    console.log(`[Fallback DB] ✓ Redundância salva no Firebase (Coleção: ${targetCollection}).`);
   } catch (err) {
     console.warn("[Fallback DB] Falha na redundância do Firebase:", err);
   }
@@ -185,42 +195,57 @@ export async function atualizarDados(
   id: string,
   fields: Partial<Omit<AppDataRecord, 'id' | 'user_id' | 'criado_em'>>,
   sourceHint?: 'firebase' | 'supabase'
-): Promise<{ success: boolean; source: 'firebase' | 'supabase' }> {
+): Promise<{ success: boolean; source: 'firebase' | 'supabase' | 'both' }> {
   
   const supabaseId = toSupabaseFriendlyUUID(id);
+  let updatedInSupabase = false;
+  let updatedInFirebase = false;
 
-  // Se houver um hint sugerindo Firebase especificamente, tenta Firebase primeiro
-  if (sourceHint === 'firebase') {
-    console.log("[Fallback DB] Atualizando dados diretamente no Firebase por indicação de Hint...");
-    if ((window as any).simulateFirebaseOffline === true) {
-      throw new Error("SimulatedFirebaseError: Quota exceeded (Simulado)");
-    }
-    const docRef = doc(db, TABLE_NAME, id);
-    await setDoc(docRef, fields, { merge: true });
-    return { success: true, source: 'firebase' };
-  }
+  // --- TENTATIVA SUPABASE (PRINCIPAL) ---
+  if (!sourceHint || sourceHint === 'supabase') {
+    const supabaseClient = getSupabase();
+    if (supabaseClient) {
+      try {
+        console.log(`[Fallback DB] Atualizando no Supabase (ID: ${id})...`);
+        const { error } = await supabaseClient
+          .from(TABLE_NAME)
+          .update(fields)
+          .eq('id', supabaseId);
 
-  // --- TENTATIVA PADRÃO: SUPABASE PRIMEIRO (PRINCIPAL) ---
-  const supabaseClient = getSupabase();
-  if (supabaseClient) {
-    try {
-      console.log(`[Fallback DB] Tentando atualizar registro no Supabase (ID Real: ${id}, ID Supabase: ${supabaseId})...`);
-      const { error } = await supabaseClient
-        .from(TABLE_NAME)
-        .update(fields)
-        .eq('id', supabaseId);
-
-      if (error) throw new Error(error.message);
-
-      console.log("[Fallback DB] ✓ Registro atualizado com sucesso no Supabase!");
-      return { success: true, source: 'supabase' };
-    } catch (supabaseError: any) {
-      console.warn("[Fallback DB] ⚠️ Falha ao atualizar dados no Supabase. Acionando fallback do Firebase:", supabaseError);
+        if (!error) {
+          updatedInSupabase = true;
+          console.log("[Fallback DB] ✓ Atualizado no Supabase.");
+        }
+      } catch (err) {
+        console.warn("[Fallback DB] Falha ao atualizar no Supabase:", err);
+      }
     }
   }
 
-  // --- FALLBACK AUTOMÁTICO PARA FIREBASE (DESATIVADO) ---
-  return { success: false, source: 'supabase' } as any;
+  // --- REDUNDÂNCIA NO FIREBASE (PARA TEMPO REAL) ---
+  try {
+    console.log(`[Fallback DB] Sincronizando atualização no Firebase (ID: ${id})...`);
+    // Se os campos contiverem dados_json, tentamos identificar a coleção correta
+    let targetCollection = TABLE_NAME;
+    const searchString = fields.titulo || '';
+    if (searchString.startsWith('PERMUTA:')) targetCollection = 'permutas';
+    else if (searchString.startsWith('ESCALA:')) targetCollection = 'escalas';
+    else if (searchString.startsWith('MILITAR:')) targetCollection = 'militares';
+    else if (searchString.startsWith('ALERTA:')) targetCollection = 'alertas';
+    else if (searchString.startsWith('MENSAGEM:')) targetCollection = 'messages';
+
+    const docRef = doc(db, targetCollection, id);
+    await setDoc(docRef, sanitizeForFirestore(fields), { merge: true });
+    updatedInFirebase = true;
+    console.log(`[Fallback DB] ✓ Sincronizado no Firebase (Coleção: ${targetCollection}).`);
+  } catch (err) {
+    console.warn("[Fallback DB] Falha na sincronização do Firebase:", err);
+  }
+
+  return { 
+    success: updatedInSupabase || updatedInFirebase, 
+    source: (updatedInSupabase && updatedInFirebase) ? 'both' : updatedInSupabase ? 'supabase' : 'firebase' 
+  };
 }
 
 /**
@@ -260,8 +285,15 @@ export async function deletarDados(
   if (!sourceHint || sourceHint === 'firebase') {
     try {
       console.log(`[Fallback DB] Removendo registro do Firebase (ID: ${id})...`);
-      const docRef = doc(db, TABLE_NAME, id);
-      await deleteDoc(docRef);
+      
+      // Tentar deletar em todas as possíveis coleções para garantir limpeza
+      const collections = [TABLE_NAME, 'permutas', 'escalas', 'militares'];
+      for (const coll of collections) {
+        try {
+          await deleteDoc(doc(db, coll, id));
+        } catch (e) {}
+      }
+      
       deletedInFirebase = true;
       console.log("[Fallback DB] ✓ Registro removido do Firebase.");
     } catch (err) {

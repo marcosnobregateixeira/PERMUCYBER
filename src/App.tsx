@@ -551,29 +551,18 @@ export default function App() {
       setFirebaseError(null);
       const cloudList = snap.docs.map(d => ({ ...d.data() as Permuta, id: d.id }));
       
-      setPermutas(prev => {
-        // Se o cloudList estiver vazio e tivermos dados locais, mantemos os locais como fallback
-        if (cloudList.length === 0) {
-          const savedLocalPermStr = localStorage.getItem('permucyber_permutas');
-          if (savedLocalPermStr && prev.length === 0) {
-            try { return JSON.parse(savedLocalPermStr); } catch (e) { return []; }
-          }
-          return prev;
+      if (cloudList.length > 0) {
+        setPermutas(cloudList);
+      } else {
+        // Fallback apenas se a nuvem estiver realmente vazia e não tivermos nada no estado
+        const savedLocalPermStr = localStorage.getItem('permucyber_permutas');
+        if (savedLocalPermStr) {
+          try {
+            const localList = JSON.parse(savedLocalPermStr);
+            setPermutas(prev => prev.length === 0 ? localList : prev);
+          } catch (e) {}
         }
-
-        // Se houver dados no cloudList, mesclamos com os locais para garantir que 
-        // solicitações recém-criadas que ainda não subiram (ou estão subindo) não sumam da UI
-        const merged = [...cloudList];
-        prev.forEach(localP => {
-          if (!merged.some(c => c.id === localP.id)) {
-            // Se for uma permuta "pendente" criada pelo próprio usuário logado, mantemos localmente até que o cloud confirme
-            if (localP.militarSubstituidoId === loggedUser?.id && !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(localP.status)) {
-              merged.push(localP);
-            }
-          }
-        });
-        return merged;
-      });
+      }
     }, handleFirebaseError);
 
     const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => {
@@ -1812,47 +1801,11 @@ export default function App() {
   };
 
   // Automated detection of afastamentos causing active permutas to be "SEM_EFEITO"
-  const syncPermutasWithSupabase = async () => {
-    if (!loggedUser) return;
-    console.log("[Sync] Iniciando sincronização de contingência via Supabase...");
-    try {
-      const res = await listarDados(SYSTEM_USER_ID);
-      if (res.success && res.data.length > 0) {
-        const cloudPermutas: Permuta[] = res.data
-          .filter(r => r.titulo.startsWith('PERMUTA:'))
-          .map(r => r.dados_json as Permuta);
-        
-        if (cloudPermutas.length > 0) {
-          setPermutas(prev => {
-            const merged = [...prev];
-            cloudPermutas.forEach(cp => {
-              if (!merged.some(p => p.id === cp.id)) {
-                // Só adicionamos se for relevante para o usuário ou se for ADMIN/GESTOR
-                if (cp.militarSubstituidoId === loggedUser.id || cp.militarSubstitutoId === loggedUser.id || loggedUser.role !== 'POLICIAL') {
-                  merged.push(cp);
-                }
-              } else {
-                // Se já existe, verificamos se a versão do Supabase é mais recente (opcional, aqui apenas logamos)
-                // Para simplificar, poderíamos atualizar se o status for diferente
-                const idx = merged.findIndex(p => p.id === cp.id);
-                if (merged[idx].status !== cp.status) {
-                  merged[idx] = cp;
-                }
-              }
-            });
-            return merged;
-          });
-          console.log(`[Sync] ✓ ${cloudPermutas.length} registros reconciliados via Supabase.`);
-        }
-      }
-    } catch (e) {
-      console.warn("[Sync] Falha na sincronização de contingência:", e);
-    }
-  };
-
   useEffect(() => {
+    // A sincronização agora é 100% via Firebase onSnapshot para tempo real.
+    // O Supabase atua como backup persistente e auditoria em segundo plano.
     if (currentTab === 'PERMUTAS' && loggedUser) {
-      syncPermutasWithSupabase();
+      console.log("[Tempo Real] Sincronização via Firebase ativa.");
     }
   }, [currentTab, loggedUser]);
 
