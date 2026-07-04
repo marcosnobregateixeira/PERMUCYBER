@@ -800,10 +800,9 @@ export default function Dashboard({
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <div className="text-[8px] font-mono uppercase bg-[#00e5ff]/15 text-cyber-cyan px-1.5 py-0.5 border border-cyber-cyan/35 rounded inline-block font-bold">
-                    VOLUNTARIADO / SERVIÇO AVULSO
+                    VOLUNTÁRIO
                   </div>
-                  <h4 className="text-xs font-bold text-white tracking-wide">Sem escala prévia designada para este dia</h4>
-                  <div className="flex flex-col space-y-0.5 text-[10px] font-mono text-slate-400">
+                  <div className="flex flex-col space-y-0.5 text-[10px] font-mono text-slate-400 pt-1">
                     <span className="flex items-center">
                       <Clock className="w-3.5 h-3.5 text-cyber-cyan mr-1 shrink-0 animate-pulse" />
                       Turno e horário customizáveis para permuta
