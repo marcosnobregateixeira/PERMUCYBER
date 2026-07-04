@@ -996,6 +996,7 @@ export default function App() {
 
   const handleClearAllPermutas = async () => {
     try {
+      // 1. Deletar as permutas das bases
       for (const p of permutas) {
         await deletarDados(p.id);
         try {
@@ -1005,8 +1006,35 @@ export default function App() {
         }
       }
       setPermutas([]);
-      await appendAuditLog('INTEGRALIZAÇÃO', 'Todas as solicitações de permutas foram excluídas permanentemente do banco de dados.', loggedUser?.nomeGuerra || 'SISTEMA', logs);
-      alert('Todas as permutas de teste foram excluídas com sucesso!');
+
+      // 2. Limpar os backups na nuvem (Firestore e Supabase dados_app) para evitar auto-recuperação de dados antigos
+      try {
+        const backupsSnap = await getDocs(collection(db, 'backups'));
+        for (const bDoc of backupsSnap.docs) {
+          await deleteDoc(doc(db, 'backups', bDoc.id));
+          await deletarDados(bDoc.id); // Remove do Supabase dados_app se houver
+        }
+      } catch (fbErr) {
+        console.error("Erro ao limpar backups na nuvem:", fbErr);
+      }
+
+      // 3. Limpar os backups locais do localStorage, o cache de permutas locais e o estado
+      try {
+        const keysToDelete: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('BACKUP_') || key === 'permucyber_backups' || key === 'permucyber_permutas')) {
+            keysToDelete.push(key);
+          }
+        }
+        keysToDelete.forEach(k => localStorage.removeItem(k));
+      } catch (e) {
+        console.warn("Erro ao limpar cache local de backups:", e);
+      }
+      setBackups([]);
+
+      await appendAuditLog('INTEGRALIZAÇÃO', 'Todas as solicitações de permutas e cópias de segurança antigas foram excluídas permanentemente para evitar auto-recuperação.', loggedUser?.nomeGuerra || 'SISTEMA', logs);
+      alert('Todas as permutas de teste e backups antigos foram excluídos com sucesso do dispositivo e da nuvem!');
     } catch (e) {
       console.error("Erro ao limpar permutas:", e);
       alert('Erro ao excluir as permutas.');
