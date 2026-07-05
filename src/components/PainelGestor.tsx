@@ -712,18 +712,16 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
   };
 
   const getStatusServico = (p: Permuta) => {
-    if (p.status === 'SEM_EFEITO') return 'TORNADO SEM EFEITO';
+    if (p.status === 'SEM_EFEITO') return 'NÃO EFETUADA';
+    if (p.status === 'REJEITADO' || p.status === 'REJEITADO_SUBSTITUTO') return 'RECUSADA';
     
     const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const todayStr = `${yyyy}-${mm}-${dd}`;
+    const todayStr = today.toLocaleDateString('en-CA');
     
     if (todayStr > p.dataRealizacao) {
-      return 'CUMPRIDA';
+      return p.status === 'APROVADO' ? 'CUMPRIDA' : 'NÃO EFETUADA (EXPIRADA)';
     } else {
-      return 'PENDENTE';
+      return p.status === 'APROVADO' ? 'HOMOLOGADA' : 'PENDENTE';
     }
   };
 
@@ -744,7 +742,8 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const pendentesGestor = permutas.filter(p => p.status === 'PENDENTE_GESTOR');
-  const homologadas = permutas.filter(p => p.status === 'APROVADO');
+  const homologadasAtivas = permutas.filter(p => p.status === 'APROVADO' && p.dataRealizacao >= new Date().toISOString().split('T')[0]);
+  const homologadasPassadas = permutas.filter(p => p.status === 'APROVADO' && p.dataRealizacao < new Date().toISOString().split('T')[0]);
   
   const historicoCompleto = permutas
     .filter(p => p.status !== 'PENDENTE_GESTOR' && p.status !== 'PENDENTE_SUBSTITUTO')
@@ -1202,6 +1201,68 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
             </div>
           )}
 
+          {/* NOVAS HOMOLOGADAS (PARA CUMPRIMENTO) */}
+          {homologadasAtivas.length > 0 && (
+            <div className="mt-8 space-y-3 pb-4 border-b border-hud-border/30">
+              <div className="flex justify-between items-center mb-1">
+                <h3 className="text-xs font-bold font-display text-white tracking-wider uppercase flex items-center">
+                  <CheckSquare className="w-4 h-4 text-cyber-green mr-1.5" />
+                  PERMUTAS HOMOLOGADAS (PARA CUMPRIMENTO)
+                </h3>
+                <span className="text-[10px] font-mono text-cyber-green bg-cyber-green/10 px-2 py-0.5 rounded-full border border-cyber-green/20 uppercase">
+                  {homologadasAtivas.length} Ativas
+                </span>
+              </div>
+
+              <div className="space-y-2.5">
+                {homologadasAtivas.map((p) => {
+                  const subBy = allMilitares.find(m => m.id === p.militarSubstituidoId);
+                  const subRepl = allMilitares.find(m => m.id === p.militarSubstitutoId);
+                  const isSelected = selectedPermutaDetailId === p.id;
+
+                  return (
+                    <div 
+                      key={p.id}
+                      className={`border rounded-xl transition-all overflow-hidden ${
+                        isSelected 
+                          ? 'bg-[#0f1d22] border-cyber-green shadow-[0_0_12px_rgba(0,255,100,0.1)]' 
+                          : 'bg-hud-card/40 border-cyber-green/20 hover:border-cyber-green/40'
+                      }`}
+                    >
+                      <div 
+                        onClick={() => setSelectedPermutaDetailId(isSelected ? null : p.id)}
+                        className="p-3 cursor-pointer flex justify-between items-center"
+                      >
+                        <div className="min-w-0">
+                          <span className="text-[8px] font-mono text-cyber-green uppercase font-bold tracking-tight bg-cyber-green/10 border border-cyber-green/20 px-1 rounded">
+                            PROTOCOL {p.protocoloId}
+                          </span>
+                          <h4 className="text-xs font-bold text-white truncate mt-1">{subBy?.funcao || p.postoServico} - {p.turno}</h4>
+                          <p className="text-[10px] font-mono text-slate-400 mt-0.5 truncate">
+                            {subBy?.nomeGuerra} ➔ {subRepl?.nomeGuerra} • {formatarDataBR(p.dataRealizacao)}
+                          </p>
+                        </div>
+                        <div className="text-right flex flex-col items-end">
+                          <span className="text-[9px] font-mono font-bold text-cyber-green bg-cyber-green/5 border border-cyber-green/30 px-2 py-0.5 rounded">HOMOLOGADA</span>
+                          <ChevronDown className={`w-4 h-4 text-slate-500 mt-1 transition-transform ${isSelected ? 'rotate-180' : ''}`} />
+                        </div>
+                      </div>
+
+                      {isSelected && (
+                        <div className="p-3 border-t border-hud-border/40 bg-black/20">
+                           <DocumentoHomologacao
+                              permuta={p}
+                              allMilitares={allMilitares}
+                            />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* HISTORIC SWAPS OF PREVIOUS RECORDS */}
           <div className="border-t border-hud-border/40 pt-4 mt-2">
             <button 
@@ -1300,10 +1361,10 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                               isApproved 
                                 ? 'bg-cyber-green/10 text-cyber-green border-cyber-green/20' 
                                 : h.status === 'SEM_EFEITO' 
-                                ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                ? 'bg-slate-500/10 text-slate-400 border-slate-500/20'
                                 : 'bg-cyber-red/10 text-cyber-red border-cyber-red/20'
                             }`}>
-                              {isApproved ? 'APROVADA' : h.status.replace(/_/g, ' ')}
+                              {isApproved ? 'APROVADA' : h.status === 'SEM_EFEITO' ? 'NÃO EFETUADA' : h.status.replace(/_/g, ' ')}
                             </span>
                             <span className="text-[7.5px] font-mono text-slate-400 block mt-0.5 uppercase tracking-tighter">Detalhes</span>
                           </div>

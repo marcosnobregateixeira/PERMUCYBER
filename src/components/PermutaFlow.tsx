@@ -150,9 +150,13 @@ export default function PermutaFlow({
       score = 0;
       reason = `AFASTAMENTO ATIVO: ${afastamento.motivo} (${afastamento.dataInicio.split('-').reverse().join('/')} a ${afastamento.dataFim.split('-').reverse().join('/')}). PROIBIDO PERMUTAR.`;
       status = 'BLOCKED';
-    } else if (hasConflictScale || hasActivePermuta) {
+    } else if (hasConflictScale) {
       score = 0;
-      reason = "Não pode, porque este policial já está de serviço nesse dia.";
+      reason = "Indisponível: Este policial já possui escala de serviço oficial nesta data.";
+      status = 'BLOCKED';
+    } else if (hasActivePermuta) {
+      score = 0;
+      reason = "Indisponível: Este policial já possui outra solicitação de permuta ativa para esta data.";
       status = 'BLOCKED';
     } else if (userLogged) {
       if (c.patente === userLogged.patente) {
@@ -238,7 +242,7 @@ export default function PermutaFlow({
       (p.militarSubstituidoId === selectedSubstituteId || p.militarSubstitutoId === selectedSubstituteId)
     );
     if (substituteConflict) {
-      alert("Não pode, porque este policial já está de serviço nesse dia.");
+      alert("CONFLITO DETECTADO: O substituto selecionado já possui uma solicitação de permuta ativa ou homologada registrada para esta mesma data.");
       return;
     }
 

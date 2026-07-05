@@ -20,7 +20,8 @@ export const MILITARES: Militar[] = [
     chaveDigital: 'COMMAND-NODE-RODRIGUES-00ALPHA',
     biometriaAtiva: true,
     pinSegurança: '1234',
-    turno: 'TURNO A'
+    turno: 'TURNO A',
+    matriculaFuncional: '103.456-1-0'
   },
   {
     id: 'M-104',
@@ -36,7 +37,8 @@ export const MILITARES: Militar[] = [
     chaveDigital: 'SECURE-NODE-TOLEDO-33WE01',
     biometriaAtiva: false,
     pinSegurança: '8890',
-    turno: '24H'
+    turno: '24H',
+    matriculaFuncional: '104.456-1-1'
   },
   {
     id: 'M-301',
@@ -52,7 +54,8 @@ export const MILITARES: Militar[] = [
     chaveDigital: 'SECURE-NODE-FONTES-77GH77',
     biometriaAtiva: true,
     pinSegurança: '4321',
-    turno: 'TURNO A'
+    turno: 'TURNO A',
+    matriculaFuncional: '301.456-1-2'
   },
   {
     id: 'M-302',
@@ -68,7 +71,8 @@ export const MILITARES: Militar[] = [
     chaveDigital: 'SECURE-NODE-CASTRO-22WE99',
     biometriaAtiva: true,
     pinSegurança: '2233',
-    turno: 'TURNO B'
+    turno: 'TURNO B',
+    matriculaFuncional: '302.456-1-3'
   },
   {
     id: 'M-303',
@@ -84,7 +88,8 @@ export const MILITARES: Militar[] = [
     chaveDigital: 'SECURE-NODE-SOUZA-64KF29',
     biometriaAtiva: true,
     pinSegurança: '4455',
-    turno: 'TURNO A'
+    turno: 'TURNO A',
+    matriculaFuncional: '303.456-1-4'
   },
   {
     id: 'M-304',
@@ -100,7 +105,8 @@ export const MILITARES: Militar[] = [
     chaveDigital: 'SECURE-NODE-NEVES-81LH03',
     biometriaAtiva: true,
     pinSegurança: '6677',
-    turno: 'TURNO B'
+    turno: 'TURNO B',
+    matriculaFuncional: '304.456-1-5'
   },
   {
     id: 'M-305',
@@ -116,7 +122,8 @@ export const MILITARES: Militar[] = [
     chaveDigital: 'SECURE-NODE-LIMA-19AA42',
     biometriaAtiva: true,
     pinSegurança: '8899',
-    turno: 'TURNO A'
+    turno: 'TURNO A',
+    matriculaFuncional: '305.456-1-6'
   },
   {
     id: 'M-ADMIN-1',
@@ -132,7 +139,8 @@ export const MILITARES: Militar[] = [
     chaveDigital: 'ADMIN-NODE-NOBREGA-12345',
     biometriaAtiva: true,
     pinSegurança: '0000',
-    turno: 'TURNO A'
+    turno: 'TURNO A',
+    matriculaFuncional: '123.456-1-7'
   }
 ];
 

@@ -25,7 +25,7 @@ interface BiometricLoginProps {
   allUsers: Militar[];
   onUserSelect: (userId: string) => void;
   onLoginSuccess: () => void;
-  onUpdateMilitarPin?: (userId: string, newPin: string, email?: string) => void;
+  onUpdateMilitarPin?: (userId: string, newPin: string, email?: string, chaveDigital?: string) => void;
 }
 
 export default function BiometricLogin({ 
@@ -59,10 +59,33 @@ export default function BiometricLogin({
 
   const [customTokenInput, setCustomTokenInput] = useState<string>('');
   const [customEmailInput, setCustomEmailInput] = useState<string>('');
-  const [customSubTab, setCustomSubTab] = useState<'PIN' | 'EMAIL'>('PIN');
+  const [customChaveInput, setCustomChaveInput] = useState<string>('');
+  const [customSubTab, setCustomSubTab] = useState<'PIN' | 'EMAIL' | 'TOKEN'>('PIN');
   const [tokenSuccessMsg, setTokenSuccessMsg] = useState<string | null>(null);
   const [tokenErrorMsg, setTokenErrorMsg] = useState<string | null>(null);
   const [showFirstTimeSuccessPopup, setShowFirstTimeSuccessPopup] = useState<boolean>(false);
+
+  // First access validation states
+  const [matriculaInput, setMatriculaInput] = useState<string>('');
+  const [isMatriculaVerified, setIsMatriculaVerified] = useState<boolean>(false);
+
+  const formatMatricula = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 8);
+    let formatted = '';
+    if (digits.length > 0) {
+      formatted += digits.substring(0, 3);
+    }
+    if (digits.length > 3) {
+      formatted += '.' + digits.substring(3, 6);
+    }
+    if (digits.length > 6) {
+      formatted += '-' + digits.substring(6, 7);
+    }
+    if (digits.length > 7) {
+      formatted += '-' + digits.substring(7, 8);
+    }
+    return formatted;
+  };
 
   // Update searchQuery when user selected defaults
   useEffect(() => {
@@ -70,7 +93,10 @@ export default function BiometricLogin({
     setTokenSuccessMsg(null);
     setCustomTokenInput('');
     setCustomEmailInput(userLogged?.email || '');
+    setCustomChaveInput(userLogged?.chaveDigital || '');
     setCustomSubTab('PIN');
+    setMatriculaInput('');
+    setIsMatriculaVerified(false);
   }, [userLogged]);
 
   // Autocomplete suggestions filter with rank-based sorting
@@ -104,16 +130,24 @@ export default function BiometricLogin({
   );
   const shouldShowInfo = !!(userLogged && isSearchActive && isCorrectSearch);
 
+  const isFirstTime = userLogged ? (!userLogged.pinSegurança || userLogged.pinSegurança === '1234') : false;
+
   const handleStartScan = () => {
     if (!shouldShowInfo || !userLogged || scanState === 'SCANNING') return;
-    setScanState('SCANNING');
     setErrorText(null);
+
+    // Strict validation check for first access matrícula validation before biometric scanning
+    if (isFirstTime && !isMatriculaVerified) {
+      setErrorText('VALIDAÇÃO NECESSÁRIA: É obrigatório realizar a validação da Matrícula Funcional (M.F) antes da biometria.');
+      return;
+    }
+
+    setScanState('SCANNING');
 
     // FIX: Allow admin to bypass biometric check if needed for trouble shooting or if biometrics is actially failing
     if (userLogged?.role === 'ADMIN' || userLogged?.role === 'COMANDANTE') {
       console.warn('Admin/Comandante biometric override bypass.');
       setScanState('GRANTED');
-      const isFirstTime = !userLogged?.pinSegurança || userLogged.pinSegurança === '1234';
       if (isFirstTime) {
         setTimeout(() => {
           setShowFirstTimeSuccessPopup(true);
@@ -365,65 +399,168 @@ export default function BiometricLogin({
                     </div>
                   </div>
 
-                  {/* Fingerprint Laser scanning pad */}
-                  <button
-                    onClick={handleStartScan}
-                    disabled={!shouldShowInfo || scanState === 'SCANNING'}
-                    className={`relative w-36 h-36 rounded-full flex flex-col items-center justify-center focus:outline-none transition-all duration-300 border overflow-hidden cursor-pointer ${
-                      !shouldShowInfo 
-                        ? 'bg-black/40 border-hud-border/20 grayscale cursor-not-allowed opacity-50'
-                        : scanState === 'SCANNING'
-                        ? 'bg-cyber-cyan/5 border-cyber-blue shadow-[0_0_25px_rgba(0,229,255,0.2)]'
-                        : scanState === 'GRANTED'
-                        ? 'bg-cyber-green/5 border-cyber-green shadow-[0_0_25px_rgba(0,255,102,0.3)]'
-                        : scanState === 'FAILED'
-                        ? 'bg-cyber-red/5 border-cyber-red shadow-[0_0_25px_rgba(255,61,0,0.3)]'
-                        : 'bg-[#051319]/25 border-hud-border/80 hover:border-cyber-cyan/40 hover:bg-cyber-cyan/5'
-                    }`}
-                  >
-                    {scanState === 'SCANNING' && (
-                      <motion.div
-                        initial={{ y: -50 }}
-                        animate={{ y: 50 }}
-                        transition={{ repeat: Infinity, duration: 1.1, repeatType: "reverse" }}
-                        className="absolute left-0 right-0 h-[1.5px] bg-cyber-blue shadow-[0_0_8px_#00e5ff] z-20"
-                      />
-                    )}
-
-                    <div className="absolute inset-2 border border-cyber-cyan/10 rounded-full animate-pulse pointer-events-none" />
-
-                    <Fingerprint
-                      className={`w-16 h-16 transition-all duration-300 ${
-                        !shouldShowInfo
-                          ? 'text-slate-600 scale-90'
-                          : scanState === 'SCANNING'
-                          ? 'text-cyber-blue scale-105'
-                          : scanState === 'GRANTED'
-                          ? 'text-cyber-green scale-105'
-                          : scanState === 'FAILED'
-                          ? 'text-cyber-red scale-95'
-                          : 'text-cyber-cyan/70 hover:text-cyber-cyan'
-                      }`}
-                    />
-
-                    <span className="text-[8.5px] font-mono tracking-widest mt-1.5 uppercase text-cyber-cyan/80 text-center px-2">
-                      {!shouldShowInfo
-                        ? 'BUSQUE SEU NOME'
-                        : scanState === 'SCANNING'
-                        ? 'AUTENTICANDO...'
-                        : scanState === 'GRANTED'
-                        ? 'AUTORIZADO'
-                        : scanState === 'FAILED'
-                        ? 'NEGADO'
-                        : 'PRESSIONAR SCANNER'}
-                    </span>
-                  </button>
-
-                  {errorText && (
-                    <div className="mt-4 flex flex-col items-center text-center">
-                      <div className="text-[9px] font-mono text-cyber-red animate-pulse flex items-center bg-cyber-red/10 border border-cyber-red/35 px-2.5 py-1 rounded">
-                        <AlertTriangle className="w-3.5 h-3.5 mr-1" /> {errorText}
+                  {shouldShowInfo && isFirstTime && (
+                    <div className="w-full flex items-center justify-between px-2 mb-4 text-[8px] font-mono border-b border-hud-border/30 pb-2">
+                      <div className="flex items-center space-x-1">
+                        <span className="w-3.5 h-3.5 rounded-full bg-cyber-green text-black flex items-center justify-center font-bold">1</span>
+                        <span className="text-cyber-green font-bold uppercase">Nome</span>
                       </div>
+                      <div className="w-6 h-[1px] bg-hud-border/40" />
+                      <div className="flex items-center space-x-1">
+                        <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold ${isMatriculaVerified ? 'bg-cyber-green text-black' : 'bg-cyber-cyan text-black animate-pulse'}`}>2</span>
+                        <span className={isMatriculaVerified ? 'text-cyber-green font-bold uppercase' : 'text-cyber-cyan font-bold uppercase animate-pulse'}>M.F.</span>
+                      </div>
+                      <div className="w-6 h-[1px] bg-hud-border/40" />
+                      <div className="flex items-center space-x-1">
+                        <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold ${isMatriculaVerified ? 'bg-cyber-cyan/35 text-white animate-pulse' : 'bg-slate-800 text-slate-500'}`}>3</span>
+                        <span className={isMatriculaVerified ? 'text-cyber-cyan font-bold uppercase animate-pulse' : 'text-slate-500 uppercase'}>Cadastro</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {shouldShowInfo && isFirstTime && !isMatriculaVerified ? (
+                    /* 2ª Etapa: Validação de Matrícula Funcional */
+                    <div className="w-full bg-[#07141a]/95 rounded-xl border border-cyber-cyan/30 p-4 mb-2 flex flex-col space-y-3.5 shadow-lg relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-1 text-cyber-cyan/5">
+                        <Shield className="w-16 h-16" />
+                      </div>
+
+                      <div className="flex items-center space-x-2 border-b border-cyber-cyan/20 pb-2">
+                        <Shield className="w-4 h-4 text-cyber-cyan shrink-0 animate-pulse" />
+                        <div>
+                          <h4 className="text-[11px] font-extrabold text-white uppercase tracking-wider">
+                            2ª ETAPA: VALIDAÇÃO DE IDENTIDADE
+                          </h4>
+                          <span className="text-[7.5px] font-mono text-cyber-cyan block tracking-tight uppercase">
+                            Reconhecimento Cadastral Obrigatório
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="text-[9.5px] text-slate-300 leading-relaxed font-sans">
+                        Este é o seu primeiro acesso ao Permucyber. Para continuar e personalizar seu PIN e e-mail de segurança, por favor confirme sua <strong className="text-white font-bold">Matrícula Funcional (M.F.)</strong> registrada no cadastro institucional.
+                      </p>
+
+                      <div className="flex flex-col space-y-1">
+                        <label className="text-[8px] font-bold font-mono text-slate-400 uppercase">
+                          Matrícula Funcional (M.F) - Formato: xxx.xxx-x-x:
+                        </label>
+                        <input
+                          type="text"
+                          value={matriculaInput}
+                          onChange={(e) => {
+                            setMatriculaInput(formatMatricula(e.target.value));
+                            setErrorText(null);
+                          }}
+                          placeholder="000.000-0-0"
+                          maxLength={13}
+                          className="w-full bg-[#051319] border border-cyber-cyan/35 text-xs font-mono text-white p-2.5 rounded-md outline-none focus:border-cyber-cyan focus:shadow-[0_0_8px_rgba(0,229,255,0.15)] transition-all placeholder:text-slate-500 text-center tracking-[0.1em] font-bold"
+                        />
+                      </div>
+
+                      {errorText && (
+                        <div className="text-[9px] font-mono text-cyber-red bg-cyber-red/10 border border-cyber-red/35 px-2.5 py-1 rounded">
+                          ⚠️ {errorText}
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!userLogged) return;
+                          setErrorText(null);
+                          const inputClean = matriculaInput.replace(/\D/g, '');
+                          if (inputClean.length !== 8) {
+                            setErrorText('M.F. INCOMPLETA: A matrícula funcional deve conter exatamente 8 números no formato xxx.xxx-x-x.');
+                            return;
+                          }
+                          const dbClean = (userLogged.matriculaFuncional || '').replace(/\D/g, '');
+                          if (dbClean && inputClean === dbClean) {
+                            setIsMatriculaVerified(true);
+                            setErrorText(null);
+                          } else {
+                            setErrorText('MATRÍCULA INCORRETA: A matrícula digitada não corresponde ao registro funcional correspondente. Cadastro de PIN bloqueado.');
+                          }
+                        }}
+                        className="w-full bg-cyber-cyan text-black hover:bg-cyber-cyan/90 border border-transparent rounded py-2 text-[10px] font-black font-mono uppercase transition-all tracking-wider text-center cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.2)]"
+                      >
+                        VALIDAR REGISTRO CADASTRAL
+                      </button>
+
+                      <div className="text-[8px] text-slate-500 font-mono text-center italic">
+                        Banco de dados seguro integrado de modo criptográfico
+                      </div>
+                    </div>
+                  ) : (
+                    /* 3ª Etapa: Biometria Scanner */
+                    <div className="flex flex-col items-center w-full">
+                      {isMatriculaVerified && (
+                        <div className="mb-3 text-[9px] font-mono text-cyber-green bg-cyber-green/10 border border-cyber-green/35 px-3 py-1 rounded flex items-center space-x-1.5 animate-pulse">
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span className="font-bold uppercase tracking-wider">MATRÍCULA VALIDADA COM SUCESSO</span>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={handleStartScan}
+                        disabled={!shouldShowInfo || scanState === 'SCANNING'}
+                        className={`relative w-36 h-36 rounded-full flex flex-col items-center justify-center focus:outline-none transition-all duration-300 border overflow-hidden cursor-pointer ${
+                          !shouldShowInfo 
+                            ? 'bg-black/40 border-hud-border/20 grayscale cursor-not-allowed opacity-50'
+                            : scanState === 'SCANNING'
+                            ? 'bg-cyber-cyan/5 border-cyber-blue shadow-[0_0_25px_rgba(0,229,255,0.2)]'
+                            : scanState === 'GRANTED'
+                            ? 'bg-cyber-green/5 border-cyber-green shadow-[0_0_25px_rgba(0,255,102,0.3)]'
+                            : scanState === 'FAILED'
+                            ? 'bg-cyber-red/5 border-cyber-red shadow-[0_0_25px_rgba(255,61,0,0.3)]'
+                            : 'bg-[#051319]/25 border-hud-border/80 hover:border-cyber-cyan/40 hover:bg-cyber-cyan/5'
+                        }`}
+                      >
+                        {scanState === 'SCANNING' && (
+                          <motion.div
+                            initial={{ y: -50 }}
+                            animate={{ y: 50 }}
+                            transition={{ repeat: Infinity, duration: 1.1, repeatType: "reverse" }}
+                            className="absolute left-0 right-0 h-[1.5px] bg-cyber-blue shadow-[0_0_8px_#00e5ff] z-20"
+                          />
+                        )}
+
+                        <div className="absolute inset-2 border border-cyber-cyan/10 rounded-full animate-pulse pointer-events-none" />
+
+                        <Fingerprint
+                          className={`w-16 h-16 transition-all duration-300 ${
+                            !shouldShowInfo
+                              ? 'text-slate-600 scale-90'
+                              : scanState === 'SCANNING'
+                              ? 'text-cyber-blue scale-105'
+                              : scanState === 'GRANTED'
+                              ? 'text-cyber-green scale-105'
+                              : scanState === 'FAILED'
+                              ? 'text-cyber-red scale-95'
+                              : 'text-cyber-cyan/70 hover:text-cyber-cyan'
+                          }`}
+                        />
+
+                        <span className="text-[8.5px] font-mono tracking-widest mt-1.5 uppercase text-cyber-cyan/80 text-center px-2">
+                          {!shouldShowInfo
+                            ? 'BUSQUE SEU NOME'
+                            : scanState === 'SCANNING'
+                            ? 'AUTENTICANDO...'
+                            : scanState === 'GRANTED'
+                            ? 'AUTORIZADO'
+                            : scanState === 'FAILED'
+                            ? 'NEGADO'
+                            : 'PRESSIONAR SCANNER'}
+                        </span>
+                      </button>
+
+                      {errorText && (
+                        <div className="mt-4 flex flex-col items-center text-center">
+                          <div className="text-[9px] font-mono text-cyber-red animate-pulse flex items-center bg-cyber-red/10 border border-cyber-red/35 px-2.5 py-1 rounded">
+                            <AlertTriangle className="w-3.5 h-3.5 mr-1" /> {errorText}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -460,7 +597,18 @@ export default function BiometricLogin({
                             : 'text-slate-400 hover:text-white'
                         }`}
                       >
-                        1. Token / PIN
+                        1. PIN / Token
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCustomSubTab('TOKEN')}
+                        className={`flex-1 py-1 rounded font-bold uppercase transition-all text-center cursor-pointer ${
+                          customSubTab === 'TOKEN'
+                            ? 'bg-cyber-green text-black font-black'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        2. Token Individual
                       </button>
                       <button
                         type="button"
@@ -471,12 +619,12 @@ export default function BiometricLogin({
                             : 'text-slate-400 hover:text-white'
                         }`}
                       >
-                        2. E-mail de Contato
+                        3. E-mail de Contato
                       </button>
                     </div>
 
                     {customSubTab === 'PIN' && (
-                      <div className="flex flex-col space-y-1">
+                       <div className="flex flex-col space-y-1">
                         <label className="text-[8.5px] font-bold font-mono text-slate-300 uppercase">
                           Inserir Novo PIN de Segurança (4 dígitos numéricos):
                         </label>
@@ -494,6 +642,27 @@ export default function BiometricLogin({
                         />
                         <p className="text-[8px] text-slate-400 font-mono">
                           Esse PIN de 4 dígitos será solicitado como autenticação de duplo fator.
+                        </p>
+                      </div>
+                    )}
+
+                    {customSubTab === 'TOKEN' && (
+                      <div className="flex flex-col space-y-1">
+                        <label className="text-[8.5px] font-bold font-mono text-slate-300 uppercase">
+                          Personalizar Token Individual / Chave Digital:
+                        </label>
+                        <input
+                          type="text"
+                          value={customChaveInput}
+                          onChange={(e) => {
+                            setCustomChaveInput(e.target.value.toUpperCase());
+                            setTokenErrorMsg(null);
+                          }}
+                          placeholder="DIGITE SEU TOKEN PERSONALIZADO"
+                          className="w-full bg-[#051319] border border-cyber-green/35 text-xs font-mono text-white p-2 rounded-md outline-none focus:border-cyber-green focus:shadow-[0_0_8px_rgba(0,255,102,0.15)] transition-all uppercase font-bold"
+                        />
+                        <p className="text-[8px] text-slate-400 font-mono">
+                          Esse token será a sua assinatura digital criptográfica usada para validar permutas.
                         </p>
                       </div>
                     )}
@@ -536,8 +705,14 @@ export default function BiometricLogin({
                         type="button"
                         onClick={() => {
                           if (customTokenInput.length !== 4) {
-                            setTokenErrorMsg('Preencha os 4 dígitos do PIN na aba Token.');
+                            setTokenErrorMsg('Preencha os 4 dígitos do PIN na aba PIN / Token.');
                             setCustomSubTab('PIN');
+                            return;
+                          }
+                          const tokenTrimmed = customChaveInput.trim();
+                          if (!tokenTrimmed) {
+                            setTokenErrorMsg('Personalize seu Token Individual na aba correspondente.');
+                            setCustomSubTab('TOKEN');
                             return;
                           }
                           const emailTrimmed = customEmailInput.trim();
@@ -553,11 +728,12 @@ export default function BiometricLogin({
                             return;
                           }
                           if (userLogged) {
-                            onUpdateMilitarPin?.(userLogged.id, customTokenInput, emailTrimmed);
+                            onUpdateMilitarPin?.(userLogged.id, customTokenInput, emailTrimmed, tokenTrimmed);
                             setTokenSuccessMsg('Credencial gravada! Aguardando liberação do administrador para realizar login.');
                           }
                           setCustomTokenInput('');
                           setCustomEmailInput('');
+                          setCustomChaveInput('');
                           setTimeout(() => {
                             setTokenSuccessMsg(null);
                             setStage('BIOMETRIC');

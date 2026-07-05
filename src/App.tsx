@@ -965,7 +965,7 @@ export default function App() {
     } catch(e){ alert("Erro ao atualizar número. " + (e as Error).message); }
   };
 
-  const handleUpdateMilitarPin = async (id: string, newPin: string, email?: string) => {
+  const handleUpdateMilitarPin = async (id: string, newPin: string, email?: string, chaveDigital?: string) => {
     try { 
       const target = militares.find(p => p.id === id);
       const isSpecial = target?.role === 'ADMIN' || target?.role === 'COMANDANTE';
@@ -973,13 +973,16 @@ export default function App() {
       if (email) {
         updates.email = email;
       }
+      if (chaveDigital) {
+        updates.chaveDigital = chaveDigital;
+      }
       if (target) {
         const updated = { ...target, ...updates };
         await atualizarDados(id, { dados_json: updated });
         setMilitares(prev => prev.map(p => p.id === id ? updated : p));
         const logMsg = isSpecial 
-          ? `Administrador/Comandante ID ${id} atualizou seu token / PIN de segurança pessoal e e-mail. Acesso mantido liberado.`
-          : `Militar ID ${id} atualizou seu token / PIN de segurança criptográfica pessoal e e-mail (${email || 'não informado'}). Acesso bloqueado aguardando liberação do administrador.`;
+          ? `Administrador/Comandante ID ${id} atualizou seu token / PIN de segurança pessoal, chave digital e e-mail. Acesso mantido liberado.`
+          : `Militar ID ${id} atualizou seu token / PIN de segurança criptográfica pessoal, e-mail (${email || 'não informado'}) e chave digital personalizada (${chaveDigital || ''}). Acesso bloqueado aguardando liberação do administrador.`;
         await appendAuditLog('INTEGRALIZAÇÃO', logMsg, loggedUser?.nomeGuerra || 'SISTEMA', logs);
       }
     } catch(e) { alert("Erro ao modificar PIN: " + (e as Error).message); }
@@ -1071,16 +1074,32 @@ export default function App() {
   const handleCreatePermuta = async (novaPermuta: Permuta) => {
     if (!loggedUser) return;
 
-    // Strict duplicate check to avoid accidental double submissions
-    const isDuplicate = permutas.some(p => 
+    // Strict duplicate and conflict check
+    const existingConflict = permutas.find(p => 
       p.dataRealizacao === novaPermuta.dataRealizacao &&
-      p.militarSubstituidoId === novaPermuta.militarSubstituidoId &&
-      p.militarSubstitutoId === novaPermuta.militarSubstitutoId &&
-      !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status)
+      !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status) &&
+      (
+        p.militarSubstituidoId === novaPermuta.militarSubstituidoId ||
+        p.militarSubstitutoId === novaPermuta.militarSubstituidoId ||
+        p.militarSubstituidoId === novaPermuta.militarSubstitutoId ||
+        p.militarSubstitutoId === novaPermuta.militarSubstitutoId
+      )
     );
 
-    if (isDuplicate) {
-      console.warn("Prevenção de duplicidade: Permuta idêntica já existe.");
+    if (existingConflict) {
+      alert(`CONFLITO: Já existe uma permuta ativa (${existingConflict.status}) para esta data envolvendo um dos policiais selecionados. Não é possível continuar.`);
+      return;
+    }
+
+    // Official Scale Conflict Check (Substituto already on duty)
+    const scaleConflict = escalas.find(e => 
+      e.data === novaPermuta.dataRealizacao && 
+      e.militarId === novaPermuta.militarSubstitutoId
+    );
+
+    if (scaleConflict) {
+      const mil = militares.find(m => m.id === novaPermuta.militarSubstitutoId);
+      alert(`CONFLITO DE ESCALA: O militar ${mil?.nomeGuerra || ''} já está escalado oficialmente para o dia ${novaPermuta.dataRealizacao.split('-').reverse().join('/')} no turno ${scaleConflict.turno}. Não é possível continuar.`);
       return;
     }
 
@@ -1472,7 +1491,35 @@ export default function App() {
     if (currentTab === 'PERMUTAS' && loggedUser) {
       console.log("[App] Visualizando Permutas.");
     }
-  }, [currentTab, loggedUser]);
+    
+    // Automatic cleanup for past unapproved permutas
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    const checkExpiredPermutas = async () => {
+      let anyChanged = false;
+      const updated = permutas.map(p => {
+        if (p.status !== 'APROVADO' && p.status !== 'SEM_EFEITO' && p.status !== 'REJEITADO' && p.status !== 'REJEITADO_SUBSTITUTO' && p.dataRealizacao < todayStr) {
+          anyChanged = true;
+          const expiredP = {
+            ...p,
+            status: 'SEM_EFEITO' as const,
+            motivoSemEfeito: 'Data do serviço expirada sem homologação final.'
+          };
+          
+          // Async update to cloud
+          atualizarDados(p.id, { dados_json: expiredP }).catch(console.error);
+          return expiredP;
+        }
+        return p;
+      });
+
+      if (anyChanged) {
+        setPermutas(updated);
+      }
+    };
+
+    const timer = setTimeout(checkExpiredPermutas, 1000);
+    return () => clearTimeout(timer);
+  }, [currentTab, loggedUser, permutas]);
 
   // Automated detection of afastamentos causing active permutas to be "SEM_EFEITO"
   useEffect(() => {
@@ -2132,6 +2179,9 @@ export default function App() {
                             } else if (p.status === 'AJUSTE_GESTOR') {
                               badgeStyle = 'bg-cyber-amber/20 text-[#ffb300] border-cyber-amber/40 animate-pulse';
                               stateLabel = 'Necessita Ajustes';
+                            } else if (p.status === 'SEM_EFEITO') {
+                              badgeStyle = 'bg-slate-500/10 text-slate-400 border-slate-500/30';
+                              stateLabel = 'Não Efetuada';
                             }
 
                             const isHomologated = p.status === 'APROVADO';
@@ -2180,6 +2230,12 @@ export default function App() {
                                     <span>{formatarDataBR(p.dataRealizacao)} ({p.turno})</span>
                                   </div>
                                 </div>
+
+                                {p.status === 'SEM_EFEITO' && p.motivoSemEfeito && (
+                                  <div className="bg-red-500/5 border border-red-500/20 rounded p-2 text-[9px] text-red-400 font-mono">
+                                    <strong>MOTIVO:</strong> {p.motivoSemEfeito}
+                                  </div>
+                                )}
 
                                 {/* Review adjustment request from colleague */}
                                 {p.status === 'ALTERACAO_SOLICITADA' && p.militarSubstituidoId === loggedUser?.id && (
