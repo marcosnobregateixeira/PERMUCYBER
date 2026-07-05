@@ -797,20 +797,7 @@ export default function Dashboard({
             }
 
             return (
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <div className="text-[8px] font-mono uppercase bg-[#00e5ff]/15 text-cyber-cyan px-1.5 py-0.5 border border-cyber-cyan/35 rounded inline-block font-bold">
-                    VOLUNTARIADO / SERVIÇO AVULSO
-                  </div>
-                  <h4 className="text-xs font-bold text-white tracking-wide">Sem escala prévia designada para este dia</h4>
-                  <div className="flex flex-col space-y-0.5 text-[10px] font-mono text-slate-400">
-                    <span className="flex items-center">
-                      <Clock className="w-3.5 h-3.5 text-cyber-cyan mr-1 shrink-0 animate-pulse" />
-                      Turno e horário customizáveis para permuta
-                    </span>
-                  </div>
-                </div>
-
+              <div className="flex flex-col items-center justify-center pt-2 pb-1 w-full">
                 <button
                   onClick={() => {
                     if (!userLogged) return;
@@ -828,11 +815,11 @@ export default function Dashboard({
                     };
                     onStartPermutaFlow(simulatedScale);
                   }}
-                  className="bg-cyber-blue text-black hover:bg-cyber-cyan transition-all text-[9.5px] font-bold py-1.5 px-3 rounded-md font-sans shrink-0 flex items-center space-x-1 uppercase cursor-pointer"
+                  className="w-full max-w-[280px] bg-cyber-blue hover:bg-cyber-cyan text-black hover:text-black font-black text-xs py-3 px-6 rounded-lg font-sans tracking-widest uppercase transition-all duration-300 flex items-center justify-center space-x-2 cursor-pointer shadow-[0_0_15px_rgba(0,229,255,0.4)] animate-pulse-btn hover:scale-105 active:scale-95"
                   id="custom-swap-trigger-btn"
                 >
-                  <span>PERMUTAR</span>
-                  <ChevronRight className="w-3 h-3" />
+                  <span className="font-extrabold tracking-widest">PERMUTAR</span>
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             );
