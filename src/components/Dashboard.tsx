@@ -636,7 +636,7 @@ export default function Dashboard({
           
           {/* Month selector controls */}
           <div className="flex items-center space-x-1.5 bg-[#030d11] p-1 rounded-lg border border-hud-border/50 shrink-0">
-            {[prevMonthName, currentMonthName, nextMonthName].map((mName) => (
+            {[currentMonthName, nextMonthName].map((mName) => (
               <button
                 key={mName}
                 onClick={() => handleMonthChange(mName)}
@@ -645,7 +645,7 @@ export default function Dashboard({
                     ? 'bg-cyber-blue/20 text-[#00e5ff] border border-cyber-cyan/35 shadow-[0_0_6px_rgba(0,229,255,0.2)]'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/40 border border-transparent'
                 }`}
-                title={mName === currentMonthName ? "Mês Atual" : mName === prevMonthName ? "Mês Anterior" : "Próximo Mês"}
+                title={mName === currentMonthName ? "Mês Atual" : "Próximo Mês"}
               >
                 {mName}
               </button>

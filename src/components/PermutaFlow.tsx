@@ -134,13 +134,14 @@ export default function PermutaFlow({
     );
     
     let score = 95;
-    let reason = `Apto para o serviço. Especialidade de [${c.especialidade}] disponível.`;
+    const especExibida = c.especialidade.toUpperCase() === 'PATRULHAMENTO' ? c.funcao : c.especialidade;
+    let reason = `Apto para o serviço. Especialidade de [${especExibida}] disponível.`;
     let status: 'RECOMMENDED' | 'COMPATIBLE' | 'BLOCKED' = 'RECOMMENDED';
 
     // If patente is different, mark compatible but keep selectable
     if (userLogged && c.patente !== userLogged.patente) {
       score = 85;
-      reason = `Rank diferente (${c.patente} vs ${userLogged.patente}). Habilitado para solicitação.`;
+      reason = `Habilitado para serviço.`;
       status = 'COMPATIBLE';
     }
 
@@ -562,7 +563,7 @@ export default function PermutaFlow({
                               {item.militar.patente} {item.militar.nomeGuerra}
                             </h5>
                             <p className="text-[9px] text-slate-400 uppercase tracking-wide font-mono">
-                              {item.militar.especialidade}
+                              {item.militar.especialidade.toUpperCase() === 'PATRULHAMENTO' ? item.militar.funcao : item.militar.especialidade}
                             </p>
                           </div>
                         </div>
