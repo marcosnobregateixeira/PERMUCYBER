@@ -859,7 +859,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
       )}
 
       {/* COMPACT SUB TABS CONTROLS */}
-      <div className="grid grid-cols-5 gap-1 bg-[#061217] p-1 rounded-lg border border-hud-border/70 mb-4 text-[9px] font-mono">
+      <div className={`grid ${userLogged?.role === 'ADMIN' ? 'grid-cols-5' : 'grid-cols-3'} gap-1 bg-[#061217] p-1 rounded-lg border border-hud-border/70 mb-4 text-[9px] font-mono`}>
         <button
           onClick={() => setActiveSubTab('PEDIDOS')}
           className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
@@ -891,26 +891,30 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
         >
           RELATÓRIOS
         </button>
-        <button
-          onClick={() => setActiveSubTab('SISTEMA')}
-          className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
-            activeSubTab === 'SISTEMA'
-              ? 'bg-cyber-blue text-[#03080a]'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          SISTEMA
-        </button>
-        <button
-          onClick={() => setActiveSubTab('SUPABASE')}
-          className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
-            activeSubTab === 'SUPABASE'
-              ? 'bg-[#00ff66] text-[#03080a]'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          SUPABASE
-        </button>
+        {userLogged?.role === 'ADMIN' && (
+          <button
+            onClick={() => setActiveSubTab('SISTEMA')}
+            className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
+              activeSubTab === 'SISTEMA'
+                ? 'bg-cyber-blue text-[#03080a]'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            SISTEMA
+          </button>
+        )}
+        {userLogged?.role === 'ADMIN' && (
+          <button
+            onClick={() => setActiveSubTab('SUPABASE')}
+            className={`py-1.5 rounded uppercase font-bold transition-all text-center ${
+              activeSubTab === 'SUPABASE'
+                ? 'bg-[#00ff66] text-[#03080a]'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            SUPABASE
+          </button>
+        )}
       </div>
 
       {/* QUICK KPI METRIC CARDS */}
@@ -1137,17 +1141,27 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
 
                         {/* Action buttons */}
                         <div className="grid grid-cols-4 gap-1.5 pt-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(p.id);
-                            }}
-                            className="bg-cyber-red/20 border border-cyber-red/40 hover:bg-cyber-red/35 text-cyber-red transition-all py-2 rounded font-mono font-bold text-[9px] uppercase flex flex-col items-center justify-center"
-                            title="EXCLUIR REGISTRO"
-                          >
-                            <Trash2 className="w-4 h-4 mb-0.5" />
-                            <span>EXCLUIR</span>
-                          </button>
+                          {userLogged?.role === 'ADMIN' ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(p.id);
+                              }}
+                              className="bg-cyber-red/20 border border-cyber-red/40 hover:bg-cyber-red/35 text-cyber-red transition-all py-2 rounded font-mono font-bold text-[9px] uppercase flex flex-col items-center justify-center cursor-pointer"
+                              title="EXCLUIR REGISTRO"
+                            >
+                              <Trash2 className="w-4 h-4 mb-0.5" />
+                              <span>EXCLUIR</span>
+                            </button>
+                          ) : (
+                            <div
+                              className="bg-[#0f1d22]/40 border border-[#00f2ff]/10 text-slate-500 py-2 rounded font-mono font-bold text-[9px] uppercase flex flex-col items-center justify-center opacity-60 cursor-not-allowed select-none"
+                              title="Apenas administradores podem excluir permutas"
+                            >
+                              <Lock className="w-4 h-4 mb-0.5 text-slate-500" />
+                              <span>LOCKED</span>
+                            </div>
+                          )}
 
                           <button
                             onClick={() => handleReject(p.id)}
@@ -1399,17 +1413,19 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                         </div>
 
                         {/* Direct Delete Button for Admin */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeletePermuta?.(h.id);
-                            setSelectedHistoricId(null);
-                          }}
-                          className="px-3 border-l border-hud-border/40 flex items-center justify-center bg-cyber-red/10 hover:bg-cyber-red/30 text-cyber-red/70 hover:text-cyber-red transition-all cursor-pointer"
-                          title="Excluir Permuta do Sistema"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {userLogged?.role === 'ADMIN' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeletePermuta?.(h.id);
+                              setSelectedHistoricId(null);
+                            }}
+                            className="px-3 border-l border-hud-border/40 flex items-center justify-center bg-cyber-red/10 hover:bg-cyber-red/30 text-cyber-red/70 hover:text-cyber-red transition-all cursor-pointer"
+                            title="Excluir Permuta do Sistema"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
 
                       {/* Dropdown document details */}
@@ -1504,7 +1520,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
             </p>
           </div>
 
-          {onClearLogs && (userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') && logs.length > 0 && (
+          {onClearLogs && userLogged?.role === 'ADMIN' && logs.length > 0 && (
             <div className="flex justify-end">
               <button
                 type="button"
@@ -1540,7 +1556,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                       </span>
                       <span className="text-[9px] font-mono text-slate-400">{log.timestamp}</span>
                     </div>
-                    {onDeleteLog && (userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') && (
+                    {onDeleteLog && userLogged?.role === 'ADMIN' && (
                       <button
                         type="button"
                         onClick={() => onDeleteLog(log.id)}
@@ -1806,7 +1822,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
 
 
 
-      {activeSubTab === 'SISTEMA' && (
+      {activeSubTab === 'SISTEMA' && userLogged?.role === 'ADMIN' && (
         <div className="space-y-4 animate-fade-in font-sans">
           {/* Top Informative Banner with subtle styling */}
           <div className="bg-[#051115] border border-cyber-cyan/35 p-3.5 rounded-xl flex flex-col space-y-1.5 shadow-md">
@@ -3019,7 +3035,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
       {/* ========================================================== */}
       {/* ACTIVE SUB TAB: SUPABASE INTEGRATION PLAYGROUND & FALLBACK */}
       {/* ========================================================== */}
-      {activeSubTab === 'SUPABASE' && (
+      {activeSubTab === 'SUPABASE' && userLogged?.role === 'ADMIN' && (
         <div className="space-y-4 animate-fade-in font-sans">
           
           {/* Top Informative Banner with subtle styling */}

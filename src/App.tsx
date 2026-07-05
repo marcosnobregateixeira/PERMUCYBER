@@ -762,6 +762,10 @@ export default function App() {
   };
 
   const handleAddMilitarIndividual = async (militar: Militar) => {
+    if (!loggedUser || loggedUser.role !== 'ADMIN') {
+      alert("ERRO: Apenas o Administrador pode cadastrar policiais.");
+      return;
+    }
     // Prevent duplicate militar by name or matricula
     const isDuplicate = militares.some(m => 
       m.nome === militar.nome || 
@@ -798,6 +802,10 @@ export default function App() {
   };
 
   const handleDeleteMilitar = async (id: string) => {
+    if (!loggedUser || loggedUser.role !== 'ADMIN') {
+      alert("ERRO: Apenas o Administrador pode excluir policiais.");
+      return;
+    }
     try {
       console.log(`Iniciando exclusão do militar ID: ${id}`);
       
@@ -882,6 +890,10 @@ export default function App() {
   };
 
   const handleUpdateMilitarNomeGuerra = async (id: string, newNome: string) => {
+    if (!loggedUser || loggedUser.role !== 'ADMIN') {
+      alert("ERRO: Apenas o Administrador pode atualizar o nome de guerra de policiais.");
+      return;
+    }
     try {
       const oldMilitar = militares.find(m => m.id === id);
       const updatedMilitar = oldMilitar ? { 
@@ -905,6 +917,10 @@ export default function App() {
   };
 
   const handleUpdateMilitar = async (id: string, updatedFields: Partial<Militar>) => {
+    if (!loggedUser || loggedUser.role !== 'ADMIN') {
+      alert("ERRO: Apenas o Administrador pode atualizar dados de policiais.");
+      return;
+    }
     try {
       // Local State
       const oldMilitar = militares.find(m => m.id === id);
@@ -944,6 +960,10 @@ export default function App() {
   };
 
   const handleUpdateMilitarMF = async (id: string, newMF: string) => {
+    if (!loggedUser || loggedUser.role !== 'ADMIN') {
+      alert("ERRO: Apenas o Administrador pode atualizar a matrícula funcional de policiais.");
+      return;
+    }
     try { 
       const target = militares.find(p => p.id === id);
       if (target) {
@@ -955,6 +975,10 @@ export default function App() {
   };
 
   const handleUpdateMilitarNumero = async (id: string, numero: string) => {
+    if (!loggedUser || loggedUser.role !== 'ADMIN') {
+      alert("ERRO: Apenas o Administrador pode atualizar o número/badge de policiais.");
+      return;
+    }
     try { 
       const target = militares.find(p => p.id === id);
       if (target) {
@@ -989,6 +1013,10 @@ export default function App() {
   };
 
   const handleUpdateMilitarRole = async (id: string, role: Role) => {
+    if (!loggedUser || loggedUser.role !== 'ADMIN') {
+      alert("ERRO: Apenas o Administrador pode atualizar o papel/permissão de policiais.");
+      return;
+    }
     try { 
       const target = militares.find(p => p.id === id);
       if (target) {
@@ -1390,7 +1418,10 @@ export default function App() {
   };
 
   const handleDeletePermuta = async (id: string) => {
-    if (!loggedUser) return;
+    if (!loggedUser || loggedUser.role !== 'ADMIN') {
+      alert("ERRO: Apenas o Administrador pode excluir permutas.");
+      return;
+    }
     const targetPermuta = permutas.find(p => p.id === id);
     let scaleChanges = { deletedIds: [] as string[], revertedId: undefined as string | undefined, revertedMilitarId: undefined as string | undefined };
     if (targetPermuta && targetPermuta.status === 'APROVADO') {
@@ -1448,7 +1479,10 @@ export default function App() {
   };
 
   const handleClearAllLogs = async () => {
-    if (!loggedUser || (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN')) return;
+    if (!loggedUser || loggedUser.role !== 'ADMIN') {
+      alert("ERRO: Apenas o Administrador pode limpar o livro de auditoria.");
+      return;
+    }
     
     const confirm = window.confirm("ATENÇÃO: Deseja realmente excluir TODOS os registros de auditoria da nuvem e localmente? Esta ação é irreversível.");
     if (!confirm) return;
@@ -1478,7 +1512,10 @@ export default function App() {
   };
 
   const handleDeleteLog = async (logId: string) => {
-    if (!loggedUser || (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN')) return;
+    if (!loggedUser || loggedUser.role !== 'ADMIN') {
+      alert("ERRO: Apenas o Administrador pode excluir registros de auditoria.");
+      return;
+    }
     try {
       await deletarDados(logId);
       setLogs(prev => prev.filter(l => l.id !== logId));
