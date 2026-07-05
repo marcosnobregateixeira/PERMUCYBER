@@ -70,19 +70,41 @@ export default function BiometricLogin({
   const [isMatriculaVerified, setIsMatriculaVerified] = useState<boolean>(false);
 
   const formatMatricula = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 8);
+    // Keep only alphanumeric characters and force uppercase
+    const cleanValue = value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+    
+    let digitsPart = '';
+    let lastChar = '';
+    
+    for (let i = 0; i < cleanValue.length; i++) {
+      const char = cleanValue[i];
+      if (digitsPart.length < 7) {
+        // The first 7 characters MUST be digits
+        if (/[0-9]/.test(char)) {
+          digitsPart += char;
+        }
+      } else if (digitsPart.length === 7 && !lastChar) {
+        // The 8th character can be a digit or a letter (A-Z)
+        if (/[0-9A-Z]/.test(char)) {
+          lastChar = char;
+        }
+      }
+    }
+    
+    const combined = digitsPart + lastChar;
+    
     let formatted = '';
-    if (digits.length > 0) {
-      formatted += digits.substring(0, 3);
+    if (combined.length > 0) {
+      formatted += combined.substring(0, 3);
     }
-    if (digits.length > 3) {
-      formatted += '.' + digits.substring(3, 6);
+    if (combined.length > 3) {
+      formatted += '.' + combined.substring(3, 6);
     }
-    if (digits.length > 6) {
-      formatted += '-' + digits.substring(6, 7);
+    if (combined.length > 6) {
+      formatted += '-' + combined.substring(6, 7);
     }
-    if (digits.length > 7) {
-      formatted += '-' + digits.substring(7, 8);
+    if (combined.length > 7) {
+      formatted += '-' + combined.substring(7, 8);
     }
     return formatted;
   };
@@ -469,12 +491,12 @@ export default function BiometricLogin({
                         onClick={() => {
                           if (!userLogged) return;
                           setErrorText(null);
-                          const inputClean = matriculaInput.replace(/\D/g, '');
+                          const inputClean = matriculaInput.replace(/[^0-9A-Z]/gi, '').toUpperCase();
                           if (inputClean.length !== 8) {
-                            setErrorText('M.F. INCOMPLETA: A matrícula funcional deve conter exatamente 8 números no formato xxx.xxx-x-x.');
+                            setErrorText('M.F. INCOMPLETA: A matrícula funcional deve conter exatamente 8 caracteres (7 números e o último dígito que pode ser número ou letra) no formato xxx.xxx-x-x.');
                             return;
                           }
-                          const dbClean = (userLogged.matriculaFuncional || '').replace(/\D/g, '');
+                          const dbClean = (userLogged.matriculaFuncional || '').replace(/[^0-9A-Z]/gi, '').toUpperCase();
                           if (dbClean && inputClean === dbClean) {
                             setIsMatriculaVerified(true);
                             setErrorText(null);
