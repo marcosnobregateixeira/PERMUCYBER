@@ -740,17 +740,22 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
   };
 
   const getStatusServico = (p: Permuta) => {
-    if (p.status === 'SEM_EFEITO') return 'NÃO EFETUADA';
-    if (p.status === 'REJEITADO' || p.status === 'REJEITADO_SUBSTITUTO') return 'RECUSADA';
+    if (p.status === 'SEM_EFEITO' || p.status === 'REJEITADO' || p.status === 'REJEITADO_SUBSTITUTO') {
+      return 'TORNADO SEM EFEITO';
+    }
     
     const today = new Date();
     const todayStr = today.toLocaleDateString('en-CA');
     
-    if (todayStr > p.dataRealizacao) {
-      return p.status === 'APROVADO' ? 'CUMPRIDA' : 'NÃO EFETUADA (EXPIRADA)';
-    } else {
-      return p.status === 'APROVADO' ? 'HOMOLOGADA' : 'PENDENTE';
+    if (p.status === 'APROVADO') {
+      if (todayStr > p.dataRealizacao) {
+        return 'CUMPRIDA';
+      } else {
+        return 'PENDENTE';
+      }
     }
+    
+    return 'PENDENTE';
   };
 
   const lastGestor = filteredPermutas.find(p => p.gestorNome)?.gestorNome;
