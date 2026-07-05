@@ -1179,5 +1179,405 @@
 
 /* Fim da configuração PMCE Claro Cyber */
 
+/* ==========================================================================
+   DYNAMIC THEME: PMCE CLARO VERDE (WHITE MODE COM VERDE TECNOLÓGICO)
+   ========================================================================== */
+.theme-pmce-claro-verde {
+  --color-cyber-blue: #059669;      /* Verde institucional */
+  --color-cyber-cyan: #059669;      /* Verde tático */
+  --color-cyber-green: #10B981;     /* Verde médio */
+  --color-cyber-amber: #D97706;     /* Amber */
+  --color-cyber-red: #DC2626;       /* Vermelho Alerta */
+  
+  --color-hud-bg: #FFFFFF;          /* Fundo Branco */
+  --color-hud-board: #F9FAFB;       /* Cinza claro neutro */
+  --color-hud-card: #FFFFFF;        /* Cards em branco com sombras suaves */
+  --color-hud-border: #D1FAE5;      /* Borda verde muito clara */
+  --color-hud-border-active: #059669;
+}
+
+/* Reduzir brilho excessivo de neon para tema claro e aplicar cores de texto escuro legíveis */
+.theme-pmce-claro-verde .neon-text-blue {
+  color: #059669 !important;
+  text-shadow: none !important;
+}
+.theme-pmce-claro-verde .neon-text-green {
+  color: #059669 !important;
+  text-shadow: none !important;
+}
+.theme-pmce-claro-verde .neon-text-red {
+  color: #DC2626 !important;
+  text-shadow: none !important;
+}
+.theme-pmce-claro-verde .neon-border-blue {
+  border-color: #D1FAE5 !important;
+  box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.05) !important;
+}
+.theme-pmce-claro-verde .neon-border-green {
+  border-color: #059669 !important;
+  box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.08) !important;
+}
+.theme-pmce-claro-verde .neon-border-cyan {
+  border-color: #059669 !important;
+  box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.08) !important;
+}
+
+/* Grid holográfico muito sutil (quase imperceptível em branco) */
+.theme-pmce-claro-verde .hologram-grid {
+  background-image: 
+    linear-gradient(rgba(16, 185, 129, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 185, 129, 0.015) 1px, transparent 1px) !important;
+}
+
+.theme-pmce-claro-verde ::-webkit-scrollbar-track {
+  background: #F9FAFB;
+}
+.theme-pmce-claro-verde ::-webkit-scrollbar-thumb {
+  background: rgba(5, 150, 105, 0.15);
+  border-radius: 4px;
+}
+.theme-pmce-claro-verde ::-webkit-scrollbar-thumb:hover {
+  background: #059669;
+}
+
+.theme-pmce-claro-verde p,
+.theme-pmce-claro-verde span:not(.text-white),
+.theme-pmce-claro-verde h1,
+.theme-pmce-claro-verde h2,
+.theme-pmce-claro-verde h3,
+.theme-pmce-claro-verde h4,
+.theme-pmce-claro-verde h5,
+.theme-pmce-claro-verde td,
+.theme-pmce-claro-verde label,
+.theme-pmce-claro-verde li {
+  color: #1F2937 !important;
+}
+
+.theme-pmce-claro-verde .text-slate-400,
+.theme-pmce-claro-verde .text-slate-500,
+.theme-pmce-claro-verde .text-gray-400,
+.theme-pmce-claro-verde .text-gray-500 {
+  color: #4B5563 !important;
+}
+
+.theme-pmce-claro-verde table {
+  background: #FFFFFF;
+}
+.theme-pmce-claro-verde th {
+  background: #F3F4F6 !important;
+  color: #111827 !important;
+  border-bottom: 2px solid #E5E7EB !important;
+}
+.theme-pmce-claro-verde td {
+  border-bottom: 1px solid #E5E7EB !important;
+  color: #1F2937 !important;
+}
+.theme-pmce-claro-verde tr:hover {
+  background: rgba(16, 185, 129, 0.04) !important;
+}
+
+.theme-pmce-claro-verde input,
+.theme-pmce-claro-verde textarea,
+.theme-pmce-claro-verde select {
+  background-color: #FFFFFF !important;
+  border: 1.5px solid #D1FAE5 !important;
+  color: #111827 !important;
+}
+.theme-pmce-claro-verde input:focus,
+.theme-pmce-claro-verde textarea:focus,
+.theme-pmce-claro-verde select:focus {
+  border-color: #059669 !important;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.25) !important;
+}
+.theme-pmce-claro-verde input::placeholder,
+.theme-pmce-claro-verde textarea::placeholder {
+  color: #9CA3AF !important;
+}
+
+.theme-pmce-claro-verde button.bg-cyber-blue,
+.theme-pmce-claro-verde button.bg-cyber-cyan,
+.theme-pmce-claro-verde .bg-cyber-green {
+  background-color: #059669 !important;
+  color: #FFFFFF !important;
+}
+.theme-pmce-claro-verde button.bg-cyber-blue:hover,
+.theme-pmce-claro-verde button.bg-cyber-cyan:hover {
+  background-color: #047857 !important;
+}
+
+.theme-pmce-claro-verde .hover\:bg-cyber-cyan\/15:hover {
+  background-color: rgba(5, 150, 105, 0.08) !important;
+}
+
+/* Menu lateral e painéis */
+.theme-pmce-claro-verde .bg-black\/30 {
+  background-color: #F9FAFB !important;
+  border-right: 1px solid #D1FAE5 !important;
+}
+.theme-pmce-claro-verde .border-hud-border\/40 {
+  border-color: #D1FAE5 !important;
+}
+
+/* Sombras discretas de efeito glass leve em cards */
+.theme-pmce-claro-verde .bg-hud-card,
+.theme-pmce-claro-verde .bg-hud-board {
+  background-color: #FFFFFF !important;
+  border: 1px solid #D1FAE5 !important;
+  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.04), 0 2px 6px rgba(16, 185, 129, 0.02) !important;
+}
+
+.theme-pmce-claro-verde .text-white {
+  color: #FFFFFF !important;
+}
+.theme-pmce-claro-verde .bg-\[\#00ff66\]\/10 {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+}
+
+.theme-pmce-claro-verde .scanlines {
+  background: linear-gradient(
+    rgba(255, 255, 255, 0) 50%, 
+    rgba(0, 0, 0, 0.03) 50%
+  ) !important;
+  opacity: 0.1 !important;
+}
+
+/* Ajustes de cores específicas na interface */
+.theme-pmce-claro-verde .text-cyber-green {
+  color: #059669 !important;
+}
+.theme-pmce-claro-verde .text-cyber-cyan {
+  color: #059669 !important;
+}
+.theme-pmce-claro-verde .text-cyber-blue {
+  color: #059669 !important;
+}
+.theme-pmce-claro-verde .border-cyber-blue {
+  border-color: #059669 !important;
+}
+.theme-pmce-claro-verde .border-cyber-cyan {
+  border-color: #059669 !important;
+}
+
+/* Primary white backgrounds for all deep container, body, and wrapper blocks */
+.theme-pmce-claro-verde .bg-slate-950,
+.theme-pmce-claro-verde .bg-slate-900,
+.theme-pmce-claro-verde .bg-black,
+.theme-pmce-claro-verde [class*="bg-[#01"],
+.theme-pmce-claro-verde [class*="bg-[#04"],
+.theme-pmce-claro-verde [class*="bg-[#05"],
+.theme-pmce-claro-verde [class*="bg-[#07"],
+.theme-pmce-claro-verde [class*="bg-[#0a"],
+.theme-pmce-claro-verde [class*="bg-[#0b"],
+.theme-pmce-claro-verde [class*="bg-[#0d"],
+.theme-pmce-claro-verde [class*="bg-[#100706]"],
+.theme-pmce-claro-verde [class*="bg-[#1c1204]"],
+.theme-pmce-claro-verde [class*="bg-slate-950"],
+.theme-pmce-claro-verde [class*="bg-slate-900"],
+.theme-pmce-claro-verde [class*="bg-slate-850"],
+.theme-pmce-claro-verde [class*="bg-[#051115]"],
+.theme-pmce-claro-verde [class*="bg-[#051110]"] {
+  background-color: #FFFFFF !important;
+  color: #1F2937 !important;
+  border-color: #D1FAE5 !important;
+}
+
+/* Secondary off-white / light slate premium backgrounds for small inner cards, buttons, tabs, grids, and inputs */
+.theme-pmce-claro-verde .bg-hud-board\/60,
+.theme-pmce-claro-verde .bg-hud-bg\/60,
+.theme-pmce-claro-verde [class*="bg-[#02"],
+.theme-pmce-claro-verde [class*="bg-[#03"],
+.theme-pmce-claro-verde [class*="bg-[#06"],
+.theme-pmce-claro-verde [class*="bg-[#08"],
+.theme-pmce-claro-verde [class*="bg-[#12"],
+.theme-pmce-claro-verde [class*="bg-[#15"],
+.theme-pmce-claro-verde [class*="bg-[#19"],
+.theme-pmce-claro-verde [class*="bg-hud-bg/"],
+.theme-pmce-claro-verde [class*="bg-hud-card/"],
+.theme-pmce-claro-verde [class*="bg-slate-900/"],
+.theme-pmce-claro-verde [class*="bg-slate-950/"],
+.theme-pmce-claro-verde [class*="bg-black/"],
+.theme-pmce-claro-verde [class*="bg-[#03090b]"] {
+  background-color: #F9FAFB !important;
+  color: #1F2937 !important;
+  border-color: #D1FAE5 !important;
+}
+
+/* Specific elements inside secondary containers (e.g., input values) */
+.theme-pmce-claro-verde .bg-\[\#03090b\] input,
+.theme-pmce-claro-verde .bg-hud-bg\/60 input,
+.theme-pmce-claro-verde .bg-[#03090b] select,
+.theme-pmce-claro-verde .bg-[#03090b] input {
+  background-color: #FFFFFF !important;
+  color: #1F2937 !important;
+  border-color: #D1FAE5 !important;
+}
+
+/* Custom tactical and command alert ticker styling with dynamic contrast levels */
+.theme-pmce-claro-verde [class*="bg-[#100706]"] {
+  background-color: #FFF5F5 !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+}
+.theme-pmce-claro-verde [class*="bg-[#100706]"] span,
+.theme-pmce-claro-verde [class*="bg-[#100706]"] marquee,
+.theme-pmce-claro-verde [class*="bg-[#100706]"] button {
+  color: #9B1C1C !important;
+}
+
+/* Dynamic status alerts and command/system parameters */
+.theme-pmce-claro-verde [class*="border-cyber-green"] {
+  border-color: rgba(5, 150, 105, 0.35) !important;
+}
+.theme-pmce-claro-verde [class*="border-cyber-red"] {
+  border-color: rgba(220, 38, 38, 0.35) !important;
+}
+.theme-pmce-claro-verde [class*="border-cyber-blue"] {
+  border-color: rgba(5, 150, 105, 0.3) !important;
+}
+.theme-pmce-claro-verde [class*="border-cyber-amber"] {
+  border-color: rgba(217, 119, 6, 0.35) !important;
+}
+
+/* Numeric PIN entry and keyboard buttons styling */
+.theme-pmce-claro-verde .bg-\[\#061217\] button,
+.theme-pmce-claro-verde [class*="bg-[#06"] button {
+  background-color: #FFFFFF !important;
+  color: #1F2937 !important;
+  border-color: #D1FAE5 !important;
+}
+.theme-pmce-claro-verde .bg-\[\#061217\] button:hover,
+.theme-pmce-claro-verde [class*="bg-[#06"] button:hover {
+  background-color: rgba(5, 150, 105, 0.08) !important;
+  border-color: #059669 !important;
+}
+
+/* Comprehensive text color overrides to completely eliminate dark overlap bugs */
+.theme-pmce-claro-verde .text-white,
+.theme-pmce-claro-verde .text-slate-100,
+.theme-pmce-claro-verde .text-slate-200,
+.theme-pmce-claro-verde .text-slate-300,
+.theme-pmce-claro-verde .text-gray-100,
+.theme-pmce-claro-verde .text-gray-200,
+.theme-pmce-claro-verde span.text-white,
+.theme-pmce-claro-verde h3.text-white,
+.theme-pmce-claro-verde h4.text-white,
+.theme-pmce-claro-verde div.text-white,
+.theme-pmce-claro-verde .bg-slate-950 span,
+.theme-pmce-claro-verde .bg-slate-950 div,
+.theme-pmce-claro-verde [class*="bg-[#07"] span,
+.theme-pmce-claro-verde [class*="bg-[#07"] div,
+.theme-pmce-claro-verde [class*="bg-[#05"] input,
+.theme-pmce-claro-verde [class*="bg-[#05"] span {
+  color: #111827 !important;
+}
+
+/* Special high-contrast status and badge class updates */
+.theme-pmce-claro-verde .bg-cyber-cyan\/10,
+.theme-pmce-claro-verde .bg-cyber-cyan\/20,
+.theme-pmce-claro-verde .bg-cyber-cyan\/15 {
+  background-color: rgba(5, 150, 105, 0.08) !important;
+  color: #059669 !important;
+  border-color: rgba(5, 150, 105, 0.2) !important;
+}
+.theme-pmce-claro-verde .bg-cyber-blue\/10,
+.theme-pmce-claro-verde .bg-cyber-blue\/20,
+.theme-pmce-claro-verde .bg-cyber-blue\/15 {
+  background-color: rgba(5, 150, 105, 0.08) !important;
+  color: #059669 !important;
+  border-color: rgba(5, 150, 105, 0.2) !important;
+}
+.theme-pmce-claro-verde .bg-cyber-green\/10,
+.theme-pmce-claro-verde .bg-cyber-green\/20,
+.theme-pmce-claro-verde .bg-cyber-green\/15 {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+  color: #10B981 !important;
+  border-color: rgba(16, 185, 129, 0.2) !important;
+}
+.theme-pmce-claro-verde .bg-cyber-amber\/10,
+.theme-pmce-claro-verde .bg-cyber-amber\/20,
+.theme-pmce-claro-verde .bg-cyber-amber\/15 {
+  background-color: rgba(217, 119, 6, 0.08) !important;
+  color: #D97706 !important;
+  border-color: rgba(217, 119, 6, 0.2) !important;
+}
+.theme-pmce-claro-verde .bg-cyber-red\/10,
+.theme-pmce-claro-verde .bg-cyber-red\/20,
+.theme-pmce-claro-verde .bg-cyber-red\/15 {
+  background-color: rgba(220, 38, 38, 0.08) !important;
+  color: #DC2626 !important;
+  border-color: rgba(220, 38, 38, 0.2) !important;
+}
+
+/* Modals, backdrop overlays, and dynamic visual popups */
+.theme-pmce-claro-verde .fixed.inset-0 .bg-slate-950,
+.theme-pmce-claro-verde .fixed.inset-0 .bg-black\/85 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
+.theme-pmce-claro-verde .fixed.inset-0 .border-cyber-green\/50 {
+  border-color: #059669 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Autocomplete suggestions dropdown and menu popovers */
+.theme-pmce-claro-verde .bg-slate-950 .hover\:bg-cyber-cyan\/15:hover {
+  background-color: rgba(5, 150, 105, 0.06) !important;
+}
+.theme-pmce-claro-verde .bg-slate-950 .text-slate-200 {
+  color: #111827 !important;
+}
+.theme-pmce-claro-verde .bg-slate-950 .text-slate-400 {
+  color: #4B5563 !important;
+}
+.theme-pmce-claro-verde .bg-slate-950 .border-cyber-cyan\/20,
+.theme-pmce-claro-verde .bg-slate-950 .divide-hud-border\/40 > * {
+  border-color: #D1FAE5 !important;
+}
+
+/* Tactical icons, key status codes, and security hashes */
+.theme-pmce-claro-verde .text-\[\#00ff66\],
+.theme-pmce-claro-verde .text-\[\#00ff66\]\/70,
+.theme-pmce-claro-verde .text-cyber-green\/70,
+.theme-pmce-claro-verde .text-\[\#00e5ff\],
+.theme-pmce-claro-verde .text-\[\#00e5ff\]\/50,
+.theme-pmce-claro-verde .text-\[\#00b0ff\]\/80 {
+  color: #059669 !important;
+}
+
+/* Primary colored buttons overrides (ensures white text and high-contrast icons) */
+.theme-pmce-claro-verde .bg-cyber-green,
+.theme-pmce-claro-verde button.bg-cyber-green,
+.theme-pmce-claro-verde .bg-cyber-cyan,
+.theme-pmce-claro-verde button.bg-cyber-cyan,
+.theme-pmce-claro-verde .bg-cyber-blue,
+.theme-pmce-claro-verde button.bg-cyber-blue {
+  background-color: #059669 !important;
+  color: #FFFFFF !important;
+}
+.theme-pmce-claro-verde .bg-cyber-green:hover,
+.theme-pmce-claro-verde button.bg-cyber-green:hover,
+.theme-pmce-claro-verde .bg-cyber-cyan:hover,
+.theme-pmce-claro-verde button.bg-cyber-cyan:hover,
+.theme-pmce-claro-verde .bg-cyber-blue:hover,
+.theme-pmce-claro-verde button.bg-cyber-blue:hover {
+  background-color: #047857 !important;
+}
+
+/* Force primary button elements with .text-black class to display white content safely */
+.theme-pmce-claro-verde .text-black,
+.theme-pmce-claro-verde button.text-black,
+.theme-pmce-claro-verde .text-black span,
+.theme-pmce-claro-verde .text-black svg {
+  color: #FFFFFF !important;
+}
+
+/* System dates, times, and default HTML browser calendar inputs */
+.theme-pmce-claro-verde input[type="date"],
+.theme-pmce-claro-verde input[type="time"] {
+  color: #111827 !important;
+  background-color: #FFFFFF !important;
+  border: 1.5px solid #D1FAE5 !important;
+}
+
+/* Fim da configuração PMCE Claro Verde */
+
 
 

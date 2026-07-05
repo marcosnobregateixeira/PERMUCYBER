@@ -163,7 +163,7 @@ export default function App() {
     } catch (e) {
       console.error("Local load error for config:", e);
     }
-    return { id: 'main', brasaoEsquerdoUrl: '', brasaoDireitoUrl: '' };
+    return { id: 'main', brasaoEsquerdoUrl: '', brasaoDireitoUrl: '', theme: 'pmce-claro-verde' };
   });
   const [backupStatusMsg, setBackupStatusMsg] = useState<string>('Sincronização em nuvem e backups estão ativos.');
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'online' | 'offline'>('offline');
@@ -2038,7 +2038,7 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className={`flex flex-col h-screen items-center justify-center bg-hud-bg text-cyber-cyan space-y-4 ${config.theme === 'pmce' ? 'theme-pmce' : config.theme === 'light' ? 'theme-light' : config.theme === 'contrast' ? 'theme-contrast' : config.theme === 'pmce-light' ? 'theme-pmce-light' : config.theme === 'pmce-claro-cyber' ? 'theme-pmce-claro-cyber' : ''}`}>
+      <div className={`flex flex-col h-screen items-center justify-center bg-hud-bg text-cyber-cyan space-y-4 ${config.theme === 'pmce' ? 'theme-pmce' : config.theme === 'light' ? 'theme-light' : config.theme === 'contrast' ? 'theme-contrast' : config.theme === 'pmce-light' ? 'theme-pmce-light' : config.theme === 'pmce-claro-cyber' ? 'theme-pmce-claro-cyber' : config.theme === 'pmce-claro-verde' ? 'theme-pmce-claro-verde' : ''}`}>
         <div className="w-12 h-12 border-2 border-cyber-cyan/30 border-t-cyber-cyan rounded-full animate-spin" />
         <div className="text-xs font-mono uppercase tracking-widest animate-pulse">Sincronizando Base de Dados Supabase (Principal)...</div>
       </div>
@@ -2056,6 +2056,7 @@ export default function App() {
       onUpdateMilitarNomeGuerra={handleUpdateMilitarNomeGuerra}
       isLoggedIn={isLoggedIn}
       theme={config.theme}
+      onThemeToggle={(newTheme) => handleUpdateConfig({ theme: newTheme })}
     >
       <InstallAppBanner />
       {!isLoggedIn ? (

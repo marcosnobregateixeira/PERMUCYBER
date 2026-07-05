@@ -4,7 +4,7 @@
  */
 
 import React, { useRef } from 'react';
-import { Shield, Cpu, RefreshCw, Radio, HardDrive, Compass, Command, FileCode } from 'lucide-react';
+import { Shield, Cpu, RefreshCw, Radio, HardDrive, Compass, Command, FileCode, Sun, Moon } from 'lucide-react';
 import { Militar } from '../types';
 
 interface MilitaryMobileFrameProps {
@@ -18,6 +18,7 @@ interface MilitaryMobileFrameProps {
   onUpdateMilitarNomeGuerra?: (id: string, newNome: string) => void;
   isLoggedIn?: boolean;
   theme?: string;
+  onThemeToggle?: (theme: string) => void;
 }
 
 export default function MilitaryMobileFrame({
@@ -30,7 +31,8 @@ export default function MilitaryMobileFrame({
   onImportMilitaresJSON,
   onUpdateMilitarNomeGuerra,
   isLoggedIn = false,
-  theme
+  theme,
+  onThemeToggle
 }: MilitaryMobileFrameProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -69,19 +71,65 @@ export default function MilitaryMobileFrame({
     fileInputRef.current?.click();
   };
   return (
-    <div className={`min-h-screen bg-[#020507] text-[#00e5ff] font-sans overflow-x-hidden hologram-grid flex flex-col items-center justify-center p-0 md:p-6 select-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0b1c24] via-[#03080a] to-[#010304] ${theme === 'pmce' ? 'theme-pmce' : theme === 'light' ? 'theme-light' : theme === 'contrast' ? 'theme-contrast' : theme === 'pmce-light' ? 'theme-pmce-light' : theme === 'pmce-claro-cyber' ? 'theme-pmce-claro-cyber' : ''}`}>
+    <div className={`min-h-screen bg-[#020507] text-[#00e5ff] font-sans overflow-x-hidden hologram-grid flex flex-col items-center justify-center p-0 md:p-6 select-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0b1c24] via-[#03080a] to-[#010304] ${theme === 'pmce' ? 'theme-pmce' : theme === 'light' ? 'theme-light' : theme === 'contrast' ? 'theme-contrast' : theme === 'pmce-light' ? 'theme-pmce-light' : theme === 'pmce-claro-cyber' ? 'theme-pmce-claro-cyber' : theme === 'pmce-claro-verde' ? 'theme-pmce-claro-verde' : ''}`}>
       {/* Background Holographic Sweep */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-10">
         <div className="absolute top-0 left-0 w-full h-[2px] bg-cyber-blue animate-scanline" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,#00e5ff1b,#00000000_60%)]" />
       </div>
 
-      <div className={`w-full max-w-lg bg-hud-bg md:rounded-[40px] border border-hud-border/80 neon-border-blue md:h-[840px] md:max-h-[92vh] flex flex-col overflow-hidden relative shadow-[0_0_50px_rgba(0,0,0,0.8),_0_0_30px_rgba(0,229,255,0.15)] ${theme === 'pmce' ? 'theme-pmce' : theme === 'light' ? 'theme-light' : theme === 'contrast' ? 'theme-contrast' : theme === 'pmce-light' ? 'theme-pmce-light' : theme === 'pmce-claro-cyber' ? 'theme-pmce-claro-cyber' : ''}`}>
+      <div className={`w-full max-w-lg bg-hud-bg md:rounded-[40px] border border-hud-border/80 neon-border-blue md:h-[840px] md:max-h-[92vh] flex flex-col overflow-hidden relative shadow-[0_0_50px_rgba(0,0,0,0.8),_0_0_30px_rgba(0,229,255,0.15)] ${theme === 'pmce' ? 'theme-pmce' : theme === 'light' ? 'theme-light' : theme === 'contrast' ? 'theme-contrast' : theme === 'pmce-light' ? 'theme-pmce-light' : theme === 'pmce-claro-cyber' ? 'theme-pmce-claro-cyber' : theme === 'pmce-claro-verde' ? 'theme-pmce-claro-verde' : ''}`}>
         {/* CRT Scanline overlay effect */}
         <div className="absolute inset-0 scanlines pointer-events-none opacity-40 z-50 rounded-[40px]" />
 
+        {/* Dynamic Bezel Header with Logo and Theme Toggle */}
+        <div className={`h-11 border-b px-4 flex items-center justify-between font-mono text-[10px] relative z-20 ${
+          (theme === 'light' || theme === 'pmce-light' || theme === 'pmce-claro-cyber' || theme === 'pmce-claro-verde')
+            ? 'bg-slate-50 border-emerald-100 text-slate-700'
+            : 'bg-[#020507] border-hud-border/40 text-cyber-blue/80'
+        }`}>
+          <div className="flex items-center space-x-1.5">
+            <Cpu className="w-3.5 h-3.5 text-cyber-green animate-pulse" />
+            <span className="text-[9px] font-bold tracking-widest uppercase">
+              {(theme === 'light' || theme === 'pmce-light' || theme === 'pmce-claro-cyber' || theme === 'pmce-claro-verde') ? 'SYS: CLARO VERDE ATIVADO' : 'SYS.STATUS: OPERACIONAL'}
+            </span>
+          </div>
+
+          {/* Theme Toggle Component */}
+          <div className={`flex items-center space-x-0.5 border rounded-full p-0.5 ${
+            (theme === 'light' || theme === 'pmce-light' || theme === 'pmce-claro-cyber' || theme === 'pmce-claro-verde')
+              ? 'bg-white border-emerald-200'
+              : 'bg-black/40 border-hud-border/30'
+          }`}>
+            <button
+              onClick={() => onThemeToggle?.('pmce-claro-verde')}
+              className={`px-2 py-0.5 rounded-full transition-all text-[8.5px] font-bold uppercase flex items-center space-x-1 focus:outline-none ${
+                (theme === 'light' || theme === 'pmce-light' || theme === 'pmce-claro-cyber' || theme === 'pmce-claro-verde')
+                  ? 'bg-cyber-green text-white shadow-[0_0_8px_rgba(16,185,129,0.3)]'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+              title="Tema Claro Ativado"
+            >
+              <Sun className="w-2.5 h-2.5" />
+              <span>Claro</span>
+            </button>
+            <button
+              onClick={() => onThemeToggle?.('neon')}
+              className={`px-2 py-0.5 rounded-full transition-all text-[8.5px] font-bold uppercase flex items-center space-x-1 focus:outline-none ${
+                !(theme === 'light' || theme === 'pmce-light' || theme === 'pmce-claro-cyber' || theme === 'pmce-claro-verde')
+                  ? 'bg-cyber-blue text-white shadow-[0_0_8px_rgba(0,229,255,0.3)]'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+              title="Tema Escuro Ativado"
+            >
+              <Moon className="w-2.5 h-2.5" />
+              <span>Escuro</span>
+            </button>
+          </div>
+        </div>
+
         {/* Micro Tech Gaskets, Screws & Grid corners */}
-        <div className="absolute top-2 left-6 z-20 hidden md:block">
+        <div className="absolute top-14 left-6 z-20 hidden md:block">
           <div className="flex space-x-1.5 opacity-60">
             <span className="w-1.5 h-1.5 rounded-full bg-cyber-blue animate-pulse" />
             <span className="text-[9px] font-mono tracking-widest text-cyber-cyan">PERMUCYBER v4.95-SYS</span>
@@ -89,7 +137,7 @@ export default function MilitaryMobileFrame({
         </div>
 
         {/* Core Screen Space with Custom military background */}
-        <div className={`flex-1 flex flex-col items-stretch overflow-y-auto relative p-0 ${(theme === 'light' || theme === 'pmce-light' || theme === 'pmce-claro-cyber') ? 'bg-[#FFFFFF] text-slate-900' : theme === 'contrast' ? 'bg-[#030608] text-white' : 'bg-[#040d11]/95 text-slate-100'}`}>
+        <div className={`flex-1 flex flex-col items-stretch overflow-y-auto relative p-0 ${(theme === 'light' || theme === 'pmce-light' || theme === 'pmce-claro-cyber' || theme === 'pmce-claro-verde') ? 'bg-[#FFFFFF] text-slate-900' : theme === 'contrast' ? 'bg-[#030608] text-white' : 'bg-[#040d11]/95 text-slate-100'}`}>
           {children}
         </div>
 

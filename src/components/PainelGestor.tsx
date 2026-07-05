@@ -1851,12 +1851,12 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
               Altere a paleta de cores geral do sistema tático em tempo real. A preferência selecionada é sincronizada instantaneamente na nuvem para todos os dispositivos conectados.
             </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 pt-1">
               <button
                 type="button"
                 onClick={() => onUpdateConfig({ theme: 'neon' })}
                 className={`py-2 px-1 rounded-lg border font-mono text-[9px] font-bold uppercase transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
-                  (config.theme !== 'pmce' && config.theme !== 'light' && config.theme !== 'contrast' && config.theme !== 'pmce-light' && config.theme !== 'pmce-claro-cyber')
+                  (config.theme !== 'pmce' && config.theme !== 'light' && config.theme !== 'contrast' && config.theme !== 'pmce-light' && config.theme !== 'pmce-claro-cyber' && config.theme !== 'pmce-claro-verde')
                     ? 'bg-cyber-blue/10 border-cyber-blue text-white shadow-[0_0_10px_rgba(0,242,255,0.15)] font-black'
                     : 'bg-black/40 border-hud-border/40 text-slate-400 hover:border-hud-border hover:text-slate-300'
                 }`}
@@ -1866,38 +1866,6 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                   <span className="w-1.5 h-1.5 rounded-full bg-cyber-green shadow-[0_0_5px_#00ff41]" />
                 </div>
                 <span className="tracking-tight text-[8px] whitespace-nowrap">Neon Original</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onUpdateConfig({ theme: 'pmce' })}
-                className={`py-2 px-1 rounded-lg border font-mono text-[9px] font-bold uppercase transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
-                  (config.theme === 'pmce')
-                    ? 'bg-cyber-blue/10 border-cyber-blue text-white shadow-[0_0_10px_rgba(0,242,255,0.15)] font-black'
-                    : 'bg-black/40 border-hud-border/40 text-slate-400 hover:border-hud-border hover:text-slate-300'
-                }`}
-              >
-                <div className="flex space-x-1 items-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#006B3F] border border-white/20" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#FFD500] shadow-[0_0_5px_#FFD500]" />
-                </div>
-                <span className="tracking-tight text-[8px] whitespace-nowrap">PMCE Verde</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onUpdateConfig({ theme: 'light' })}
-                className={`py-2 px-1 rounded-lg border font-mono text-[9px] font-bold uppercase transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
-                  (config.theme === 'light')
-                    ? 'bg-cyber-blue/10 border-cyber-blue text-white shadow-[0_0_10px_rgba(0,242,255,0.15)] font-black'
-                    : 'bg-black/40 border-hud-border/40 text-slate-400 hover:border-hud-border hover:text-slate-300'
-                }`}
-              >
-                <div className="flex space-x-1 items-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white border border-slate-400" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#006B3F] border border-white/20" />
-                </div>
-                <span className="tracking-tight text-[8px] whitespace-nowrap">PMCE Branco</span>
               </button>
 
               <button
@@ -1946,6 +1914,22 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00B4FF] shadow-[0_0_5px_#00B4FF]" />
                 </div>
                 <span className="tracking-tight text-[8px] whitespace-nowrap">PMCE Claro Cyber</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onUpdateConfig({ theme: 'pmce-claro-verde' })}
+                className={`py-2 px-1 rounded-lg border font-mono text-[9px] font-bold uppercase transition-all flex flex-col items-center justify-center space-y-1 cursor-pointer ${
+                  (config.theme === 'pmce-claro-verde')
+                    ? 'bg-cyber-blue/10 border-cyber-blue text-white shadow-[0_0_10px_rgba(0,242,255,0.15)] font-black'
+                    : 'bg-black/40 border-hud-border/40 text-slate-400 hover:border-hud-border hover:text-slate-300'
+                }`}
+              >
+                <div className="flex space-x-1 items-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] border border-white/20" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#059669] shadow-[0_0_5px_#059669]" />
+                </div>
+                <span className="tracking-tight text-[8px] whitespace-nowrap">PMCE Claro Verde</span>
               </button>
             </div>
           </div>

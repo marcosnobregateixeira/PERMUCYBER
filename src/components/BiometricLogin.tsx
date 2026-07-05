@@ -127,24 +127,25 @@ export default function BiometricLogin({
     'AL. OF': 8, 'ST': 9, '1ºSGT': 10, '2ºSGT': 11, '3ºSGT': 12, 'CB': 13, 'SD': 14
   };
 
-  const filteredSuggestions = [...allUsers]
-    .filter(u => {
-      if (!searchQuery.trim()) return true;
-      const query = searchQuery.toLowerCase();
-      return (
-        u.nome.toLowerCase().includes(query) || 
-        u.nomeGuerra.toLowerCase().includes(query) ||
-        u.patente.toLowerCase().includes(query)
-      );
-    })
-    .sort((a, b) => {
-      const orderA = PATENTE_ORDER_BIO[a.patente] || 99;
-      const orderB = PATENTE_ORDER_BIO[b.patente] || 99;
-      if (orderA !== orderB) return orderA - orderB;
-      return a.nomeGuerra.localeCompare(b.nomeGuerra);
-    });
+  const filteredSuggestions = searchQuery.trim().length >= 3
+    ? [...allUsers]
+        .filter(u => {
+          const query = searchQuery.toLowerCase();
+          return (
+            u.nomeGuerra.toLowerCase().includes(query) ||
+            u.patente.toLowerCase().includes(query) ||
+            u.nome.toLowerCase().includes(query)
+          );
+        })
+        .sort((a, b) => {
+          const orderA = PATENTE_ORDER_BIO[a.patente] || 99;
+          const orderB = PATENTE_ORDER_BIO[b.patente] || 99;
+          if (orderA !== orderB) return orderA - orderB;
+          return a.nomeGuerra.localeCompare(b.nomeGuerra);
+        })
+    : [];
 
-  const isSearchActive = searchQuery.trim().length > 0;
+  const isSearchActive = searchQuery.trim().length >= 3;
   const isCorrectSearch = userLogged && (
     userLogged.nome.toLowerCase().includes(searchQuery.toLowerCase()) ||
     userLogged.nomeGuerra.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -299,12 +300,12 @@ export default function BiometricLogin({
                     }}
                     onFocus={() => setShowSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowSuggestions(false), 250)}
-                    placeholder="Clique aqui para ver a lista ou digite..."
+                    placeholder="Digite seu nome de guerra."
                     className="w-full bg-[#051319] border border-cyber-cyan/35 text-xs font-mono text-white pl-8 pr-3 py-2 rounded-md outline-none focus:border-cyber-blue focus:shadow-[0_0_8px_rgba(0,229,255,0.15)] transition-all placeholder:text-slate-400"
                   />
                   
                   {/* Floating results matched dropdown */}
-                  {showSuggestions && (
+                  {showSuggestions && searchQuery.trim().length >= 3 && (
                     <div className="absolute left-0 right-0 mt-1 bg-slate-950 border border-cyber-cyan/50 rounded-lg shadow-2xl max-h-48 overflow-y-auto z-50 p-1 divide-y divide-hud-border/40">
                       {filteredSuggestions.length === 0 ? (
                         <div className="p-2.5 text-[10px] text-slate-400 font-mono italic">
@@ -323,11 +324,7 @@ export default function BiometricLogin({
                           >
                             <div>
                               <span className="text-white font-bold">{u.patente} {u.nomeGuerra}</span>
-                              <span className="text-[9px] text-slate-400 block font-sans">{u.nome}</span>
                             </div>
-                            <span className="text-[8px] bg-cyber-blue/10 text-cyber-blue px-1.5 py-0.5 rounded border border-cyber-blue/20">
-                              {u.id}
-                            </span>
                           </div>
                         ))
                       )}
@@ -382,7 +379,9 @@ export default function BiometricLogin({
                         <div className="text-[7.5px] text-cyber-cyan font-mono uppercase tracking-widest font-extrabold">PM Selecionado</div>
                         <div className="text-[12px] font-extrabold text-white truncate uppercase h-5 flex items-center">
                           {userLogged ? (
-                            shouldShowInfo ? userLogged.nome : "🔒 IDENTIDADE CRIPTOGRAFADA"
+                            shouldShowInfo ? (
+                              isFirstTime ? `${userLogged.patente} ${userLogged.nomeGuerra}` : userLogged.nome
+                            ) : "🔒 IDENTIDADE CRIPTOGRAFADA"
                           ) : (
                             <span className="flex space-x-1.5">
                               <span className="w-1.5 h-1.5 bg-cyber-cyan rounded-full animate-pulse"></span>
@@ -394,7 +393,7 @@ export default function BiometricLogin({
                         <div className="text-[8.5px] font-mono text-slate-400 h-4">
                           {userLogged ? (
                             shouldShowInfo ? (
-                              <>ID: <span className="text-cyber-green font-bold">{userLogged.id}</span> • POST/GRAD: <span className="text-white uppercase font-bold">{userLogged.patente}</span></>
+                              <>POST/GRAD: <span className="text-white uppercase font-bold">{userLogged.patente}</span></>
                             ) : (
                               <span className="text-cyber-yellow/80 font-bold">PESQUISE SEU NOME PARA EXIBIR</span>
                             )
