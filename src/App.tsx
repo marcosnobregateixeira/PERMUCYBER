@@ -41,7 +41,7 @@ import {
   LogOut
 } from 'lucide-react';
 
-import { setSupabaseCredentials, getSupabase } from './supabase';
+import { setSupabaseCredentials, getSupabase, getEnvUrl, getEnvKey } from './supabase';
 import { salvarDados, deletarDados, atualizarDados, listarDados, SYSTEM_USER_ID, toSupabaseFriendlyUUID } from './databaseFallback';
 
 const PATENTE_ORDER: Record<string, number> = {
@@ -151,10 +151,8 @@ export default function App() {
     return [];
   });
   const [config, setConfig] = useState<AppConfig>(() => {
-    // @ts-ignore
-    const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
-    // @ts-ignore
-    const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    const envUrl = getEnvUrl();
+    const envKey = getEnvKey();
 
     if (envUrl && envKey) {
       setSupabaseCredentials(envUrl, envKey, false);

@@ -41,6 +41,31 @@ export const isValidHttpUrl = (urlString: string) => {
   }
 };
 
+const DEFAULT_SUPABASE_URL = "https://wihgsykwdgmsiklyvgpe.supabase.co";
+const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_XwUSJhBWSfo_5SN35b5waw_jQAJTSga";
+
+export const getEnvUrl = (): string => {
+  try {
+    // @ts-ignore
+    const envUrl = import.meta.env.VITE_SUPABASE_URL;
+    if (envUrl && envUrl.trim() !== "" && envUrl.includes("supabase.co")) {
+      return envUrl;
+    }
+  } catch (e) {}
+  return DEFAULT_SUPABASE_URL;
+};
+
+export const getEnvKey = (): string => {
+  try {
+    // @ts-ignore
+    const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (envKey && envKey.trim() !== "") {
+      return envKey;
+    }
+  } catch (e) {}
+  return DEFAULT_SUPABASE_ANON_KEY;
+};
+
 // Carrega as credenciais iniciais tentando localStorage primeiro, depois permucyber_config, depois .env
 const getInitialCredentials = () => {
   const localUrl = localStorage.getItem('VITE_SUPABASE_URL');
@@ -71,10 +96,8 @@ const getInitialCredentials = () => {
     console.error("[Supabase] Erro ao ler permucyber_config no init:", e);
   }
 
-  // @ts-ignore
-  const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  // @ts-ignore
-  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  const envUrl = getEnvUrl();
+  const envKey = getEnvKey();
 
   return {
     url: cleanSupabaseUrl(envUrl),
@@ -132,10 +155,8 @@ export function clearSupabaseCredentials() {
   localStorage.removeItem('VITE_SUPABASE_URL');
   localStorage.removeItem('VITE_SUPABASE_ANON_KEY');
   
-  // @ts-ignore
-  const envUrl = cleanSupabaseUrl(import.meta.env.VITE_SUPABASE_URL || '');
-  // @ts-ignore
-  const envKey = cleanSupabaseKey(import.meta.env.VITE_SUPABASE_ANON_KEY || '');
+  const envUrl = cleanSupabaseUrl(getEnvUrl());
+  const envKey = cleanSupabaseKey(getEnvKey());
 
   if (envUrl && envKey && isValidHttpUrl(envUrl)) {
     try {
@@ -177,10 +198,8 @@ export function getSupabase() {
     }
   } catch (e) {}
 
-  // @ts-ignore
-  const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  // @ts-ignore
-  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  const envUrl = getEnvUrl();
+  const envKey = getEnvKey();
 
   const url = cleanSupabaseUrl(localUrl || configUrl || envUrl);
   const key = cleanSupabaseKey(localKey || configKey || envKey);
