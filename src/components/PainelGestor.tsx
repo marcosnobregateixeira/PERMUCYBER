@@ -2929,7 +2929,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
               <div className="flex flex-col space-y-1">
                 <label className="text-[8.5px] font-mono text-slate-400 uppercase tracking-wider font-bold">PIN de Segurança (2FA)</label>
                 <input
-                  type="password"
+                  type={userLogged?.role === 'ADMIN' ? 'text' : 'password'}
                   value={editingMilitar.pinSegurança || ''}
                   onChange={e => setEditingMilitar({...editingMilitar, pinSegurança: e.target.value})}
                   className="bg-[#03090b] p-2 rounded border border-hud-border text-white font-mono text-xs"
