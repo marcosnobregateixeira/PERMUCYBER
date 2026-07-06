@@ -591,7 +591,15 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
       doc.text(`Período: ${dataInicio ? formatarDataBR(dataInicio) : 'INÍCIO'} a ${dataFim ? formatarDataBR(dataFim) : 'ATUAL'}`, 40, 110);
       
       if (reportTipo === 'INDIVIDUAL' && reportMilitarId) {
-        const policialNome = allMilitares.find(m => m.id === reportMilitarId)?.nome || '...';
+        const m = allMilitares.find(m => m.id === reportMilitarId);
+        let policialNome = '...';
+        if (m) {
+          const postGrad = m.patente;
+          const numeral = m.numero ? ` ${m.numero}` : '';
+          const nome = m.nome.toUpperCase();
+          const mf = m.matriculaFuncional ? `, M.F. nº ${m.matriculaFuncional}` : ', M.F. nº';
+          policialNome = `${postGrad}${numeral} ${nome}${mf}`;
+        }
         doc.text(`Policial: ${policialNome}`, 40, 125);
       } else if (reportTipo === 'FUNCAO' && reportFuncao) {
         doc.text(`Função: ${reportFuncao}`, 40, 125);
@@ -600,14 +608,8 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
       }
       
       const tempY = ((reportTipo === 'INDIVIDUAL' && reportMilitarId) || (reportTipo === 'FUNCAO' && reportFuncao) || (reportTipo === 'SETOR' && reportSetor)) ? 145 : 130;
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.text("TURNOS:", 40, tempY);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.text("TURNO A: 06H às 18H | TURNO B: 18H às 06H | 24H: 06H às 06H | EXPEDIENTE", 40, tempY + 12);
       
-      const startY = tempY + 25;
+      const startY = tempY + 5;
 
       const approvedPermutas = filteredPermutas.filter(p => p.status === 'APROVADO' || p.status === 'SEM_EFEITO');
 
@@ -633,7 +635,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
         const statusServico = getStatusServico(p);
 
         return [
-          p.turno,
+          p.turno.replace('TURNO ', ''),
           formatarDataBR(p.dataRealizacao),
           subObj,
           subdoObj,
@@ -647,7 +649,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
         head: [['TURNO', 'DATA', 'MILITAR SUBSTITUTO', 'MILITAR SUBSTITUÍDO', 'DADOS DA HOMOLOGAÇÃO', 'STATUS DO SERVIÇO']],
         body: tableData,
         theme: 'grid',
-        headStyles: { fillColor: [40, 40, 45], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, halign: 'center' },
+        headStyles: { fillColor: [0, 128, 0], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, halign: 'center' },
         styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak', halign: 'center', valign: 'middle' },
         columnStyles: {
           0: { cellWidth: 45 },
@@ -662,15 +664,24 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
 
       const finalY = (doc as any).lastAutoTable.finalY || startY;
       const comandante = (userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("TURNOS:", 40, finalY + 15);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text("A: 06H às 18H | B: 18H às 06H | 24H: 06H às 06H | EXPEDIENTE", 40, finalY + 27);
       
       const sigY = finalY + 80;
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(1);
-      doc.line(pageWidth / 2 - 100, sigY, pageWidth / 2 + 100, sigY);
-      
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
-      doc.text(`${comandante.nome.toUpperCase()} - ${comandante.patente} ${comandante.quadro || 'QPPM'}`, pageWidth / 2, sigY + 15, { align: 'center' });
+      const sigText = `${comandante.nome.toUpperCase()} - ${comandante.patente} ${comandante.quadro || 'QPPM'}`;
+      const textWidth = doc.getTextWidth(sigText);
+      doc.line(pageWidth / 2 - textWidth / 2, sigY, pageWidth / 2 + textWidth / 2, sigY);
+      
+      doc.text(sigText, pageWidth / 2, sigY + 15, { align: 'center' });
       doc.setFont("helvetica", "normal");
       doc.text(comandante.funcao, pageWidth / 2, sigY + 30, { align: 'center' });
       doc.text(`M.F. ${comandante.matriculaFuncional || '___.___._-_'}`, pageWidth / 2, sigY + 45, { align: 'center' });
@@ -1704,7 +1715,17 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                     {reportTipo === 'INDIVIDUAL' && (
                       <div className="flex items-center space-x-2">
                         <User className="w-4 h-4 text-slate-400" />
-                        <p className="text-slate-700"><strong>Policial:</strong> <span className="text-slate-400 font-medium">{allMilitares.find(m => m.id === reportMilitarId)?.nome || '...'}</span></p>
+                        <p className="text-slate-700"><strong>Policial:</strong> <span className="text-slate-400 font-medium">
+                          {(() => {
+                            const m = allMilitares.find(m => m.id === reportMilitarId);
+                            if (!m) return '...';
+                            const postGrad = m.patente;
+                            const numeral = m.numero ? ` ${m.numero}` : '';
+                            const nome = m.nome.toUpperCase();
+                            const mf = m.matriculaFuncional ? `, M.F. nº ${m.matriculaFuncional}` : ', M.F. nº';
+                            return `${postGrad}${numeral} ${nome}${mf}`;
+                          })()}
+                        </span></p>
                       </div>
                     )}
                     {reportTipo === 'FUNCAO' && (
