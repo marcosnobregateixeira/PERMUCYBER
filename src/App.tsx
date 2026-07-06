@@ -368,7 +368,11 @@ export default function App() {
             else if (obj.deMilitarId && obj.paraMilitarId && obj.conteudo) newMessages.push(obj);
             else if (obj.quantidadeMilitares && obj.quantidadeEscalas && obj.militares) newBackups.push(obj);
             else if (obj.brasaoEsquerdoUrl !== undefined || obj.theme !== undefined) {
-              setConfig(prev => ({ ...prev, ...obj }));
+              setConfig(prev => {
+                const updatedUrl = obj.supabaseUrl || prev.supabaseUrl;
+                const updatedKey = obj.supabaseAnonKey || prev.supabaseAnonKey;
+                return { ...prev, ...obj, supabaseUrl: updatedUrl, supabaseAnonKey: updatedKey };
+              });
             }
           });
 
@@ -450,7 +454,11 @@ export default function App() {
                 return [...prev, obj].sort((a,b) => a.timestamp.localeCompare(b.timestamp));
               });
             } else if (obj.brasaoEsquerdoUrl !== undefined || obj.theme !== undefined) {
-              setConfig(prev => ({ ...prev, ...obj }));
+              setConfig(prev => {
+                const updatedUrl = obj.supabaseUrl || prev.supabaseUrl;
+                const updatedKey = obj.supabaseAnonKey || prev.supabaseAnonKey;
+                return { ...prev, ...obj, supabaseUrl: updatedUrl, supabaseAnonKey: updatedKey };
+              });
             } else if (obj.quantidadeMilitares && obj.quantidadeEscalas && obj.militares) {
               setBackups(prev => {
                 const exists = prev.some(b => b.id === obj.id);

@@ -71,8 +71,10 @@ const getInitialCredentials = () => {
     console.error("[Supabase] Erro ao ler permucyber_config no init:", e);
   }
 
-  const envUrl = (import.meta as any).env.VITE_SUPABASE_URL || '';
-  const envKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || '';
+  // @ts-ignore
+  const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
+  // @ts-ignore
+  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
   return {
     url: cleanSupabaseUrl(envUrl),
@@ -130,8 +132,10 @@ export function clearSupabaseCredentials() {
   localStorage.removeItem('VITE_SUPABASE_URL');
   localStorage.removeItem('VITE_SUPABASE_ANON_KEY');
   
-  const envUrl = cleanSupabaseUrl((import.meta as any).env.VITE_SUPABASE_URL || '');
-  const envKey = cleanSupabaseKey((import.meta as any).env.VITE_SUPABASE_ANON_KEY || '');
+  // @ts-ignore
+  const envUrl = cleanSupabaseUrl(import.meta.env.VITE_SUPABASE_URL || '');
+  // @ts-ignore
+  const envKey = cleanSupabaseKey(import.meta.env.VITE_SUPABASE_ANON_KEY || '');
 
   if (envUrl && envKey && isValidHttpUrl(envUrl)) {
     try {
@@ -173,8 +177,10 @@ export function getSupabase() {
     }
   } catch (e) {}
 
-  const envUrl = (import.meta as any).env.VITE_SUPABASE_URL || '';
-  const envKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || '';
+  // @ts-ignore
+  const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
+  // @ts-ignore
+  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
   const url = cleanSupabaseUrl(localUrl || configUrl || envUrl);
   const key = cleanSupabaseKey(localKey || configKey || envKey);
