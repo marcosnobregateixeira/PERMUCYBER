@@ -151,25 +151,36 @@ export default function App() {
     return [];
   });
   const [config, setConfig] = useState<AppConfig>(() => {
-    try {
-      const saved = localStorage.getItem('permucyber_config');
-      if (saved) {
-        const parsed = JSON.parse(saved) as AppConfig;
-        if (parsed.supabaseUrl && parsed.supabaseAnonKey) {
-          setSupabaseCredentials(parsed.supabaseUrl, parsed.supabaseAnonKey);
-        }
-        return parsed;
-      }
-    } catch (e) {
-      console.error("Local load error for config:", e);
-    }
     // @ts-ignore
     const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
     // @ts-ignore
     const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
     if (envUrl && envKey) {
       setSupabaseCredentials(envUrl, envKey, false);
     }
+
+    try {
+      const saved = localStorage.getItem('permucyber_config');
+      if (saved) {
+        const parsed = JSON.parse(saved) as AppConfig;
+        const finalUrl = parsed.supabaseUrl || envUrl;
+        const finalKey = parsed.supabaseAnonKey || envKey;
+        
+        if (finalUrl && finalKey) {
+          setSupabaseCredentials(finalUrl, finalKey, false);
+        }
+        
+        return {
+          ...parsed,
+          supabaseUrl: finalUrl,
+          supabaseAnonKey: finalKey
+        };
+      }
+    } catch (e) {
+      console.error("Local load error for config:", e);
+    }
+
     return { 
       id: 'main', 
       brasaoEsquerdoUrl: '', 
@@ -391,20 +402,29 @@ export default function App() {
           });
 
           const uniqueMil = newMilitares.filter((m, idx, arr) => arr.findIndex(x => x.id === m.id) === idx);
-          setMilitares(uniqueMil.length > 0 ? uniqueMil.sort(sortMilitarByPatente) : []);
+          
+          // Se houver militares cadastrados na nuvem, consideramos que a base de dados Supabase foi inicializada
+          // e sobrescrevemos o estado local de forma segura. Caso contrário, mantemos os mocks locais padrão 
+          // para evitar que um novo aparelho carregue uma tela vazia sem usuários ou escalas.
+          if (uniqueMil.length > 0) {
+            setMilitares(uniqueMil.sort(sortMilitarByPatente));
 
-          const uniqueEsc = newEscalas.filter((e, idx, arr) => arr.findIndex(x => x.id === e.id) === idx);
-          setEscalas(uniqueEsc);
+            const uniqueEsc = newEscalas.filter((e, idx, arr) => arr.findIndex(x => x.id === e.id) === idx);
+            setEscalas(uniqueEsc);
 
-          const uniquePerm = newPermutas.filter((p, idx, arr) => arr.findIndex(x => x.id === p.id) === idx);
-          setPermutas(uniquePerm);
+            const uniquePerm = newPermutas.filter((p, idx, arr) => arr.findIndex(x => x.id === p.id) === idx);
+            setPermutas(uniquePerm);
 
-          const uniqueAl = newAlertas.filter((a, idx, arr) => arr.findIndex(x => x.id === a.id) === idx);
-          setAlertas(uniqueAl);
+            const uniqueAl = newAlertas.filter((a, idx, arr) => arr.findIndex(x => x.id === a.id) === idx);
+            setAlertas(uniqueAl);
 
-          setLogs(newLogs.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
-          setMessages(newMessages.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
-          setBackups(newBackups.sort((a,b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 3));
+            setLogs(newLogs.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
+            setMessages(newMessages.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
+            setBackups(newBackups.sort((a,b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 3));
+            console.log("[App] Sincronização inicial concluída com sucesso com os dados da nuvem.");
+          } else {
+            console.log("[App] Banco de dados em nuvem vazio ou não inicializado. Preservando mocks locais para novos aparelhos.");
+          }
         } else {
           console.log("[App] Supabase conectado, mas nenhum dado encontrado na tabela 'dados_app'.");
         }
@@ -415,7 +435,13 @@ export default function App() {
 
     fetchInitialData();
 
-    // 2. Canal de Realtime
+    // 2. Fallback de polling periódico para garantir sincronização mesmo sem Realtime habilitado no painel da Supabase
+    const pollInterval = setInterval(() => {
+      console.log("[Polling] Buscando atualizações incrementais...");
+      fetchInitialData();
+    }, 12000);
+
+    // 3. Canal de Realtime
     const channel = supabaseClient
       .channel('schema-db-changes')
       .on(
@@ -507,6 +533,7 @@ export default function App() {
 
     return () => {
       supabaseClient.removeChannel(channel);
+      clearInterval(pollInterval);
     };
   }, [config.supabaseUrl, config.supabaseAnonKey]); // Re-bind se as chaves mudarem
 
