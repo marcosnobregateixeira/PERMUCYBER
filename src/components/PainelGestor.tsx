@@ -418,37 +418,20 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
 
   const maskMF = (val: string) => {
     const cleanValue = val.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
-    
-    let digitsPart = '';
-    let lastChar = '';
-    
-    for (let i = 0; i < cleanValue.length; i++) {
-      const char = cleanValue[i];
-      if (digitsPart.length < 7) {
-        if (/[0-9]/.test(char)) {
-          digitsPart += char;
-        }
-      } else if (digitsPart.length === 7 && !lastChar) {
-        if (/[0-9A-Z]/.test(char)) {
-          lastChar = char;
-        }
-      }
-    }
-    
-    const combined = digitsPart + lastChar;
+    const truncated = cleanValue.substring(0, 12);
     
     let formatted = '';
-    if (combined.length > 0) {
-      formatted += combined.substring(0, 3);
+    if (truncated.length > 0) {
+      formatted += truncated.substring(0, 3);
     }
-    if (combined.length > 3) {
-      formatted += '.' + combined.substring(3, 6);
+    if (truncated.length > 3) {
+      formatted += '.' + truncated.substring(3, 6);
     }
-    if (combined.length > 6) {
-      formatted += '-' + combined.substring(6, 7);
+    if (truncated.length > 6) {
+      formatted += '-' + truncated.substring(6, 7);
     }
-    if (combined.length > 7) {
-      formatted += '-' + combined.substring(7, 8);
+    if (truncated.length > 7) {
+      formatted += '-' + truncated.substring(7);
     }
     return formatted;
   };

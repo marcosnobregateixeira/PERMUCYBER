@@ -72,39 +72,20 @@ export default function BiometricLogin({
   const formatMatricula = (value: string) => {
     // Keep only alphanumeric characters and force uppercase
     const cleanValue = value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
-    
-    let digitsPart = '';
-    let lastChar = '';
-    
-    for (let i = 0; i < cleanValue.length; i++) {
-      const char = cleanValue[i];
-      if (digitsPart.length < 7) {
-        // The first 7 characters MUST be digits
-        if (/[0-9]/.test(char)) {
-          digitsPart += char;
-        }
-      } else if (digitsPart.length === 7 && !lastChar) {
-        // The 8th character can be a digit or a letter (A-Z)
-        if (/[0-9A-Z]/.test(char)) {
-          lastChar = char;
-        }
-      }
-    }
-    
-    const combined = digitsPart + lastChar;
+    const truncated = cleanValue.substring(0, 12);
     
     let formatted = '';
-    if (combined.length > 0) {
-      formatted += combined.substring(0, 3);
+    if (truncated.length > 0) {
+      formatted += truncated.substring(0, 3);
     }
-    if (combined.length > 3) {
-      formatted += '.' + combined.substring(3, 6);
+    if (truncated.length > 3) {
+      formatted += '.' + truncated.substring(3, 6);
     }
-    if (combined.length > 6) {
-      formatted += '-' + combined.substring(6, 7);
+    if (truncated.length > 6) {
+      formatted += '-' + truncated.substring(6, 7);
     }
-    if (combined.length > 7) {
-      formatted += '-' + combined.substring(7, 8);
+    if (truncated.length > 7) {
+      formatted += '-' + truncated.substring(7);
     }
     return formatted;
   };
@@ -119,7 +100,7 @@ export default function BiometricLogin({
     setCustomSubTab('PIN');
     setMatriculaInput('');
     setIsMatriculaVerified(false);
-  }, [userLogged]);
+  }, [userLogged?.id]);
 
   // Autocomplete suggestions filter with rank-based sorting
   const PATENTE_ORDER_BIO: Record<string, number> = {
@@ -184,7 +165,7 @@ export default function BiometricLogin({
     }
 
     setTimeout(() => {
-      if (userLogged?.biometriaAtiva) {
+      if (userLogged?.biometriaAtiva || isFirstTime) {
         setScanState('GRANTED');
         
         // Check if first time for this particular logged user (has default PIN)
@@ -351,14 +332,26 @@ export default function BiometricLogin({
                 <button
                   type="button"
                   onClick={() => {
-                    setErrorText('A MODIFICAÇÃO DE TOKEN FOI BLOQUEADA NESTA TÁBULA DE LOGIN PARA GARANTIR MÁXIMA SEGURANÇA.');
-                    setTimeout(() => setErrorText(null), 5000);
+                    if (isFirstTime && isMatriculaVerified) {
+                      setActiveTab('CUSTOM_TOKEN');
+                    } else {
+                      setErrorText('A PERSONALIZAÇÃO SÓ É LIBERADA APÓS A VALIDAÇÃO DA MATRÍCULA E DA BIOMETRIA DE PRIMEIRO ACESSO.');
+                      setTimeout(() => setErrorText(null), 5000);
+                    }
                   }}
-                  className="flex-1 py-1.5 text-[9.5px] font-mono uppercase font-bold tracking-wider transition-all border-b-2 border-transparent text-slate-500/70 hover:text-cyber-red cursor-not-allowed flex items-center justify-center space-x-1 relative"
+                  className={`flex-1 py-1.5 text-[9.5px] font-mono uppercase font-bold tracking-wider transition-all border-b-2 flex items-center justify-center space-x-1 relative ${
+                    activeTab === 'CUSTOM_TOKEN'
+                      ? 'border-cyber-green text-white bg-cyber-green/5'
+                      : (isFirstTime && isMatriculaVerified)
+                      ? 'border-transparent text-slate-300 hover:text-white cursor-pointer'
+                      : 'border-transparent text-slate-500/70 cursor-not-allowed'
+                  }`}
                 >
-                  <Lock className="w-3.5 h-3.5 text-cyber-red/80 shrink-0" />
-                  <span>2. Modificar Token</span>
-                  <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-cyber-red/20 text-cyber-red border border-cyber-red/30 rounded text-[6.5px] font-extrabold uppercase tracking-tighter">Bloqueado</span>
+                  <Lock className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'CUSTOM_TOKEN' ? 'text-cyber-green' : 'text-cyber-red/80'}`} />
+                  <span>2. Personalizar</span>
+                  {!(isFirstTime && isMatriculaVerified) && (
+                    <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-cyber-red/20 text-cyber-red border border-cyber-red/30 rounded text-[6.5px] font-extrabold uppercase tracking-tighter">Bloqueado</span>
+                  )}
                 </button>
               </div>
 
@@ -464,7 +457,7 @@ export default function BiometricLogin({
 
                       <div className="flex flex-col space-y-1">
                         <label className="text-[8px] font-bold font-mono text-slate-400 uppercase">
-                          Matrícula Funcional (M.F) - Formato: xxx.xxx-x-x:
+                          Matrícula Funcional (M.F):
                         </label>
                         <input
                           type="text"
@@ -474,9 +467,16 @@ export default function BiometricLogin({
                             setErrorText(null);
                           }}
                           placeholder="000.000-0-0"
-                          maxLength={13}
+                          maxLength={18}
                           className="w-full bg-[#051319] border border-cyber-cyan/35 text-xs font-mono text-white p-2.5 rounded-md outline-none focus:border-cyber-cyan focus:shadow-[0_0_8px_rgba(0,229,255,0.15)] transition-all placeholder:text-slate-500 text-center tracking-[0.1em] font-bold"
                         />
+                        {userLogged && userLogged.matriculaFuncional && (
+                          <div className="text-center mt-1">
+                            <span className="text-[8px] font-mono text-slate-400">
+                              M.F. Cadastrada no sistema: <strong className="text-cyber-cyan">{userLogged.matriculaFuncional}</strong>
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {errorText && (
@@ -491,8 +491,8 @@ export default function BiometricLogin({
                           if (!userLogged) return;
                           setErrorText(null);
                           const inputClean = matriculaInput.replace(/[^0-9A-Z]/gi, '').toUpperCase();
-                          if (inputClean.length !== 8) {
-                            setErrorText('M.F. INCOMPLETA: A matrícula funcional deve conter exatamente 8 caracteres (7 números e o último dígito que pode ser número ou letra) no formato xxx.xxx-x-x.');
+                          if (inputClean.length < 5) {
+                            setErrorText('M.F. INCOMPLETA: A matrícula funcional informada está muito curta. Digite a matrícula completa.');
                             return;
                           }
                           const dbClean = (userLogged.matriculaFuncional || '').replace(/[^0-9A-Z]/gi, '').toUpperCase();

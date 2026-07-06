@@ -1085,7 +1085,7 @@ export default function App() {
     try { 
       const target = militares.find(p => p.id === id);
       const isSpecial = target?.role === 'ADMIN' || target?.role === 'COMANDANTE';
-      const updates: any = { pinSegurança: newPin, acessoLiberado: isSpecial ? true : false };
+      const updates: any = { pinSegurança: newPin, acessoLiberado: isSpecial ? true : false, biometriaAtiva: true };
       if (email) {
         updates.email = email;
       }
