@@ -140,6 +140,8 @@ export default function PainelGestor({
   const [supabaseTitle, setSupabaseTitle] = useState<string>("");
   const [supabaseDesc, setSupabaseDesc] = useState<string>("");
   const [supabaseJson, setSupabaseJson] = useState<string>('{\n  "origem": "Painel Gestor",\n  "status": "Operacional",\n  "versao": "2.4.0"\n}');
+  const [isHomologadasExpanded, setIsHomologadasExpanded] = useState(true);
+  const [isRejeitadasExpanded, setIsRejeitadasExpanded] = useState(false);
   const [simulatedOffline, setSimulatedOffline] = useState<boolean>(() => {
     return (window as any).simulateFirebaseOffline === true;
   });
@@ -1259,67 +1261,139 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
             </div>
           )}
 
-          {/* NOVAS HOMOLOGADAS (PARA CUMPRIMENTO) */}
-          {homologadasAtivas.length > 0 && (
-            <div className="mt-8 space-y-3 pb-4 border-b border-hud-border/30">
-              <div className="flex justify-between items-center mb-1">
-                <h3 className="text-xs font-bold font-display text-white tracking-wider uppercase flex items-center">
-                  <CheckSquare className="w-4 h-4 text-cyber-green mr-1.5" />
-                  PERMUTAS HOMOLOGADAS (PARA CUMPRIMENTO)
-                </h3>
-                <span className="text-[10px] font-mono text-cyber-green bg-cyber-green/10 px-2 py-0.5 rounded-full border border-cyber-green/20 uppercase">
-                  {homologadasAtivas.length} Ativas
-                </span>
+          {/* NOVAS HOMOLOGADAS */}
+          <div className="mt-8 space-y-3 pb-4 border-b border-hud-border/30">
+            <button 
+                onClick={() => setIsHomologadasExpanded(!isHomologadasExpanded)}
+                className="w-full flex items-center justify-between text-left group"
+            >
+              <h3 className="text-xs font-bold font-display text-white tracking-wider uppercase flex items-center group-hover:text-cyber-green transition-colors">
+                <CheckSquare className="w-4 h-4 text-cyber-green mr-1.5" />
+                PERMUTAS HOMOLOGADAS
+              </h3>
+              <div className={`text-cyber-green transition-transform duration-300 ${isHomologadasExpanded ? 'rotate-180' : ''}`}>
+                <ChevronDown className="w-4 h-4" />
               </div>
+            </button>
+            
+            {isHomologadasExpanded && (
+                <div className="space-y-2.5 mt-4">
+                    {permutas.filter(p => p.status === 'APROVADO').map((p) => {
+                        const subBy = allMilitares.find(m => m.id === p.militarSubstituidoId);
+                        const subRepl = allMilitares.find(m => m.id === p.militarSubstitutoId);
+                        const isSelected = selectedPermutaDetailId === p.id;
 
-              <div className="space-y-2.5">
-                {homologadasAtivas.map((p) => {
-                  const subBy = allMilitares.find(m => m.id === p.militarSubstituidoId);
-                  const subRepl = allMilitares.find(m => m.id === p.militarSubstitutoId);
-                  const isSelected = selectedPermutaDetailId === p.id;
+                        return (
+                            <div 
+                                key={p.id}
+                                className={`border rounded-xl transition-all overflow-hidden ${
+                                isSelected 
+                                    ? `bg-[#0f1d22] border-cyber-green shadow-[0_0_12px_rgba(0,255,100,0.1)]` 
+                                    : `bg-hud-card/40 border-cyber-green/20 hover:border-cyber-green/40`
+                                }`}
+                            >
+                                <div 
+                                    onClick={() => setSelectedPermutaDetailId(isSelected ? null : p.id)}
+                                    className="p-3 cursor-pointer flex justify-between items-center"
+                                >
+                                    <div className="min-w-0">
+                                    <span className={`text-[8px] font-mono uppercase font-bold tracking-tight px-1 rounded text-cyber-green bg-cyber-green/10 border border-cyber-green/20`}>
+                                        PROTOCOL {p.protocoloId}
+                                    </span>
+                                    <h4 className="text-xs font-bold text-white truncate mt-1">{subBy?.funcao || p.postoServico} - {p.turno}</h4>
+                                    <p className="text-[10px] font-mono text-slate-400 mt-0.5 truncate">
+                                        {subBy?.nomeGuerra} ➔ {subRepl?.nomeGuerra} • {formatarDataBR(p.dataRealizacao)}
+                                    </p>
+                                    </div>
+                                    <div className="text-right flex flex-col items-end">
+                                    <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded text-cyber-green bg-cyber-green/5 border border-cyber-green/30`}>
+                                        HOMOLOGADA
+                                    </span>
+                                    <ChevronDown className={`w-4 h-4 text-slate-500 mt-1 transition-transform ${isSelected ? 'rotate-180' : ''}`} />
+                                    </div>
+                                </div>
 
-                  return (
-                    <div 
-                      key={p.id}
-                      className={`border rounded-xl transition-all overflow-hidden ${
-                        isSelected 
-                          ? 'bg-[#0f1d22] border-cyber-green shadow-[0_0_12px_rgba(0,255,100,0.1)]' 
-                          : 'bg-hud-card/40 border-cyber-green/20 hover:border-cyber-green/40'
-                      }`}
-                    >
-                      <div 
-                        onClick={() => setSelectedPermutaDetailId(isSelected ? null : p.id)}
-                        className="p-3 cursor-pointer flex justify-between items-center"
-                      >
-                        <div className="min-w-0">
-                          <span className="text-[8px] font-mono text-cyber-green uppercase font-bold tracking-tight bg-cyber-green/10 border border-cyber-green/20 px-1 rounded">
-                            PROTOCOL {p.protocoloId}
-                          </span>
-                          <h4 className="text-xs font-bold text-white truncate mt-1">{subBy?.funcao || p.postoServico} - {p.turno}</h4>
-                          <p className="text-[10px] font-mono text-slate-400 mt-0.5 truncate">
-                            {subBy?.nomeGuerra} ➔ {subRepl?.nomeGuerra} • {formatarDataBR(p.dataRealizacao)}
-                          </p>
-                        </div>
-                        <div className="text-right flex flex-col items-end">
-                          <span className="text-[9px] font-mono font-bold text-cyber-green bg-cyber-green/5 border border-cyber-green/30 px-2 py-0.5 rounded">HOMOLOGADA</span>
-                          <ChevronDown className={`w-4 h-4 text-slate-500 mt-1 transition-transform ${isSelected ? 'rotate-180' : ''}`} />
-                        </div>
-                      </div>
+                                {isSelected && (
+                                    <div className="p-3 border-t border-hud-border/40 bg-black/20">
+                                        <DocumentoHomologacao
+                                            permuta={p}
+                                            allMilitares={allMilitares}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+          </div>
 
-                      {isSelected && (
-                        <div className="p-3 border-t border-hud-border/40 bg-black/20">
-                           <DocumentoHomologacao
-                              permuta={p}
-                              allMilitares={allMilitares}
-                            />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+          {/* PERMUTAS REJEITADAS */}
+          <div className="mt-8 space-y-3 pb-4 border-b border-hud-border/30">
+            <button 
+                onClick={() => setIsRejeitadasExpanded(!isRejeitadasExpanded)}
+                className="w-full flex items-center justify-between text-left group"
+            >
+              <h3 className="text-xs font-bold font-display text-white tracking-wider uppercase flex items-center group-hover:text-cyber-red transition-colors">
+                <CheckSquare className="w-4 h-4 text-cyber-red mr-1.5" />
+                PERMUTAS REJEITADAS
+              </h3>
+              <div className={`text-cyber-red transition-transform duration-300 ${isRejeitadasExpanded ? 'rotate-180' : ''}`}>
+                <ChevronDown className="w-4 h-4" />
               </div>
-            </div>
-          )}
+            </button>
+            
+            {isRejeitadasExpanded && (
+                <div className="space-y-2.5 mt-4">
+                    {permutas.filter(p => p.status === 'REJEITADO' || p.status === 'REJEITADO_SUBSTITUTO').map((p) => {
+                        const subBy = allMilitares.find(m => m.id === p.militarSubstituidoId);
+                        const subRepl = allMilitares.find(m => m.id === p.militarSubstitutoId);
+                        const isSelected = selectedPermutaDetailId === p.id;
+
+                        return (
+                            <div 
+                                key={p.id}
+                                className={`border rounded-xl transition-all overflow-hidden ${
+                                isSelected 
+                                    ? `bg-[#0f1d22] border-cyber-red shadow-[0_0_12px_rgba(255,50,50,0.1)]` 
+                                    : `bg-hud-card/40 border-cyber-red/20 hover:border-cyber-red/40`
+                                }`}
+                            >
+                                <div 
+                                    onClick={() => setSelectedPermutaDetailId(isSelected ? null : p.id)}
+                                    className="p-3 cursor-pointer flex justify-between items-center"
+                                >
+                                    <div className="min-w-0">
+                                    <span className={`text-[8px] font-mono uppercase font-bold tracking-tight px-1 rounded text-cyber-red bg-cyber-red/10 border border-cyber-red/20`}>
+                                        PROTOCOL {p.protocoloId}
+                                    </span>
+                                    <h4 className="text-xs font-bold text-white truncate mt-1">{subBy?.funcao || p.postoServico} - {p.turno}</h4>
+                                    <p className="text-[10px] font-mono text-slate-400 mt-0.5 truncate">
+                                        {subBy?.nomeGuerra} ➔ {subRepl?.nomeGuerra} • {formatarDataBR(p.dataRealizacao)}
+                                    </p>
+                                    </div>
+                                    <div className="text-right flex flex-col items-end">
+                                    <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded text-cyber-red bg-cyber-red/5 border border-cyber-red/30`}>
+                                        REJEITADA
+                                    </span>
+                                    <ChevronDown className={`w-4 h-4 text-slate-500 mt-1 transition-transform ${isSelected ? 'rotate-180' : ''}`} />
+                                    </div>
+                                </div>
+
+                                {isSelected && (
+                                    <div className="p-3 border-t border-hud-border/40 bg-black/20">
+                                        <DocumentoHomologacao
+                                            permuta={p}
+                                            allMilitares={allMilitares}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+          </div>
 
           {/* HISTORIC SWAPS OF PREVIOUS RECORDS */}
           <div className="border-t border-hud-border/40 pt-4 mt-2">
