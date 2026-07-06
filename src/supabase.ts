@@ -137,6 +137,26 @@ if (!supabase) {
  * Retorna o cliente Supabase atual ativo de forma segura.
  */
 export function getSupabase() {
+  if (supabase) return supabase;
+
+  // Tenta re-inicializar se estiver nulo, usando as credenciais do .env ou localStorage
+  const localUrl = localStorage.getItem('VITE_SUPABASE_URL');
+  const localKey = localStorage.getItem('VITE_SUPABASE_ANON_KEY');
+  const envUrl = (import.meta as any).env.VITE_SUPABASE_URL || '';
+  const envKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || '';
+
+  const url = cleanSupabaseUrl(localUrl || envUrl);
+  const key = cleanSupabaseKey(localKey || envKey);
+
+  if (url && key && isValidHttpUrl(url)) {
+    try {
+      supabase = createClient(url, key);
+      console.log("✓ Cliente Supabase re-inicializado com sucesso.");
+    } catch (error) {
+      console.error("❌ Erro ao re-instanciar o cliente Supabase:", error);
+    }
+  }
+  
   return supabase;
 }
 
