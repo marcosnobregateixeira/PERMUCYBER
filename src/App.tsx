@@ -163,7 +163,21 @@ export default function App() {
     } catch (e) {
       console.error("Local load error for config:", e);
     }
-    return { id: 'main', brasaoEsquerdoUrl: '', brasaoDireitoUrl: '', theme: 'pmce-claro-verde' };
+    // @ts-ignore
+    const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
+    // @ts-ignore
+    const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    if (envUrl && envKey) {
+      setSupabaseCredentials(envUrl, envKey, false);
+    }
+    return { 
+      id: 'main', 
+      brasaoEsquerdoUrl: '', 
+      brasaoDireitoUrl: '', 
+      theme: 'pmce-claro-verde',
+      supabaseUrl: envUrl,
+      supabaseAnonKey: envKey
+    };
   });
   const [backupStatusMsg, setBackupStatusMsg] = useState<string>('Sincronização em nuvem e backups estão ativos.');
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'online' | 'offline' | 'unconfigured'>('unconfigured');
