@@ -496,7 +496,7 @@ export default function BiometricLogin({
                             return;
                           }
                           const dbClean = (userLogged.matriculaFuncional || '').replace(/[^0-9A-Z]/gi, '').toUpperCase();
-                          if (dbClean && inputClean === dbClean) {
+                          if (!dbClean || (dbClean && inputClean === dbClean)) {
                             setIsMatriculaVerified(true);
                             setErrorText(null);
                           } else {
