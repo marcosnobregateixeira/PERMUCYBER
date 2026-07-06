@@ -166,7 +166,7 @@ export default function App() {
     return { id: 'main', brasaoEsquerdoUrl: '', brasaoDireitoUrl: '', theme: 'pmce-claro-verde' };
   });
   const [backupStatusMsg, setBackupStatusMsg] = useState<string>('Sincronização em nuvem e backups estão ativos.');
-  const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'online' | 'offline'>('offline');
+  const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'online' | 'offline' | 'unconfigured'>('unconfigured');
 
   const [currentTab, setCurrentTab] = useState<'DASHBOARD' | 'PERMUTAS' | 'CHAT' | 'GESTAO'>('DASHBOARD');
   const [activeSwapScale, setActiveSwapScale] = useState<Escala | null>(null);
@@ -308,6 +308,7 @@ export default function App() {
     const supabaseClient = getSupabase();
     if (!supabaseClient) {
       console.log("[App] Supabase não configurado.");
+      setRealtimeStatus('unconfigured');
       return;
     }
 
@@ -2596,11 +2597,13 @@ export default function App() {
         <div className={`w-2 h-2 rounded-full ${
           realtimeStatus === 'online' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' :
           realtimeStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' :
+          realtimeStatus === 'unconfigured' ? 'bg-amber-500' :
           'bg-red-500'
         }`} />
         <span className="text-[10px] font-mono uppercase tracking-tighter text-cyber-cyan/80">
           {realtimeStatus === 'online' ? 'Nuvem Ativa' : 
            realtimeStatus === 'connecting' ? 'Sincronizando...' : 
+           realtimeStatus === 'unconfigured' ? 'Configuração necessária' :
            'Nuvem Offline'}
         </span>
       </div>
