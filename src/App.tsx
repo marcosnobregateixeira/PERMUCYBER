@@ -250,6 +250,19 @@ export default function App() {
   }, [messages]);
 
   useEffect(() => {
+    if (config) {
+      try {
+        localStorage.setItem('permucyber_config', JSON.stringify(config));
+        if (config.supabaseUrl && config.supabaseAnonKey) {
+          setSupabaseCredentials(config.supabaseUrl, config.supabaseAnonKey, false);
+        }
+      } catch (e) {
+        console.error("[App] Erro ao sincronizar config com localStorage:", e);
+      }
+    }
+  }, [config]);
+
+  useEffect(() => {
     if (backups && backups.length > 0) {
       try {
         const allowedKeys = new Set(backups.map(b => `BACKUP_${b.id}`));
@@ -356,7 +369,6 @@ export default function App() {
             else if (obj.quantidadeMilitares && obj.quantidadeEscalas && obj.militares) newBackups.push(obj);
             else if (obj.brasaoEsquerdoUrl !== undefined || obj.theme !== undefined) {
               setConfig(prev => ({ ...prev, ...obj }));
-              try { localStorage.setItem('permucyber_config', JSON.stringify(obj)); } catch (e) {}
             }
           });
 
@@ -439,9 +451,6 @@ export default function App() {
               });
             } else if (obj.brasaoEsquerdoUrl !== undefined || obj.theme !== undefined) {
               setConfig(prev => ({ ...prev, ...obj }));
-              try {
-                localStorage.setItem('permucyber_config', JSON.stringify(obj));
-              } catch (e) {}
             } else if (obj.quantidadeMilitares && obj.quantidadeEscalas && obj.militares) {
               setBackups(prev => {
                 const exists = prev.some(b => b.id === obj.id);
@@ -1067,17 +1076,7 @@ export default function App() {
   const handleUpdateConfig = async (newConfig: Partial<AppConfig>) => {
     const updated = { ...config, ...newConfig };
     setConfig(updated);
-    
-    // Atualiza as credenciais do Supabase em tempo real se mudarem
-    if (newConfig.supabaseUrl && newConfig.supabaseAnonKey) {
-      setSupabaseCredentials(newConfig.supabaseUrl, newConfig.supabaseAnonKey);
-    }
 
-    try {
-      localStorage.setItem('permucyber_config', JSON.stringify(updated));
-    } catch (e) {
-      console.error("Local save error for config:", e);
-    }
     try {
       await salvarDados(SYSTEM_USER_ID, 'CONFIG', 'Atualização de configurações', updated, 'config-system');
     } catch (e) {

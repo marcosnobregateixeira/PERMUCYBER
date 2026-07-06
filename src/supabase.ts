@@ -41,7 +41,7 @@ export const isValidHttpUrl = (urlString: string) => {
   }
 };
 
-// Carrega as credenciais iniciais tentando localStorage primeiro, depois .env
+// Carrega as credenciais iniciais tentando localStorage primeiro, depois permucyber_config, depois .env
 const getInitialCredentials = () => {
   const localUrl = localStorage.getItem('VITE_SUPABASE_URL');
   const localKey = localStorage.getItem('VITE_SUPABASE_ANON_KEY');
@@ -52,6 +52,23 @@ const getInitialCredentials = () => {
       key: cleanSupabaseKey(localKey),
       isLocal: true
     };
+  }
+
+  // Tenta recuperar do config global salvo localmente
+  try {
+    const savedConfig = localStorage.getItem('permucyber_config');
+    if (savedConfig) {
+      const parsed = JSON.parse(savedConfig);
+      if (parsed.supabaseUrl && parsed.supabaseAnonKey) {
+        return {
+          url: cleanSupabaseUrl(parsed.supabaseUrl),
+          key: cleanSupabaseKey(parsed.supabaseAnonKey),
+          isLocal: true
+        };
+      }
+    }
+  } catch (e) {
+    console.error("[Supabase] Erro ao ler permucyber_config no init:", e);
   }
 
   const envUrl = (import.meta as any).env.VITE_SUPABASE_URL || '';
@@ -142,11 +159,25 @@ export function getSupabase() {
   // Tenta re-inicializar se estiver nulo, usando as credenciais do .env ou localStorage
   const localUrl = localStorage.getItem('VITE_SUPABASE_URL');
   const localKey = localStorage.getItem('VITE_SUPABASE_ANON_KEY');
+  
+  let configUrl = '';
+  let configKey = '';
+  try {
+    const savedConfig = localStorage.getItem('permucyber_config');
+    if (savedConfig) {
+      const parsed = JSON.parse(savedConfig);
+      if (parsed.supabaseUrl && parsed.supabaseAnonKey) {
+        configUrl = parsed.supabaseUrl;
+        configKey = parsed.supabaseAnonKey;
+      }
+    }
+  } catch (e) {}
+
   const envUrl = (import.meta as any).env.VITE_SUPABASE_URL || '';
   const envKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || '';
 
-  const url = cleanSupabaseUrl(localUrl || envUrl);
-  const key = cleanSupabaseKey(localKey || envKey);
+  const url = cleanSupabaseUrl(localUrl || configUrl || envUrl);
+  const key = cleanSupabaseKey(localKey || configKey || envKey);
 
   if (url && key && isValidHttpUrl(url)) {
     try {
