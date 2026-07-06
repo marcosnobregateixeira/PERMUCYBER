@@ -825,21 +825,56 @@ export default function App() {
 
   const handleClearAllPermutas = async () => {
     try {
-      // 1. Deletar as permutas das bases
+      setBackupStatusMsg("⌛ Iniciando varredura profunda e saneamento do banco de dados na nuvem...");
+      
+      // 1. Deletar do Supabase diretamente todas as permutas, chats, logs de testes e backups zumbis
+      const supabaseClient = getSupabase();
+      if (supabaseClient) {
+        const { data: records, error } = await supabaseClient
+          .from('dados_app')
+          .select('id, dados_json');
+        
+        if (!error && records && records.length > 0) {
+          console.log(`[Saneamento Deep] Analisando ${records.length} registros no Supabase...`);
+          for (const row of records) {
+            const obj = row.dados_json;
+            if (!obj) continue;
+            
+            // Critérios para detecção de sujeira de testes (permutas, mensagens, logs e backups)
+            const isPermuta = obj.protocoloId !== undefined;
+            const isBackup = obj.quantidadeMilitares !== undefined && obj.quantidadeEscalas !== undefined;
+            const isChat = obj.deMilitarId !== undefined && obj.paraMilitarId !== undefined;
+            
+            if (isPermuta || isBackup || isChat) {
+              console.log(`[Saneamento Deep] Deletando registro zumbi de ID: ${row.id}`);
+              await supabaseClient.from('dados_app').delete().eq('id', row.id);
+            }
+          }
+        }
+      }
+
+      // 2. Limpar também as permutas conhecidas localmente na redundância local/nuvem
       for (const p of permutas) {
         await deletarDados(p.id);
       }
+      
+      // 3. Limpar os estados do React para zerar as visualizações imediatamente
       setPermutas([]);
+      setBackups([]);
+      setMessages([]);
 
-      // 2. Limpar os backups na nuvem para evitar auto-recuperação de dados antigos
-      // (Supabase listarDados retornará dados_app)
-
-      // 3. Limpar os backups locais do localStorage, o cache de permutas locais e o estado
+      // 4. Limpar o localStorage de todas as chaves de teste antigas e de dispensas de alertas
       try {
         const keysToDelete: string[] = [];
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
-          if (key && (key.startsWith('BACKUP_') || key === 'permucyber_backups' || key === 'permucyber_permutas')) {
+          if (key && (
+            key.startsWith('BACKUP_') || 
+            key === 'permucyber_backups' || 
+            key === 'permucyber_permutas' ||
+            key === 'permucyber_messages' ||
+            key === 'permucyber_dismissed_warnings'
+          )) {
             keysToDelete.push(key);
           }
         }
@@ -847,10 +882,10 @@ export default function App() {
       } catch (e) {
         console.warn("Erro ao limpar cache local de backups:", e);
       }
-      setBackups([]);
 
-      await appendAuditLog('INTEGRALIZAÇÃO', 'Todas as solicitações de permutas e cópias de segurança antigas foram excluídas permanentemente para evitar auto-recuperação.', loggedUser?.nomeGuerra || 'SISTEMA', logs);
-      alert('Todas as permutas de teste e backups antigos foram excluídos com sucesso do dispositivo e da nuvem!');
+      setBackupStatusMsg("✓ Saneamento concluído! Banco de dados em nuvem limpo para produção.");
+      await appendAuditLog('INTEGRALIZAÇÃO', 'Varredura e saneamento completo de produção efetuado. Todas as permutas, chats e cópias de segurança de teste foram excluídos.', loggedUser?.nomeGuerra || 'SISTEMA', logs);
+      alert('✓ SANEAMENTO CONCLUÍDO COM SUCESSO!\n\nTodas as permutas de teste, chats, backups antigos e notificações pendentes foram permanentemente excluídos do dispositivo e da nuvem.\n\nO sistema está 100% limpo e pronto para produção!');
     } catch (e) {
       console.error("Erro ao limpar permutas:", e);
       alert('Erro ao excluir as permutas.');

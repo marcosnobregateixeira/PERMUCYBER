@@ -2273,6 +2273,28 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                 </div>
               )}
             </div>
+
+            {/* ZERAR / SANEAMENTO PROFUNDO DE TESTES */}
+            <div className="pt-3.5 border-t border-red-500/20 flex flex-col space-y-1.5 mt-2">
+              <span className="text-[9.5px] font-mono text-red-400 block uppercase font-bold tracking-wider flex items-center">
+                <AlertTriangle className="w-3.5 h-3.5 mr-1 text-red-500 animate-pulse" />
+                SANEAMENTO DE PRODUÇÃO
+              </span>
+              <p className="text-[9px] text-slate-400 leading-snug">
+                Apaga permanentemente todas as solicitações de permutas, chats antigos, alertas dispensados e backups de teste salvos neste dispositivo e no banco de dados principal na nuvem (Supabase/Firestore) para iniciar o uso oficial do sistema do zero.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm("⚠️ ATENÇÃO: Deseja realmente excluir permanentemente TODAS as permutas de teste, históricos de mensagens e notificações zumbis do dispositivo e do servidor na nuvem?\n\nEsta operação é irreversível e deixará o sistema completamente limpo para rodar oficialmente em produção.")) {
+                    onClearAllPermutas?.();
+                  }
+                }}
+                className="bg-red-950/30 hover:bg-red-950/60 text-red-400 hover:text-red-300 border border-red-900/50 hover:border-red-500/50 py-2 rounded text-[10px] font-mono font-black uppercase transition-all tracking-wider text-center flex items-center justify-center space-x-1 cursor-pointer"
+              >
+                <span>ZERAR PERMUTAS DE TESTE E LIMPAR BANCO DE DADOS</span>
+              </button>
+            </div>
           </div>
 
           {/* Quick Core Sync Utility buttons */}

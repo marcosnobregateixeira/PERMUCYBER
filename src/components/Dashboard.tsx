@@ -77,6 +77,21 @@ export default function Dashboard({
   const nextMonthName = (monthNames[nextMonthIndex] || 'AGOSTO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO';
 
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<number | null>(null); 
+  const [dismissedWarnings, setDismissedWarnings] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('permucyber_dismissed_warnings');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const dismissWarning = (permutaId: string) => {
+    const updated = [...dismissedWarnings, permutaId];
+    setDismissedWarnings(updated);
+    localStorage.setItem('permucyber_dismissed_warnings', JSON.stringify(updated));
+  };
+
   const [expandedHomologationId, setExpandedHomologationId] = useState<string | null>(null);
   const [showAjusteParaId, setShowAjusteParaId] = useState<string | null>(null);
   const [justificativaAjuste, setJustificativaAjuste] = useState('');
@@ -397,14 +412,13 @@ export default function Dashboard({
         </div>
       </div>
 
-
-
       {/* AVISOS DE PERMUTA TORNADA SEM EFEITO POR AFASTAMENTO */}
       {(() => {
         const cancelledSwaps = permutas.filter(p => 
           p.status === 'SEM_EFEITO' && 
           (p.militarSubstituidoId === userLogged?.id || p.militarSubstitutoId === userLogged?.id) &&
-          p.motivoSemEfeito
+          p.motivoSemEfeito &&
+          !dismissedWarnings.includes(p.id)
         );
         if (cancelledSwaps.length === 0) return null;
         return (
@@ -417,13 +431,20 @@ export default function Dashboard({
                   key={p.id}
                   className="bg-gradient-to-r from-red-950/40 to-red-950/15 border-2 border-red-500/50 p-4 rounded-xl relative overflow-hidden shadow-[0_0_15px_rgba(239,68,68,0.2)]"
                 >
+                  <button 
+                    onClick={() => dismissWarning(p.id)}
+                    className="absolute top-3 right-3 text-red-400/70 hover:text-red-400 p-1 hover:bg-red-500/10 rounded transition-colors z-10"
+                    title="Dispensar aviso"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                   <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-red-500/40" />
                   <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-red-500/40" />
                   <div className="flex items-start space-x-3">
                     <div className="bg-red-500/20 text-red-400 p-2 rounded-full mt-0.5 shrink-0">
-                      <AlertTriangle className="w-5 h-5 animate-pulse" />
+                       <AlertTriangle className="w-5 h-5 animate-pulse" />
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 pr-6">
                       <h4 className="text-xs font-black tracking-widest text-red-400 uppercase font-mono">
                         Permuta Tornada Sem Efeito Automaticamente
                       </h4>
