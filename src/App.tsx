@@ -1500,11 +1500,21 @@ export default function App() {
   };
 
   const handleDeletePermuta = async (id: string) => {
-    if (!loggedUser || loggedUser.role !== 'ADMIN') {
-      alert("ERRO: Apenas o Administrador pode excluir permutas.");
+    const targetPermuta = permutas.find(p => p.id === id);
+    if (!targetPermuta) return;
+
+    if (!loggedUser) {
+      alert("ERRO: Nenhum usuário autenticado.");
       return;
     }
-    const targetPermuta = permutas.find(p => p.id === id);
+
+    const isOwner = targetPermuta.militarSubstituidoId === loggedUser.id;
+    const isAdmin = loggedUser.role === 'ADMIN';
+
+    if (!isAdmin && !isOwner) {
+      alert("ERRO: Apenas o Administrador ou o próprio policial solicitante podem excluir ou desistir desta permuta.");
+      return;
+    }
     let scaleChanges = { deletedIds: [] as string[], revertedId: undefined as string | undefined, revertedMilitarId: undefined as string | undefined };
     if (targetPermuta && targetPermuta.status === 'APROVADO') {
       scaleChanges = await revertOrDeleteScaleForPermuta(targetPermuta);
@@ -2380,18 +2390,12 @@ export default function App() {
                                 {p.militarSubstituidoId === loggedUser?.id && 
                                  (p.status === 'PENDENTE_SUBSTITUTO' || p.status === 'PENDENTE_GESTOR' || p.status === 'AJUSTE_GESTOR' || p.status === 'ALTERACAO_SOLICITADA') && (
                                   <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-hud-border/30">
-                                    {(p.status === 'AJUSTE_GESTOR' || p.status === 'ALTERACAO_SOLICITADA') ? (
-                                      <button 
-                                        onClick={() => handleCorrectPermuta(p)}
-                                        className="bg-cyber-blue/10 border border-cyber-blue/40 text-cyber-blue text-[10px] font-bold py-2 rounded uppercase hover:bg-cyber-blue/20 transition-all flex items-center justify-center cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.05)]"
-                                      >
-                                        Corrigir
-                                      </button>
-                                    ) : (
-                                      <div className="flex items-center justify-center text-[8px] text-slate-400 font-mono uppercase tracking-tighter border border-hud-border/30 rounded bg-hud-bg/20">
-                                        Solicitação Ativa
-                                      </div>
-                                    )}
+                                    <button 
+                                      onClick={() => handleCorrectPermuta(p)}
+                                      className="bg-cyber-blue/10 border border-cyber-blue/40 text-cyber-blue text-[10px] font-bold py-2 rounded uppercase hover:bg-cyber-blue/20 transition-all flex items-center justify-center cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.05)]"
+                                    >
+                                      Ajustar
+                                    </button>
                                     <button 
                                       onClick={async () => {
                                         // Removed window.confirm for better iframe compatibility
