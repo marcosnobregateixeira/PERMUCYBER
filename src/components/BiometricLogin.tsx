@@ -470,13 +470,7 @@ export default function BiometricLogin({
                           maxLength={18}
                           className="w-full bg-[#051319] border border-cyber-cyan/35 text-xs font-mono text-white p-2.5 rounded-md outline-none focus:border-cyber-cyan focus:shadow-[0_0_8px_rgba(0,229,255,0.15)] transition-all placeholder:text-slate-500 text-center tracking-[0.1em] font-bold"
                         />
-                        {userLogged && userLogged.matriculaFuncional && (
-                          <div className="text-center mt-1">
-                            <span className="text-[8px] font-mono text-slate-400">
-                              M.F. Cadastrada no sistema: <strong className="text-cyber-cyan">{userLogged.matriculaFuncional}</strong>
-                            </span>
-                          </div>
-                        )}
+
                       </div>
 
                       {errorText && (
