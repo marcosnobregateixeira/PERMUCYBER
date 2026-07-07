@@ -206,14 +206,67 @@ export const ESCALAS_INICIAIS: Escala[] = [
 
 // Simple hash generator for simulation
 export function formatarDataBR(dateStr: string): string {
-  if (!dateStr) return '00-00-0000';
+  if (!dateStr) return '00.00.0000';
   const parts = dateStr.split('-');
   if (parts.length === 3) {
     if (parts[0].length === 4) {
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      return `${parts[2]}.${parts[1]}.${parts[0]}`;
     }
   }
   return dateStr;
+}
+
+export function formatarDataHoraBrasilia(rawStr: string): string {
+  if (!rawStr) return '00.00.0000 00:00';
+  try {
+    let date: Date;
+    if (rawStr.includes(' ') || rawStr.includes('T')) {
+      const formatted = rawStr.replace(' ', 'T');
+      // If there's no Z or timezone offset, treat it as UTC by appending Z.
+      const iso = formatted.includes('+') || formatted.includes('Z') || (formatted.match(/-[0-9]{2}:[0-9]{2}$/) !== null) ? formatted : formatted + 'Z';
+      date = new Date(iso);
+    } else {
+      date = new Date(rawStr + 'T00:00:00Z');
+    }
+
+    if (isNaN(date.getTime())) {
+      return rawStr;
+    }
+
+    const dtfDate = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+    const dtfTime = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+
+    const dateFormatted = dtfDate.format(date).replace(/\//g, '.');
+    if (rawStr.includes(' ') || rawStr.includes('T')) {
+      const timeFormatted = dtfTime.format(date);
+      return `${dateFormatted} ${timeFormatted}`;
+    }
+    return dateFormatted;
+  } catch (e) {
+    const utcMs = new Date(rawStr.replace(' ', 'T') + (rawStr.includes('Z') ? '' : 'Z')).getTime();
+    if (isNaN(utcMs)) return rawStr;
+    const bstMs = utcMs - 3 * 60 * 60 * 1000;
+    const bstDate = new Date(bstMs);
+    const dd = String(bstDate.getUTCDate()).padStart(2, '0');
+    const mm = String(bstDate.getUTCMonth() + 1).padStart(2, '0');
+    const yyyy = bstDate.getUTCFullYear();
+    const hh = String(bstDate.getUTCHours()).padStart(2, '0');
+    const min = String(bstDate.getUTCMinutes()).padStart(2, '0');
+    if (rawStr.includes(' ') || rawStr.includes('T')) {
+      return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
+    }
+    return `${dd}.${mm}.${yyyy}`;
+  }
 }
 
 export function generateSimpleHash(content: string, previousHash: string = ''): string {

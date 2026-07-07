@@ -453,7 +453,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
         return {
           type: 'AFASTADO',
           label: `AFASTADO (${active.motivo})`,
-          detail: `Fim: ${active.dataFim.split('-').reverse().join('/')}`,
+          detail: `Fim: ${active.dataFim.split('-').reverse().join('.')}`,
           color: 'text-cyber-red bg-cyber-red/10 border-cyber-red/30'
         };
       }
@@ -463,7 +463,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
         return {
           type: 'AGENDADO',
           label: `APTO / AGENDADO: ${future.motivo}`,
-          detail: `Início: ${future.dataInicio.split('-').reverse().join('/')}`,
+          detail: `Início: ${future.dataInicio.split('-').reverse().join('.')}`,
           color: 'text-cyber-amber bg-cyber-amber/10 border-cyber-amber/30'
         };
       }
@@ -473,7 +473,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
         return {
           type: 'RETORNADO',
           label: `APTO (RETORNADO AUTOMATICAMENTE)`,
-          detail: `${past.motivo} concluído em ${past.dataFim.split('-').reverse().join('/')}`,
+          detail: `${past.motivo} concluído em ${past.dataFim.split('-').reverse().join('.')}`,
           color: 'text-cyber-green bg-cyber-green/10 border-cyber-green/30'
         };
       }
@@ -3067,7 +3067,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                                 {statusLabel}
                               </span>
                             </div>
-                            <span className="text-slate-400 text-[9px] font-mono">{af.dataInicio.split('-').reverse().join('/')} até {af.dataFim.split('-').reverse().join('/')}</span>
+                            <span className="text-slate-400 text-[9px] font-mono">{af.dataInicio.split('-').reverse().join('.')} até {af.dataFim.split('-').reverse().join('.')}</span>
                           </div>
                           <button
                           type="button"

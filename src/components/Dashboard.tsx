@@ -144,7 +144,7 @@ export default function Dashboard({
         return {
           type: 'AFASTADO',
           label: `AFASTADO TATICAMENTE (${active.motivo})`,
-          detail: `Período: ${active.dataInicio.split('-').reverse().join('/')} até ${active.dataFim.split('-').reverse().join('/')}`,
+          detail: `Período: ${active.dataInicio.split('-').reverse().join('.')} até ${active.dataFim.split('-').reverse().join('.')}`,
           color: 'text-cyber-red bg-cyber-red/10 border-cyber-red/35'
         };
       }
@@ -154,7 +154,7 @@ export default function Dashboard({
         return {
           type: 'AGENDADO',
           label: `APTO / AGENDADO (${future.motivo})`,
-          detail: `Início: ${future.dataInicio.split('-').reverse().join('/')}`,
+          detail: `Início: ${future.dataInicio.split('-').reverse().join('.')}`,
           color: 'text-cyber-amber bg-cyber-amber/10 border-cyber-amber/35'
         };
       }
@@ -164,7 +164,7 @@ export default function Dashboard({
         return {
           type: 'RETORNADO',
           label: `APTO / RETORNADO AUTOMATICAMENTE`,
-          detail: `${past.motivo} concluído em ${past.dataFim.split('-').reverse().join('/')}`,
+          detail: `${past.motivo} concluído em ${past.dataFim.split('-').reverse().join('.')}`,
           color: 'text-cyber-green bg-cyber-green/10 border-cyber-green/35'
         };
       }

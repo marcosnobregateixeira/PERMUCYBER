@@ -13,6 +13,7 @@ import {
   Fingerprint
 } from 'lucide-react';
 import { Permuta, Militar } from '../types';
+import { formatarDataHoraBrasilia } from '../data';
 
 interface DocumentoHomologacaoProps {
   permuta: Permuta;
@@ -99,7 +100,7 @@ export default function DocumentoHomologacao({
               {dataExtenso}
             </div>
             <span className="text-[8.5px] text-slate-400 font-mono italic">
-              ({dateParts.dia}/{dateParts.mes}/{dateParts.ano})
+              ({dateParts.dia}.{dateParts.mes}.{dateParts.ano})
             </span>
           </div>
 
@@ -193,7 +194,7 @@ export default function DocumentoHomologacao({
             <div>
               <span className="text-slate-400 block text-[9px]">Autorizado em:</span>
               <span className="text-cyber-green font-bold block text-[10px] font-mono">
-                {permuta.dataAssinaturaGestor || '2026-06-20 12:44'}
+                {formatarDataHoraBrasilia(permuta.dataAssinaturaGestor || '2026-06-20 12:44')}
               </span>
             </div>
           </div>

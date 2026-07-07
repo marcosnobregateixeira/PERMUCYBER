@@ -1308,7 +1308,7 @@ export default function App() {
 
     if (scaleConflict) {
       const mil = militares.find(m => m.id === novaPermuta.militarSubstitutoId);
-      alert(`CONFLITO DE ESCALA: O militar ${mil?.nomeGuerra || ''} já está escalado oficialmente para o dia ${novaPermuta.dataRealizacao.split('-').reverse().join('/')} no turno/período ${scaleConflict.turno}. Não é possível continuar.`);
+      alert(`CONFLITO DE ESCALA: O militar ${mil?.nomeGuerra || ''} já está escalado oficialmente para o dia ${novaPermuta.dataRealizacao.split('-').reverse().join('.')} no turno/período ${scaleConflict.turno}. Não é possível continuar.`);
       return;
     }
 

@@ -169,7 +169,7 @@ export default function PermutaFlow({
 
     if (afastamento) {
       score = 0;
-      reason = `AFASTAMENTO ATIVO: ${afastamento.motivo} (${afastamento.dataInicio.split('-').reverse().join('/')} a ${afastamento.dataFim.split('-').reverse().join('/')}). PROIBIDO PERMUTAR.`;
+      reason = `AFASTAMENTO ATIVO: ${afastamento.motivo} (${afastamento.dataInicio.split('-').reverse().join('.')} a ${afastamento.dataFim.split('-').reverse().join('.')}). PROIBIDO PERMUTAR.`;
       status = 'BLOCKED';
     } else if (hasConflictScale) {
       score = 0;
