@@ -70,6 +70,14 @@ const healSpecialUsers = (list: Militar[]): Militar[] => {
   });
 };
 
+const areShiftsOverlapping = (t1: string, t2: string) => {
+  if (t1 === '24H' || t2 === '24H') return true;
+  if (t1 === t2) return true;
+  if (t1 === 'EXPEDIENTE' && t2 === 'TURNO A') return true;
+  if (t2 === 'EXPEDIENTE' && t1 === 'TURNO A') return true;
+  return false;
+};
+
 export default function App() {
   const [militares, setMilitares] = useState<Militar[]>(() => {
     try {
@@ -200,6 +208,40 @@ export default function App() {
 
   const toggleMonth = (monthKey: string) => {
     setExpandedMonths(prev => ({ ...prev, [monthKey]: !prev[monthKey] }));
+  };
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    warningText?: string;
+    onConfirm: () => void | Promise<void>;
+    confirmText?: string;
+    cancelText?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
+
+  const requestConfirmation = (
+    title: string,
+    description: string,
+    onConfirm: () => void | Promise<void>,
+    warningText?: string,
+    confirmText: string = 'Confirmar Exclusão',
+    cancelText: string = 'Cancelar'
+  ) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      description,
+      warningText,
+      onConfirm,
+      confirmText,
+      cancelText,
+    });
   };
 
   // --- LIMPEZA DE REGISTROS ZUMBIS (04, 05, 13 JULHO) ---
@@ -858,11 +900,7 @@ export default function App() {
     }
   };
 
-  const handleDeleteMilitar = async (id: string) => {
-    if (!loggedUser || loggedUser.role !== 'ADMIN') {
-      alert("ERRO: Apenas o Administrador pode excluir policiais.");
-      return;
-    }
+  const executeDeleteMilitar = async (id: string) => {
     try {
       console.log(`Iniciando exclusão do militar ID: ${id}`);
       
@@ -880,7 +918,32 @@ export default function App() {
     }
   };
 
-  const handleClearAllPermutas = async () => {
+  const handleDeleteMilitar = async (id: string, bypassConfirm: boolean = false) => {
+    if (!loggedUser || loggedUser.role !== 'ADMIN') {
+      alert("ERRO: Apenas o Administrador pode excluir policiais.");
+      return;
+    }
+    const targetMilitar = militares.find(m => m.id === id);
+    if (!targetMilitar) return;
+
+    if (!bypassConfirm) {
+      requestConfirmation(
+        "EXCLUIR POLICIAL DO EFETIVO",
+        `Deseja realmente remover permanentemente o policial ${targetMilitar.patente} ${targetMilitar.nomeGuerra} (M.F. ${targetMilitar.matriculaFuncional || 'Sem Cadastro'}) do sistema?`,
+        async () => {
+          await executeDeleteMilitar(id);
+        },
+        "AVISO CRÍTICO: A remoção de um policial pode quebrar escalas ativas e históricos onde ele estiver escalado ou associado a permutas no banco de dados.",
+        "REMOVER DO EFETIVO",
+        "CANCELAR"
+      );
+      return;
+    }
+
+    await executeDeleteMilitar(id);
+  };
+
+  const executeClearAllPermutas = async () => {
     try {
       setBackupStatusMsg("⌛ Iniciando varredura profunda e saneamento do banco de dados na nuvem...");
       
@@ -949,7 +1012,24 @@ export default function App() {
     }
   };
 
-  const handleClearAllMilitares = async () => {
+  const handleClearAllPermutas = async (bypassConfirm: boolean = false) => {
+    if (!bypassConfirm) {
+      requestConfirmation(
+        "SANEAMENTO TOTAL DO BANCO",
+        "Esta é uma operação administrativa crítica. Você está prestes a realizar um saneamento e varredura total do banco de dados na nuvem.",
+        async () => {
+          await executeClearAllPermutas();
+        },
+        "PERIGO ABSOLUTO: Todas as permutas, cópias de segurança de teste, logs e histórico de chats serão deletados permanentemente sem possibilidade de recuperação.",
+        "EXECUTAR SANEAMENTO",
+        "CANCELAR"
+      );
+      return;
+    }
+    await executeClearAllPermutas();
+  };
+
+  const executeClearAllMilitares = async () => {
     try {
       const activeUser = loggedUser || militares.find(m => m.role === 'COMANDANTE') || militares[0];
       for (const m of militares) {
@@ -969,6 +1049,23 @@ export default function App() {
       console.error("Erro ao limpar efetivo:", e);
       alert('Erro ao limpar o efetivo.');
     }
+  };
+
+  const handleClearAllMilitares = async (bypassConfirm: boolean = false) => {
+    if (!bypassConfirm) {
+      requestConfirmation(
+        "LIMPAR EFETIVO ATIVO",
+        "Deseja realmente excluir todos os policiais cadastrados do sistema, mantendo apenas a sua própria conta para evitar bloqueios de segurança?",
+        async () => {
+          await executeClearAllMilitares();
+        },
+        "PERIGO CRÍTICO: Esta ação removerá permanentemente todos os perfis de militares e suas credenciais do banco de dados.",
+        "LIMPAR EFETIVO",
+        "CANCELAR"
+      );
+      return;
+    }
+    await executeClearAllMilitares();
   };
 
   const handleToggleBiometria = async (id: string) => {
@@ -1188,6 +1285,7 @@ export default function App() {
     const existingConflict = permutas.find(p => 
       p.dataRealizacao === novaPermuta.dataRealizacao &&
       !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status) &&
+      areShiftsOverlapping(p.turno, novaPermuta.turno) &&
       (
         p.militarSubstituidoId === novaPermuta.militarSubstituidoId ||
         p.militarSubstitutoId === novaPermuta.militarSubstituidoId ||
@@ -1197,19 +1295,20 @@ export default function App() {
     );
 
     if (existingConflict) {
-      alert(`CONFLITO: Já existe uma permuta ativa (${existingConflict.status}) para esta data envolvendo um dos policiais selecionados. Não é possível continuar.`);
+      alert(`CONFLITO: Já existe uma permuta ativa (${existingConflict.status}) para esta data envolvendo um dos policiais selecionados no mesmo turno/horário. Não é possível continuar.`);
       return;
     }
 
     // Official Scale Conflict Check (Substituto already on duty)
     const scaleConflict = escalas.find(e => 
       e.data === novaPermuta.dataRealizacao && 
-      e.militarId === novaPermuta.militarSubstitutoId
+      e.militarId === novaPermuta.militarSubstitutoId &&
+      areShiftsOverlapping(e.turno, novaPermuta.turno)
     );
 
     if (scaleConflict) {
       const mil = militares.find(m => m.id === novaPermuta.militarSubstitutoId);
-      alert(`CONFLITO DE ESCALA: O militar ${mil?.nomeGuerra || ''} já está escalado oficialmente para o dia ${novaPermuta.dataRealizacao.split('-').reverse().join('/')} no turno ${scaleConflict.turno}. Não é possível continuar.`);
+      alert(`CONFLITO DE ESCALA: O militar ${mil?.nomeGuerra || ''} já está escalado oficialmente para o dia ${novaPermuta.dataRealizacao.split('-').reverse().join('/')} no turno/período ${scaleConflict.turno}. Não é possível continuar.`);
       return;
     }
 
@@ -1277,34 +1376,36 @@ export default function App() {
       return;
     }
 
-    // Verify if the substitute is already scheduled (escalado) on the target date
-    const isSubstituteEscalado = escalas.some(e => e.militarId === loggedUser.id && e.data === targetPermuta.dataRealizacao);
+    // Verify if the substitute is already scheduled (escalado) on the target date with an overlapping shift
+    const isSubstituteEscalado = escalas.some(e => e.militarId === loggedUser.id && e.data === targetPermuta.dataRealizacao && areShiftsOverlapping(e.turno, targetPermuta.turno));
     if (isSubstituteEscalado) {
-      alert("CONFLITO DETECTADO: Você já está escalado de serviço oficial nesta data e não pode aceitar outra permuta para o mesmo dia.");
+      alert(`CONFLITO DETECTADO: Você já está escalado de serviço oficial nesta data no turno/horário (${targetPermuta.turno}) e não pode aceitar outra permuta para o mesmo período.`);
       return;
     }
 
-    // Verify if the accepting user already has another active permuta on that same date
+    // Verify if the accepting user already has another active permuta on that same date with an overlapping shift
     const hasAnotherActiveSelf = permutas.some(p => 
       p.id !== permutaId &&
       p.dataRealizacao === targetPermuta.dataRealizacao &&
       !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status) &&
+      areShiftsOverlapping(p.turno, targetPermuta.turno) &&
       (p.militarSubstituidoId === loggedUser.id || p.militarSubstitutoId === loggedUser.id)
     );
     if (hasAnotherActiveSelf) {
-      alert("Não pode, porque você já está envolvido em outra permuta nesse dia.");
+      alert(`Não pode, porque você já está envolvido em outra permuta nesse dia no mesmo turno/horário (${targetPermuta.turno}).`);
       return;
     }
 
-    // Verify if the requesting user already has another active permuta on that same date
+    // Verify if the requesting user already has another active permuta on that same date with an overlapping shift
     const hasAnotherActiveRequester = permutas.some(p => 
       p.id !== permutaId &&
       p.dataRealizacao === targetPermuta.dataRealizacao &&
       !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status) &&
+      areShiftsOverlapping(p.turno, targetPermuta.turno) &&
       (p.militarSubstituidoId === targetPermuta.militarSubstituidoId || p.militarSubstitutoId === targetPermuta.militarSubstituidoId)
     );
     if (hasAnotherActiveRequester) {
-      alert("Não pode, porque o solicitante já está de serviço (outra permuta ativa) nesse dia.");
+      alert(`Não pode, porque o solicitante já possui outra permuta ativa nesse dia no mesmo turno/horário (${targetPermuta.turno}).`);
       return;
     }
 
@@ -1482,10 +1583,69 @@ export default function App() {
       try {
         const escalaOriginal = escalas.find(e => e.id === originalEscalaId);
         if (escalaOriginal) {
-          const updatedEscala = { ...escalaOriginal, militarId: targetPermuta.militarSubstituidoId };
-          await atualizarDados(originalEscalaId, { 
-            dados_json: updatedEscala 
-          });
+          const splitIdA = `E-SPLIT-${originalEscalaId}-A`;
+          const splitIdB = `E-SPLIT-${originalEscalaId}-B`;
+          const splitScaleA = escalas.find(e => e.id === splitIdA);
+          const splitScaleB = escalas.find(e => e.id === splitIdB);
+          
+          let targetScale = escalaOriginal;
+          let otherScale: Escala | undefined = undefined;
+
+          if (escalaOriginal.turno === targetPermuta.turno) {
+            targetScale = escalaOriginal;
+            otherScale = targetPermuta.turno === 'TURNO A' ? splitScaleB : splitScaleA;
+          } else if (splitScaleA && splitScaleA.turno === targetPermuta.turno) {
+            targetScale = splitScaleA;
+            otherScale = escalaOriginal.turno === 'TURNO B' ? escalaOriginal : splitScaleB;
+          } else if (splitScaleB && splitScaleB.turno === targetPermuta.turno) {
+            targetScale = splitScaleB;
+            otherScale = escalaOriginal.turno === 'TURNO A' ? escalaOriginal : splitScaleA;
+          }
+
+          let deletedIds: string[] = [];
+
+          if (otherScale && otherScale.militarId === targetPermuta.militarSubstituidoId) {
+            const mergedOriginal = {
+              ...escalaOriginal,
+              turno: '24H' as const,
+              horaInicio: '06:00',
+              horaFim: '06:00',
+              militarId: targetPermuta.militarSubstituidoId
+            };
+
+            const splitScaleToDelete = targetScale.id !== originalEscalaId ? targetScale : otherScale;
+
+            try {
+              await atualizarDados(originalEscalaId, { dados_json: mergedOriginal });
+              if (splitScaleToDelete.id !== originalEscalaId) {
+                await deletarDados(splitScaleToDelete.id);
+                deletedIds.push(splitScaleToDelete.id);
+              }
+            } catch (e) {
+              console.error("Error merging split scales back to 24H:", e);
+            }
+
+            setEscalas(prev => {
+              const step1 = prev.map(e => e.id === originalEscalaId ? mergedOriginal : e);
+              return step1.filter(e => !deletedIds.includes(e.id));
+            });
+
+            return { deletedIds, revertedId: originalEscalaId, revertedMilitarId: targetPermuta.militarSubstituidoId };
+          } else {
+            const updatedTarget = {
+              ...targetScale,
+              militarId: targetPermuta.militarSubstituidoId
+            };
+
+            try {
+              await atualizarDados(targetScale.id, { dados_json: updatedTarget });
+            } catch (e) {
+              console.error("Error updating reverted scale portion:", e);
+            }
+
+            setEscalas(prev => prev.map(e => e.id === targetScale.id ? updatedTarget : e));
+            return { deletedIds: [], revertedId: targetScale.id, revertedMilitarId: targetPermuta.militarSubstituidoId };
+          }
         }
       } catch (e) {
         console.error("Error reverting escala:", e);
@@ -1499,22 +1659,10 @@ export default function App() {
     }
   };
 
-  const handleDeletePermuta = async (id: string) => {
+  const executeDeletePermuta = async (id: string) => {
     const targetPermuta = permutas.find(p => p.id === id);
     if (!targetPermuta) return;
 
-    if (!loggedUser) {
-      alert("ERRO: Nenhum usuário autenticado.");
-      return;
-    }
-
-    const isOwner = targetPermuta.militarSubstituidoId === loggedUser.id;
-    const isAdmin = loggedUser.role === 'ADMIN';
-
-    if (!isAdmin && !isOwner) {
-      alert("ERRO: Apenas o Administrador ou o próprio policial solicitante podem excluir ou desistir desta permuta.");
-      return;
-    }
     let scaleChanges = { deletedIds: [] as string[], revertedId: undefined as string | undefined, revertedMilitarId: undefined as string | undefined };
     if (targetPermuta && targetPermuta.status === 'APROVADO') {
       scaleChanges = await revertOrDeleteScaleForPermuta(targetPermuta);
@@ -1530,12 +1678,10 @@ export default function App() {
       alert("Erro fatal ao deletar permuta. Verifique o console.");
     }
     
-    // ... rest of the function ...
-    
     const nextPermutas = permutas.filter(p => p.id !== id);
     setPermutas(nextPermutas);
     localStorage.setItem('permucyber_permutas', JSON.stringify(nextPermutas));
-    await appendAuditLog('INTEGRALIZAÇÃO', `Protocolo de permuta excluído pelo militar solicitante.`, loggedUser.nomeGuerra, logs);
+    await appendAuditLog('INTEGRALIZAÇÃO', `Protocolo de permuta excluído pelo militar solicitante.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
     
     // Scrub this deleted permuta and its scale changes from ALL backups to prevent auto-restoration
     await syncBackupsAfterDeletion(id, scaleChanges.deletedIds, scaleChanges.revertedId, scaleChanges.revertedMilitarId);
@@ -1545,10 +1691,47 @@ export default function App() {
       const activeEscalas = escalas
         .filter(e => !scaleChanges.deletedIds.includes(e.id))
         .map(e => e.id === scaleChanges.revertedId ? { ...e, militarId: scaleChanges.revertedMilitarId! } : e);
-      await generateBackup('AUTO', loggedUser.nomeGuerra, militares, activeEscalas, nextPermutas);
+      await generateBackup('AUTO', loggedUser?.nomeGuerra || 'SISTEMA', militares, activeEscalas, nextPermutas);
     } catch (bErr) {
       console.error("Erro no auto-backup pós-exclusão:", bErr);
     }
+  };
+
+  const handleDeletePermuta = async (id: string, bypassConfirm: boolean = false) => {
+    const targetPermuta = permutas.find(p => p.id === id);
+    if (!targetPermuta) return;
+
+    if (!loggedUser) {
+      alert("ERRO: Nenhum usuário autenticado.");
+      return;
+    }
+
+    const isOwner = targetPermuta.militarSubstituidoId === loggedUser.id;
+    const isAdmin = loggedUser.role === 'ADMIN';
+
+    if (!isAdmin && !isOwner) {
+      alert("ERRO: Apenas o Administrador ou o próprio policial solicitante podem excluir ou desistir desta permuta.");
+      return;
+    }
+
+    if (!bypassConfirm) {
+      const deMilitar = militares.find(m => m.id === targetPermuta.militarSubstituidoId);
+      const deMilitarSetor = deMilitar?.setor || deMilitar?.companhia || targetPermuta.postoServico || 'Setor não informado';
+      
+      requestConfirmation(
+        "DESISTIR DE PERMUTA / EXCLUIR",
+        `Deseja realmente excluir permanentemente a solicitação de permuta do(a) ${deMilitarSetor}?`,
+        async () => {
+          await executeDeletePermuta(id);
+        },
+        undefined,
+        "CONFIRMAR EXCLUSÃO",
+        "MANTER PERMUTA"
+      );
+      return;
+    }
+
+    await executeDeletePermuta(id);
   };
 
   const handleCorrectPermuta = async (p: Permuta) => {
@@ -1565,20 +1748,12 @@ export default function App() {
         turno: p.turno as any
       };
     }
-    await handleDeletePermuta(p.id);
+    await handleDeletePermuta(p.id, true);
     setActiveSwapScale(esc);
     setActiveReviewPermuta(null);
   };
 
-  const handleClearAllLogs = async () => {
-    if (!loggedUser || loggedUser.role !== 'ADMIN') {
-      alert("ERRO: Apenas o Administrador pode limpar o livro de auditoria.");
-      return;
-    }
-    
-    const confirm = window.confirm("ATENÇÃO: Deseja realmente excluir TODOS os registros de auditoria da nuvem e localmente? Esta ação é irreversível.");
-    if (!confirm) return;
-
+  const executeClearAllLogs = async () => {
     const logsToDelete = [...logs];
     setLogs([]);
     localStorage.removeItem('permucyber_logs');
@@ -1603,17 +1778,61 @@ export default function App() {
     }
   };
 
-  const handleDeleteLog = async (logId: string) => {
+  const handleClearAllLogs = async (bypassConfirm: boolean = false) => {
     if (!loggedUser || loggedUser.role !== 'ADMIN') {
-      alert("ERRO: Apenas o Administrador pode excluir registros de auditoria.");
+      alert("ERRO: Apenas o Administrador pode limpar o livro de auditoria.");
       return;
     }
+
+    if (!bypassConfirm) {
+      requestConfirmation(
+        "LIMPAR LIVRO DE AUDITORIA",
+        "Você está prestes a apagar permanentemente TODOS os registros de auditoria e segurança armazenados na nuvem e no dispositivo local.",
+        async () => {
+          await executeClearAllLogs();
+        },
+        "AVISO DE SEGURANÇA: Esta ação comprometerá permanentemente o histórico de rastreabilidade de todas as permutas. Use com cautela extrema.",
+        "LIMPAR AUDITORIA",
+        "CANCELAR"
+      );
+      return;
+    }
+
+    await executeClearAllLogs();
+  };
+
+  const executeDeleteLog = async (logId: string) => {
     try {
       await deletarDados(logId);
       setLogs(prev => prev.filter(l => l.id !== logId));
     } catch (e) {
       console.error("Erro ao deletar registro de auditoria:", e);
     }
+  };
+
+  const handleDeleteLog = async (logId: string, bypassConfirm: boolean = false) => {
+    if (!loggedUser || loggedUser.role !== 'ADMIN') {
+      alert("ERRO: Apenas o Administrador pode excluir registros de auditoria.");
+      return;
+    }
+    const log = logs.find(l => l.id === logId);
+    if (!log) return;
+
+    if (!bypassConfirm) {
+      requestConfirmation(
+        "REMOVER REGISTRO DE AUDITORIA",
+        `Deseja realmente remover o registro de auditoria da operação "${log.operacao}" efetuada por ${log.militarNome}?`,
+        async () => {
+          await executeDeleteLog(logId);
+        },
+        "A remoção de registros de auditoria é permanente e não poderá ser desfeita.",
+        "EXCLUIR REGISTRO",
+        "CANCELAR"
+      );
+      return;
+    }
+
+    await executeDeleteLog(logId);
   };
 
   useEffect(() => {
@@ -1781,12 +2000,12 @@ export default function App() {
     const targetPermuta = permutas.find(p => p.id === permutaId);
     if (!targetPermuta) return;
 
-    // Hard check for same day and same shift conflicts
+    // Hard check for same day and same shift conflicts using areShiftsOverlapping helper
     const isSubstitutoAlreadyApproved = permutas.some(p =>
       p.id !== permutaId &&
       p.status === 'APROVADO' &&
       p.dataRealizacao === targetPermuta.dataRealizacao &&
-      p.turno === targetPermuta.turno &&
+      areShiftsOverlapping(p.turno, targetPermuta.turno) &&
       (p.militarSubstituidoId === targetPermuta.militarSubstitutoId || p.militarSubstitutoId === targetPermuta.militarSubstitutoId)
     );
     if (isSubstitutoAlreadyApproved) {
@@ -1798,7 +2017,7 @@ export default function App() {
       p.id !== permutaId &&
       p.status === 'APROVADO' &&
       p.dataRealizacao === targetPermuta.dataRealizacao &&
-      p.turno === targetPermuta.turno &&
+      areShiftsOverlapping(p.turno, targetPermuta.turno) &&
       (p.militarSubstituidoId === targetPermuta.militarSubstituidoId || p.militarSubstitutoId === targetPermuta.militarSubstituidoId)
     );
     if (isSubstituidoAlreadyApproved) {
@@ -1809,10 +2028,10 @@ export default function App() {
     const isSubstitutoEscalado = escalas.some(e =>
       e.militarId === targetPermuta.militarSubstitutoId &&
       e.data === targetPermuta.dataRealizacao &&
-      e.turno === targetPermuta.turno
+      areShiftsOverlapping(e.turno, targetPermuta.turno)
     );
     if (isSubstitutoEscalado) {
-      alert(`ERRO DE CONFLITO: O substituto já está de serviço (escala oficial) nesta mesma data (${formatarDataBR(targetPermuta.dataRealizacao)}) e turno (${targetPermuta.turno}).`);
+      alert(`ERRO DE CONFLITO: O substituto já está de serviço (escala oficial) nesta mesma data (${formatarDataBR(targetPermuta.dataRealizacao)}) no turno/horário (${targetPermuta.turno}).`);
       return;
     }
 
@@ -1886,22 +2105,80 @@ export default function App() {
     );
 
     const originalEscalaId = targetPermuta.escalaSubstituidaId;
-    const escalaOriginal = escalas.find(e => e.id === originalEscalaId);
+    let escalaOriginal = escalas.find(e => 
+      e.data === targetPermuta.dataRealizacao &&
+      e.militarId === targetPermuta.militarSubstituidoId &&
+      (e.turno === targetPermuta.turno || (e.turno === '24H' && (targetPermuta.turno === 'TURNO A' || targetPermuta.turno === 'TURNO B')))
+    );
+
+    if (!escalaOriginal) {
+      escalaOriginal = escalas.find(e => e.id === originalEscalaId);
+    }
 
     if (escalaOriginal && !originalEscalaId.startsWith('S-TEMP-')) {
-      // Update the existing official scale record
-      try {
-        await atualizarDados(originalEscalaId, { 
-          dados_json: { ...escalaOriginal, militarId: targetPermuta.militarSubstitutoId } 
-        });
-      } catch (e) {
-        console.error("Error updating escala:", e);
-      }
+      const escalaToUpdateId = escalaOriginal.id;
+      const isSplit = escalaOriginal.turno === '24H' && targetPermuta.turno !== '24H';
+      
+      if (isSplit) {
+        // Splitting a 24H scale!
+        const remainingTurno = targetPermuta.turno === 'TURNO A' ? 'TURNO B' : 'TURNO A';
+        const remainingInicio = targetPermuta.turno === 'TURNO A' ? '18:00' : '06:00';
+        const remainingFim = targetPermuta.turno === 'TURNO A' ? '06:00' : '18:00';
+        
+        const splitScaleId = `E-SPLIT-${escalaToUpdateId}-${remainingTurno === 'TURNO A' ? 'A' : 'B'}`;
+        const splitScale: Escala = {
+          ...escalaOriginal,
+          id: splitScaleId,
+          turno: remainingTurno,
+          horaInicio: remainingInicio,
+          horaFim: remainingFim,
+          militarId: targetPermuta.militarSubstituidoId // Original officer gets the other half
+        };
 
-      setEscalas(prev => prev.map(e => e.id === originalEscalaId ? {
-        ...e,
-        militarId: targetPermuta.militarSubstitutoId
-      } : e));
+        const updatedOriginal = {
+          ...escalaOriginal,
+          turno: targetPermuta.turno as any,
+          horaInicio: targetPermuta.horaInicio,
+          horaFim: targetPermuta.horaFim,
+          militarId: targetPermuta.militarSubstitutoId // Volunteer gets the swapped half
+        };
+
+        try {
+          await atualizarDados(escalaToUpdateId, { 
+            dados_json: updatedOriginal 
+          });
+          await salvarDados(
+            SYSTEM_USER_ID,
+            `SPLIT ESCALA: ${splitScale.data} - ${splitScale.turno}`,
+            "Parte restante da escala de 24h pos permuta",
+            splitScale,
+            splitScale.id
+          );
+        } catch (e) {
+          console.error("Error splitting escala:", e);
+        }
+
+        setEscalas(prev => {
+          const updated = prev.map(e => e.id === escalaToUpdateId ? updatedOriginal : e);
+          const exists = prev.some(e => e.id === splitScale.id);
+          if (exists) return updated;
+          return [...updated, splitScale];
+        });
+      } else {
+        // Standard non-split scale update
+        try {
+          await atualizarDados(escalaToUpdateId, { 
+            dados_json: { ...escalaOriginal, militarId: targetPermuta.militarSubstitutoId } 
+          });
+        } catch (e) {
+          console.error("Error updating escala:", e);
+        }
+
+        setEscalas(prev => prev.map(e => e.id === escalaToUpdateId ? {
+          ...e,
+          militarId: targetPermuta.militarSubstitutoId
+        } : e));
+      }
     } else {
       // It's a temporary or missing scale. 
       // Only create if we don't already have one for this person/day/shift
@@ -2657,6 +2934,58 @@ export default function App() {
            'Nuvem Offline'}
         </span>
       </div>
+
+      {/* Reusable Security/Delete Confirmation Modal Dialog Overlay */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 bg-black/85 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[#05141b] border-2 border-cyber-red/50 rounded-lg max-w-sm w-full p-5 shadow-[0_0_50px_rgba(255,46,99,0.2)] relative overflow-hidden text-white font-sans animate-scale-up">
+            
+            {/* Header */}
+            <div className="flex items-center space-x-3 mb-4 border-b border-cyber-red/20 pb-3">
+              <ShieldAlert className="w-8 h-8 text-cyber-red animate-pulse shrink-0" />
+              <div>
+                <h3 className="text-cyber-red tracking-widest font-mono text-[11px] uppercase font-extrabold leading-tight">
+                  {confirmModal.title}
+                </h3>
+                <span className="text-[7.5px] font-mono text-slate-500 uppercase tracking-tighter block mt-0.5">SISTEMA DE SEGURANÇA OPERACIONAL</span>
+              </div>
+            </div>
+            
+            {/* Body */}
+            <div className="space-y-3">
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                {confirmModal.description}
+              </p>
+              
+              {confirmModal.warningText && (
+                <div className="bg-cyber-red/5 border border-cyber-red/30 p-2.5 rounded text-[9px] text-cyber-red font-mono leading-normal">
+                  <span className="font-bold uppercase text-[9px] block mb-1">⚠️ CONSEQÜÊNCIA IMPREVISTA:</span>
+                  {confirmModal.warningText}
+                </div>
+              )}
+            </div>
+            
+            {/* Action buttons */}
+            <div className="flex space-x-2.5 mt-5">
+              <button
+                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded font-mono text-[9px] font-bold uppercase transition-all tracking-wider text-center cursor-pointer"
+              >
+                {confirmModal.cancelText || 'Cancelar'}
+              </button>
+              <button
+                onClick={async () => {
+                  setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                  await confirmModal.onConfirm();
+                }}
+                className="flex-1 py-2 bg-cyber-red/25 hover:bg-cyber-red/40 border border-cyber-red text-cyber-red rounded font-mono text-[9px] font-bold uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(255,46,99,0.15)] text-center cursor-pointer"
+              >
+                {confirmModal.confirmText || 'Confirmar Exclusão'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </MilitaryMobileFrame>
   );
 }

@@ -822,7 +822,7 @@ export default function Dashboard({
                 <button
                   onClick={() => {
                     if (!userLogged) return;
-                    const defaultTurno = selectedTurnoFilter === 'TODOS' ? 'TURNO A' : selectedTurnoFilter;
+                    const defaultTurno = userLogged.turno === '24H' ? '24H' : (selectedTurnoFilter === 'TODOS' ? 'TURNO A' : selectedTurnoFilter);
                     const defaultHoraInicio = defaultTurno === 'TURNO B' ? '18:00' : defaultTurno === 'EXPEDIENTE' ? '08:00' : '06:00';
                     const defaultHoraFim = (defaultTurno === 'TURNO B' || defaultTurno === '24H') ? '06:00' : defaultTurno === 'EXPEDIENTE' ? '17:00' : '18:00';
                     const simulatedScale: Escala = {
