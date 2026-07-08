@@ -40,6 +40,7 @@ import { generateSimpleHash, formatarDataBR } from '../data';
 import DocumentoHomologacao from './DocumentoHomologacao';
 import { salvarDados, atualizarDados, deletarDados, listarDados, AppDataRecord, generateUUID } from '../databaseFallback';
 import { supabase, setSupabaseCredentials, clearSupabaseCredentials, getSupabase } from '../supabase';
+import { getBackupLogs } from '../backupService';
 
 interface PainelGestorProps {
   permutas: Permuta[];
@@ -145,6 +146,13 @@ export default function PainelGestor({
   const [simulatedOffline, setSimulatedOffline] = useState<boolean>(() => {
     return (window as any).simulateFirebaseOffline === true;
   });
+  const [bLogs, setBLogs] = useState<any[]>([]);
+  const [showBLogs, setShowBLogs] = useState<boolean>(false);
+
+  useEffect(() => {
+    setBLogs(getBackupLogs());
+  }, [backups, backupStatusMsg]);
+
   const [isSupabaseReady, setIsSupabaseReady] = useState<boolean>(() => !!supabase);
   const [customSupabaseUrl, setCustomSupabaseUrl] = useState<string>(() => localStorage.getItem('VITE_SUPABASE_URL') || '');
   const [customSupabaseKey, setCustomSupabaseKey] = useState<string>(() => localStorage.getItem('VITE_SUPABASE_ANON_KEY') || '');
@@ -2253,6 +2261,44 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+
+            {/* AUDITORIA DE SISTEMA DE BACKUP AUTOMÁTICO */}
+            <div className="pt-2 border-t border-hud-border/20">
+              <button
+                type="button"
+                onClick={() => setShowBLogs(!showBLogs)}
+                className="w-full flex items-center justify-between text-[9.5px] font-mono text-cyber-cyan hover:text-white uppercase font-bold tracking-wider cursor-pointer"
+              >
+                <span>🛡️ AUDITORIA DO BACKUP AUTOMÁTICO ({bLogs.length})</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showBLogs ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showBLogs && (
+                <div className="mt-2 space-y-1 max-h-[140px] overflow-y-auto bg-black/40 p-1.5 rounded border border-hud-border/30">
+                  {bLogs.length === 0 ? (
+                    <div className="text-[8px] font-mono text-slate-500 italic text-center py-1">
+                      Nenhum registro de backup automático no histórico.
+                    </div>
+                  ) : (
+                    bLogs.map((log: any) => (
+                      <div key={log.id} className="text-[8.5px] font-mono flex flex-col border-b border-hud-border/10 pb-1 mb-1 last:border-0 last:pb-0">
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400 font-bold">{log.timestamp}</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[7.5px] px-1 rounded bg-cyber-blue/10 text-cyber-blue border border-cyber-blue/20">{log.tipo}</span>
+                            <span className={`text-[7.5px] px-1 rounded font-bold ${log.status === 'SUCESSO' ? 'bg-[#00ff66]/10 text-[#00ff66]' : 'bg-red-600/10 text-red-500'}`}>
+                              {log.status}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-slate-300 mt-0.5 leading-snug">{log.detalhes}</p>
+                        {log.erro && <p className="text-red-400 mt-0.5 text-[8px] italic leading-tight">{log.erro}</p>}
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
