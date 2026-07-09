@@ -604,7 +604,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
     
     const startY = tempY + 5;
 
-    const approvedPermutas = filteredPermutas.filter(p => p.status === 'APROVADO');
+    const approvedPermutas = filteredPermutas.filter(p => p.status === 'APROVADO' || p.status === 'SEM_EFEITO');
 
     const tableData = approvedPermutas.map(p => {
       const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
@@ -688,7 +688,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
     let fillColor: [number, number, number] = [254, 243, 199]; // Amber-100
     
     if (p.status === 'SEM_EFEITO' || p.status === 'REJEITADO' || p.status === 'REJEITADO_SUBSTITUTO') {
-      statusText = 'CANCELADA';
+      statusText = 'TORNADO SEM EFEITO';
       textColor = [220, 38, 38]; // Red-600
       fillColor = [254, 226, 226]; // Red-100
     } else if (p.status === 'APROVADO') {
@@ -697,9 +697,9 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
         textColor = [22, 101, 52]; // Green-800
         fillColor = [220, 252, 231]; // Green-100
       } else {
-        statusText = 'HOMOLOGADA';
-        textColor = [29, 78, 216]; // Blue-700
-        fillColor = [219, 234, 254]; // Blue-100
+        statusText = 'PENDENTE';
+        textColor = [217, 119, 6]; // Amber-600
+        fillColor = [254, 243, 199]; // Amber-100
       }
     }
     
@@ -774,12 +774,12 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
     }
 
     // Statistics Card Block
-    const approvedPermutasForStats = filteredPermutas.filter(p => p.status === 'APROVADO');
-    const totalExchanges = approvedPermutasForStats.length;
-    const cumpridas = approvedPermutasForStats.filter(p => todayStr > p.dataRealizacao).length;
-    const pendentes = approvedPermutasForStats.filter(p => todayStr <= p.dataRealizacao).length;
-    const canceladas = 0;
-    const taxaConclusao = totalExchanges > 0 ? Math.round((cumpridas / totalExchanges) * 100) : 0;
+    const reportPermutas = filteredPermutas.filter(p => p.status === 'APROVADO' || p.status === 'SEM_EFEITO');
+    const totalExchanges = reportPermutas.length;
+    const cumpridas = reportPermutas.filter(p => p.status === 'APROVADO' && todayStr > p.dataRealizacao).length;
+    const pendentes = reportPermutas.filter(p => p.status === 'APROVADO' && todayStr <= p.dataRealizacao).length;
+    const canceladas = reportPermutas.filter(p => p.status === 'SEM_EFEITO').length;
+    const taxaConclusao = (cumpridas + pendentes) > 0 ? Math.round((cumpridas / (cumpridas + pendentes)) * 100) : 0;
 
     const cardY = 132;
     const cardHeight = 45;
@@ -814,7 +814,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
     drawCard(40 + (cardWidth + gap) * 3, cardY, cardWidth, cardHeight, "CANCELADAS", String(canceladas), [220, 38, 38]);
     drawCard(40 + (cardWidth + gap) * 4, cardY, cardWidth, cardHeight, "CONCLUÍDAS (%)", `${taxaConclusao}%`, [13, 148, 136]);
 
-    const approvedPermutas = filteredPermutas.filter(p => p.status === 'APROVADO');
+    const approvedPermutas = filteredPermutas.filter(p => p.status === 'APROVADO' || p.status === 'SEM_EFEITO');
 
     const tableData = approvedPermutas.map(p => {
       const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
@@ -2276,12 +2276,12 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                       {(() => {
                         const today = new Date();
                         const tStr = today.toLocaleDateString('en-CA');
-                        const approvedPermutasForStats = filteredPermutas.filter(p => p.status === 'APROVADO');
-                        const totalExchanges = approvedPermutasForStats.length;
-                        const cumpridas = approvedPermutasForStats.filter(p => tStr > p.dataRealizacao).length;
-                        const pendentes = approvedPermutasForStats.filter(p => tStr <= p.dataRealizacao).length;
-                        const canceladas = 0;
-                        const taxaConclusao = totalExchanges > 0 ? Math.round((cumpridas / totalExchanges) * 100) : 0;
+                        const reportPermutas = filteredPermutas.filter(p => p.status === 'APROVADO' || p.status === 'SEM_EFEITO');
+                        const totalExchanges = reportPermutas.length;
+                        const cumpridas = reportPermutas.filter(p => p.status === 'APROVADO' && tStr > p.dataRealizacao).length;
+                        const pendentes = reportPermutas.filter(p => p.status === 'APROVADO' && tStr <= p.dataRealizacao).length;
+                        const canceladas = reportPermutas.filter(p => p.status === 'SEM_EFEITO').length;
+                        const taxaConclusao = (cumpridas + pendentes) > 0 ? Math.round((cumpridas / (cumpridas + pendentes)) * 100) : 0;
                         
                         return (
                           <>
@@ -2330,7 +2330,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                             const tStr = today.toLocaleDateString('en-CA');
                             
                             return filteredPermutas
-                              .filter(p => p.status === 'APROVADO')
+                              .filter(p => p.status === 'APROVADO' || p.status === 'SEM_EFEITO')
                               .sort((a, b) => new Date(a.dataRealizacao).getTime() - new Date(b.dataRealizacao).getTime())
                               .map(p => {
                                 const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
@@ -2356,15 +2356,15 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                                 let badgeStyles = 'bg-amber-50 text-amber-700 border-amber-200/60';
                                 
                                 if (p.status === 'SEM_EFEITO' || p.status === 'REJEITADO' || p.status === 'REJEITADO_SUBSTITUTO') {
-                                  statusText = 'CANCELADA';
+                                  statusText = 'TORNADO SEM EFEITO';
                                   badgeStyles = 'bg-red-50 text-red-700 border-red-200/60';
                                 } else if (p.status === 'APROVADO') {
                                   if (tStr > p.dataRealizacao) {
                                     statusText = 'CUMPRIDA';
                                     badgeStyles = 'bg-green-50 text-green-700 border-green-200/60';
                                   } else {
-                                    statusText = 'HOMOLOGADA';
-                                    badgeStyles = 'bg-blue-50 text-blue-700 border-blue-200/60';
+                                    statusText = 'PENDENTE';
+                                    badgeStyles = 'bg-amber-50 text-amber-700 border-amber-200/60';
                                   }
                                 }
 
