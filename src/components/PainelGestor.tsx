@@ -604,7 +604,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
       
       const startY = tempY + 5;
 
-      const approvedPermutas = filteredPermutas.filter(p => p.status === 'APROVADO' || p.status === 'SEM_EFEITO');
+      const approvedPermutas = filteredPermutas.filter(p => p.status === 'APROVADO');
 
       const tableData = approvedPermutas.map(p => {
         const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
@@ -1517,7 +1517,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                             <div className="space-y-2">
                               <div className="flex justify-between items-center mb-1">
                                 <span className="text-[8px] font-mono text-cyber-cyan font-bold block uppercase tracking-wide">CERTIDÃO ARQUIVADA DE HOMOLOGAÇÃO:</span>
-                                {onTornarSemEfeitoPermuta && h.status === 'APROVADO' && (
+                                {onTornarSemEfeitoPermuta && userLogged?.role === 'ADMIN' && h.status === 'APROVADO' && (
                                   <div className="flex items-center space-x-2">
                                     {confirmSemEfeitoId === h.id ? (
                                       <>
@@ -2626,7 +2626,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                       <div className="bg-cyber-red/15 border border-cyber-red/40 p-2.5 rounded flex flex-col space-y-2.5 animate-fade-in font-mono text-[10px]">
                         <div className="text-slate-300 leading-relaxed font-sans">
                           <strong className="text-cyber-red block text-[10px] tracking-wider mb-1">⚠️ CONFIRMAR EXCLUSÃO DEFINITIVA</strong>
-                          Deseja excluir permanentemente o registro de <strong className="text-white">{u.patente} {u.nomeGuerra}</strong> do efetivo ativo?
+                          Tem certeza que deseja excluir este cadastro? Esta ação poderá ser desfeita apenas se houver backup.
                         </div>
                         <div className="flex space-x-2">
                           <button

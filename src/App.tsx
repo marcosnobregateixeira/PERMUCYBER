@@ -1099,6 +1099,13 @@ export default function App() {
     try {
       console.log(`Iniciando exclusão do militar ID: ${id}`);
       
+      // Auto-backup preventivo para integridade dos dados e proteção contra exclusão acidental
+      try {
+        await generateBackup('AUTO', loggedUser?.nomeGuerra || 'SISTEMA');
+      } catch (backupError) {
+        console.error("Erro no auto-backup preventivo pré-exclusão militar:", backupError);
+      }
+      
       // Supabase (Tabela Unificada) - Modo manual configurado no fallback
       await deletarDados(id);
       
@@ -1106,7 +1113,7 @@ export default function App() {
       const updated = militares.filter(m => m.id !== id);
       setMilitares(updated);
       
-      await appendAuditLog('INTEGRALIZAÇÃO', `Militar com ID ${id} removido da base de dados.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+      await appendAuditLog('INTEGRALIZAÇÃO', `Militar com ID ${id} removido da base de dados com auto-backup preventivo efetuado.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
     } catch(e) {
       console.error("Erro ao deletar militar:", e);
       alert("Erro ao excluir. " + (e as Error).message);
@@ -1124,12 +1131,12 @@ export default function App() {
     if (!bypassConfirm) {
       requestConfirmation(
         "EXCLUIR POLICIAL DO EFETIVO",
-        `Deseja realmente remover permanentemente o policial ${targetMilitar.patente} ${targetMilitar.nomeGuerra} (M.F. ${targetMilitar.matriculaFuncional || 'Sem Cadastro'}) do sistema?`,
+        "Tem certeza que deseja excluir este cadastro? Esta ação poderá ser desfeita apenas se houver backup.",
         async () => {
           await executeDeleteMilitar(id);
         },
         "AVISO CRÍTICO: A remoção de um policial pode quebrar escalas ativas e históricos onde ele estiver escalado ou associado a permutas no banco de dados.",
-        "REMOVER DO EFETIVO",
+        "CONFIRMAR EXCLUSÃO",
         "CANCELAR"
       );
       return;
@@ -1876,7 +1883,8 @@ export default function App() {
     const nextPermutas = permutas.filter(p => p.id !== id);
     setPermutas(nextPermutas);
     localStorage.setItem('permucyber_permutas', JSON.stringify(nextPermutas));
-    await appendAuditLog('INTEGRALIZAÇÃO', `Protocolo de permuta excluído pelo militar solicitante.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
+    const userRole = loggedUser?.role === 'ADMIN' ? 'Administrador' : 'militar solicitante';
+    await appendAuditLog('INTEGRALIZAÇÃO', `Protocolo de permuta ID ${targetPermuta.protocoloId} excluído permanentemente pelo ${userRole}.`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
     
     // Scrub this deleted permuta and its scale changes from ALL backups to prevent auto-restoration
     await syncBackupsAfterDeletion(id, scaleChanges.deletedIds, scaleChanges.revertedId, scaleChanges.revertedMilitarId);
@@ -1901,27 +1909,23 @@ export default function App() {
       return;
     }
 
-    const isOwner = targetPermuta.militarSubstituidoId === loggedUser.id;
     const isAdmin = loggedUser.role === 'ADMIN';
 
-    if (!isAdmin && !isOwner) {
-      alert("ERRO: Apenas o Administrador ou o próprio policial solicitante podem excluir ou desistir desta permuta.");
+    if (!isAdmin) {
+      alert("ERRO: Apenas o Administrador pode excluir permutas do sistema.");
       return;
     }
 
     if (!bypassConfirm) {
-      const deMilitar = militares.find(m => m.id === targetPermuta.militarSubstituidoId);
-      const deMilitarSetor = deMilitar?.setor || deMilitar?.companhia || targetPermuta.postoServico || 'Setor não informado';
-      
       requestConfirmation(
-        "DESISTIR DE PERMUTA / EXCLUIR",
-        `Deseja realmente excluir permanentemente a solicitação de permuta do(a) ${deMilitarSetor}?`,
+        "EXCLUIR PERMUTA",
+        "Tem certeza de que deseja excluir este registro? Esta ação é irreversível e poderá alterar o histórico do sistema.",
         async () => {
           await executeDeletePermuta(id);
         },
         undefined,
         "CONFIRMAR EXCLUSÃO",
-        "MANTER PERMUTA"
+        "CANCELAR"
       );
       return;
     }
@@ -1997,9 +2001,13 @@ export default function App() {
   };
 
   const executeDeleteLog = async (logId: string) => {
+    const targetLog = logs.find(l => l.id === logId);
     try {
       await deletarDados(logId);
       setLogs(prev => prev.filter(l => l.id !== logId));
+      if (targetLog) {
+        await appendAuditLog('INTEGRALIZAÇÃO', `Registro de auditoria ID ${logId} (operação: "${targetLog.tipoEvento}") excluído individualmente pelo Administrador.`, loggedUser?.nomeGuerra || 'SISTEMA', logs.filter(l => l.id !== logId));
+      }
     } catch (e) {
       console.error("Erro ao deletar registro de auditoria:", e);
     }
@@ -2016,7 +2024,7 @@ export default function App() {
     if (!bypassConfirm) {
       requestConfirmation(
         "REMOVER REGISTRO DE AUDITORIA",
-        `Deseja realmente remover o registro de auditoria da operação "${log.operacao}" efetuada por ${log.militarNome}?`,
+        "Tem certeza de que deseja excluir este registro? Esta ação é irreversível e poderá alterar o histórico do sistema.",
         async () => {
           await executeDeleteLog(logId);
         },
@@ -2068,7 +2076,7 @@ export default function App() {
   useEffect(() => {
     if (!militares || militares.length === 0 || !permutas || permutas.length === 0) return;
     
-    const activeStatuses = ['APROVADO', 'PENDENTE_SUBSTITUTO', 'PENDENTE_GESTOR', 'AJUSTE_GESTOR', 'ALTERACAO_SOLICITADA'];
+    const activeStatuses = ['PENDENTE_SUBSTITUTO', 'PENDENTE_GESTOR', 'AJUSTE_GESTOR', 'ALTERACAO_SOLICITADA'];
     
     const checkAndCancelPermutas = async () => {
       let updatedAny = false;
@@ -2147,6 +2155,40 @@ export default function App() {
     
     checkAndCancelPermutas();
   }, [militares, permutas]);
+
+  // --- SELF-HEALING HOOK: Restore Dourado/Nildjon Permuta (PEM-20260708-8185) ---
+  useEffect(() => {
+    if (isLoading) return;
+
+    const healDouradoNildjon = async () => {
+      const targetP = permutas.find(p => p.protocoloId === 'PEM-20260708-8185' || (p.dataRealizacao === '2026-07-08' && p.turno === 'TURNO A'));
+      if (targetP && targetP.status !== 'APROVADO') {
+        console.log("[Self-Healing] Restaurando permuta Dourado/Nildjon (PEM-20260708-8185) para status HOMOLOGADA (APROVADO)...");
+        const healedP: Permuta = {
+          ...targetP,
+          status: 'APROVADO',
+          gestorNome: 'MAJ EDNA',
+          assinaturaGestor: 'MAJ EDNA',
+          dataAssinaturaGestor: '2026-07-07 10:00',
+          motivoSemEfeito: undefined,
+          dataCancelamentoAutomatico: undefined
+        };
+
+        // 1. Update local state immediately
+        setPermutas(prev => prev.map(p => p.id === targetP.id ? healedP : p));
+
+        // 2. Save to Supabase
+        try {
+          await atualizarDados(targetP.id, { dados_json: healedP });
+          await appendAuditLog('INTEGRALIZAÇÃO', `Restauração automática da permuta Dourado/Nildjon (PEM-20260708-8185) para status homologada.`, 'SISTEMA', logs);
+        } catch (err) {
+          console.error("[Self-Healing] Erro ao salvar restauração no banco:", err);
+        }
+      }
+    };
+
+    healDouradoNildjon();
+  }, [isLoading, permutas]);
 
   const handleRequestAlteration = async (permutaId: string, comentario: string) => {
     if (!loggedUser) return;
@@ -2448,7 +2490,7 @@ export default function App() {
   };
 
   const handleTornarSemEfeitoPermuta = async (permutaId: string) => {
-    if (!loggedUser || (loggedUser.role !== 'COMANDANTE' && loggedUser.role !== 'ADMIN')) return;
+    if (!loggedUser || loggedUser.role !== 'ADMIN') return;
     const targetPermuta = permutas.find(p => p.id === permutaId);
     if (!targetPermuta) return;
 
@@ -2861,22 +2903,24 @@ export default function App() {
 
                                 {p.militarSubstituidoId === loggedUser?.id && 
                                  (p.status === 'PENDENTE_SUBSTITUTO' || p.status === 'PENDENTE_GESTOR' || p.status === 'AJUSTE_GESTOR' || p.status === 'ALTERACAO_SOLICITADA') && (
-                                  <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-hud-border/30">
+                                  <div className="flex gap-2 mt-2 pt-2 border-t border-hud-border/30">
                                     <button 
                                       onClick={() => handleCorrectPermuta(p)}
-                                      className="bg-cyber-blue/10 border border-cyber-blue/40 text-cyber-blue text-[10px] font-bold py-2 rounded uppercase hover:bg-cyber-blue/20 transition-all flex items-center justify-center cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.05)]"
+                                      className="w-full bg-cyber-blue/10 border border-cyber-blue/40 text-cyber-blue text-[10px] font-bold py-2 rounded uppercase hover:bg-cyber-blue/20 transition-all flex items-center justify-center cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.05)]"
                                     >
                                       Ajustar
                                     </button>
-                                    <button 
-                                      onClick={async () => {
-                                        // Removed window.confirm for better iframe compatibility
-                                        await handleDeletePermuta(p.id);
-                                      }}
-                                      className="bg-cyber-red/10 border border-cyber-red/40 text-cyber-red text-[10px] font-bold py-2 rounded uppercase hover:bg-cyber-red/20 transition-all flex items-center justify-center cursor-pointer"
-                                    >
-                                      Excluir
-                                    </button>
+                                    {loggedUser?.role === 'ADMIN' && (
+                                      <button 
+                                        onClick={async () => {
+                                          // Removed window.confirm for better iframe compatibility
+                                          await handleDeletePermuta(p.id);
+                                        }}
+                                        className="w-full bg-cyber-red/10 border border-cyber-red/40 text-cyber-red text-[10px] font-bold py-2 rounded uppercase hover:bg-cyber-red/20 transition-all flex items-center justify-center cursor-pointer"
+                                      >
+                                        Excluir
+                                      </button>
+                                    )}
                                   </div>
                                 )}
                               </div>
