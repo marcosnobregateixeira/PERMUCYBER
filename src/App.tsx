@@ -2878,7 +2878,7 @@ export default function App() {
           <div className="h-10 px-4 border-b border-hud-border bg-[#020507] flex items-center justify-between select-none shrink-0 relative z-40">
             <div className="flex items-center space-x-2">
               <span className="w-1.5 h-1.5 rounded-full bg-cyber-green animate-pulse" />
-              <span className="text-[9px] font-mono tracking-widest text-[#00e5ff] font-extrabold uppercase">REDE TÁTICA ATIVA</span>
+              <span className="text-[10px] font-mono tracking-wider text-[#00e5ff] font-extrabold">Notificações</span>
             </div>
             
             {/* Notification Bell with Badge */}
