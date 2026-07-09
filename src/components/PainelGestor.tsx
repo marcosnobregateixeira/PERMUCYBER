@@ -495,6 +495,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
   };
 
   const [reportTipo, setReportTipo] = useState<'GERAL' | 'INDIVIDUAL' | 'FUNCAO' | 'SETOR'>('GERAL');
+  const [reportModel, setReportModel] = useState<'CLASSICO' | 'MODERNO'>('CLASSICO');
   const [reportMilitarId, setReportMilitarId] = useState<string>('');
   const [reportFuncao, setReportFuncao] = useState<string>('');
   const [reportSetor, setReportSetor] = useState<string>('');
@@ -536,150 +537,411 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
     m.id.toLowerCase().includes(credencialSearchTerm.toLowerCase())
   );
 
-  const handleGerarPDF = async () => {
+  const gerarPDFClassico = async () => {
+    const doc = new jsPDF('p', 'pt', 'a4');
+    
+    // ==========================================
+    // [PROTECTED FORMATTING] RELATÓRIO PDF
+    // Este cabeçalho e layout foram refinados exaustivamente para evitar sobreposição 
+    // e garantir alinhamento perfeito. Manter as coordenadas exatas.
+    // ==========================================
+    
+    // Title Header Section
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    const titleLine1 = `DIRETORIA DE SAÚDE`;
+    const titleLine2 = `RELATÓRIO DE PERMUTAS`;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Draw a subtle double line for style
+    doc.setDrawColor(200, 200, 200);
+    doc.line(40, 85, pageWidth - 40, 85);
+    doc.line(40, 88, pageWidth - 40, 88);
+
+    doc.text(titleLine1, pageWidth/2, 50, { align: 'center' });
+    doc.text(titleLine2, pageWidth/2, 68, { align: 'center' });
+
+    // Logos (Sized and positioned to avoid overlap) with robust fallback defaults when database has quota issues
+    const logoSize = 55;
+    const leftLogo = config.brasaoEsquerdoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Coat_of_arms_of_Brazil.svg/200px-Coat_of_arms_of_Brazil.svg.png';
+    const rightLogo = config.brasaoDireitoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Star_of_life2.svg/200px-Star_of_life2.svg.png';
+
     try {
-      const doc = new jsPDF('p', 'pt', 'a4');
+      doc.addImage(leftLogo, 'PNG', 45, 20, logoSize, logoSize); 
+    } catch (e) {
+      console.warn("Left logo link fail or CORS issue", e);
+    }
+
+    try {
+      doc.addImage(rightLogo, 'PNG', pageWidth - 45 - logoSize, 20, logoSize, logoSize); 
+    } catch (e) {
+      console.warn("Right logo link fail or CORS issue", e);
+    }
+    
+    // Subinfo
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.text(`Período: ${dataInicio ? formatarDataBR(dataInicio) : 'INÍCIO'} a ${dataFim ? formatarDataBR(dataFim) : 'ATUAL'}`, 40, 110);
+    
+    if (reportTipo === 'INDIVIDUAL' && reportMilitarId) {
+      const m = allMilitares.find(m => m.id === reportMilitarId);
+      let policialNome = '...';
+      if (m) {
+        const postGrad = m.patente;
+        const numeral = m.numero ? ` ${m.numero}` : '';
+        const nome = m.nome.toUpperCase();
+        const mf = m.matriculaFuncional ? `, M.F. nº ${m.matriculaFuncional}` : ', M.F. nº';
+        policialNome = `${postGrad}${numeral} ${nome}${mf}`;
+      }
+      doc.text(`Policial: ${policialNome}`, 40, 125);
+    } else if (reportTipo === 'FUNCAO' && reportFuncao) {
+      doc.text(`Função: ${reportFuncao}`, 40, 125);
+    } else if (reportTipo === 'SETOR' && reportSetor) {
+      doc.text(`Setor: ${reportSetor}`, 40, 125);
+    }
+    
+    const tempY = ((reportTipo === 'INDIVIDUAL' && reportMilitarId) || (reportTipo === 'FUNCAO' && reportFuncao) || (reportTipo === 'SETOR' && reportSetor)) ? 145 : 130;
+    
+    const startY = tempY + 5;
+
+    const approvedPermutas = filteredPermutas.filter(p => p.status === 'APROVADO');
+
+    const tableData = approvedPermutas.map(p => {
+      const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
+      const substituido = allMilitares.find(m => m.id === p.militarSubstituidoId);
       
-      // ==========================================
-      // [PROTECTED FORMATTING] RELATÓRIO PDF
-      // Este cabeçalho e layout foram refinados exaustivamente para evitar sobreposição 
-      // e garantir alinhamento perfeito. Manter as coordenadas exatas.
-      // ==========================================
+      // Robust extraction of YYYY-MM-DD from 'YYYY-MM-DD HH:MM' or 'YYYY-MM-DDTHH:MM'
+      const rawDate = p.dataAssinaturaGestor ? p.dataAssinaturaGestor.replace('T', ' ').split(' ')[0] : '';
+      const dataHomologacao = rawDate ? formatarDataBR(rawDate) : '00-00-0000';
       
-      // Title Header Section
+      const nameParts = (p.gestorNome || "").split(' ');
+      const actualName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : (p.gestorNome || "");
+      const gestorObj = p.gestorNome ? allMilitares.find(m => 
+        m.nomeGuerra.toUpperCase() === p.gestorNome!.toUpperCase() ||
+        m.nome.toUpperCase().includes(p.gestorNome!.toUpperCase())
+      ) : null;
+      const gestorClean = gestorObj ? `${gestorObj.patente} ${actualName}` : (p.gestorNome || "");
+      const homolStr = p.gestorNome ? `${dataHomologacao} - ${gestorClean}` : `${dataHomologacao} - Pendente`;
+
+      const subObj = formatMilitarRelatorio(substituto);
+      const subdoObj = formatMilitarRelatorio(substituido);
+      const statusServico = getStatusServico(p);
+
+      return [
+        p.turno.replace('TURNO ', ''),
+        formatarDataBR(p.dataRealizacao),
+        subObj,
+        subdoObj,
+        homolStr,
+        statusServico
+      ];
+    });
+
+    autoTable(doc, {
+      startY: startY,
+      head: [['TURNO', 'DATA', 'MILITAR SUBSTITUTO', 'MILITAR SUBSTITUÍDO', 'DADOS DA HOMOLOGAÇÃO', 'STATUS DO SERVIÇO']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [0, 128, 0], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, halign: 'center' },
+      styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak', halign: 'center', valign: 'middle' },
+      columnStyles: {
+        0: { cellWidth: 45 },
+        1: { cellWidth: 55 },
+        2: { cellWidth: 'auto' },
+        3: { cellWidth: 'auto' },
+        4: { cellWidth: 120, fontSize: 6.5 },
+        5: { cellWidth: 'auto', fontSize: 6.5 }
+      },
+      alternateRowStyles: { fillColor: [250, 250, 250] }
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY || startY;
+    const comandante = (userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("TURNOS:", 40, finalY + 15);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text("A: 06H às 18H | B: 18H às 06H | 24H: 06H às 06H | EXPEDIENTE", 40, finalY + 27);
+    
+    const sigY = finalY + 80;
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(1);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    const sigText = `${comandante.nome.toUpperCase()} - ${comandante.patente} ${comandante.quadro || 'QPPM'}`;
+    const textWidth = doc.getTextWidth(sigText);
+    doc.line(pageWidth / 2 - textWidth / 2, sigY, pageWidth / 2 + textWidth / 2, sigY);
+    
+    doc.text(sigText, pageWidth / 2, sigY + 15, { align: 'center' });
+    doc.setFont("helvetica", "normal");
+    doc.text(comandante.funcao, pageWidth / 2, sigY + 30, { align: 'center' });
+    doc.text(`M.F. ${comandante.matriculaFuncional || '___.___._-_'}`, pageWidth / 2, sigY + 45, { align: 'center' });
+
+    doc.save(`relatorio-permutas-${reportTipo.toLowerCase()}.pdf`);
+  };
+
+  const getModernStatusCell = (p: Permuta, todayStr: string) => {
+    let statusText = 'PENDENTE';
+    let textColor: [number, number, number] = [217, 119, 6]; // Amber-600
+    let fillColor: [number, number, number] = [254, 243, 199]; // Amber-100
+    
+    if (p.status === 'SEM_EFEITO' || p.status === 'REJEITADO' || p.status === 'REJEITADO_SUBSTITUTO') {
+      statusText = 'CANCELADA';
+      textColor = [220, 38, 38]; // Red-600
+      fillColor = [254, 226, 226]; // Red-100
+    } else if (p.status === 'APROVADO') {
+      if (todayStr > p.dataRealizacao) {
+        statusText = 'CUMPRIDA';
+        textColor = [22, 101, 52]; // Green-800
+        fillColor = [220, 252, 231]; // Green-100
+      } else {
+        statusText = 'HOMOLOGADA';
+        textColor = [29, 78, 216]; // Blue-700
+        fillColor = [219, 234, 254]; // Blue-100
+      }
+    }
+    
+    return {
+      content: statusText,
+      styles: {
+        textColor,
+        fillColor,
+        fontStyle: 'bold' as const,
+        halign: 'center' as const
+      }
+    };
+  };
+
+  const gerarPDFModerno = async () => {
+    const doc = new jsPDF('p', 'pt', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    
+    // Title Header Section
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    const titleLine1 = `DIRETORIA DE SAÚDE`;
+    const titleLine2 = `RELATÓRIO DE PERMUTAS`;
+    
+    // Draw double lines strictly respecting the header spacing constraint in Rule 1
+    doc.setDrawColor(200, 200, 200);
+    doc.line(40, 85, pageWidth - 40, 85);
+    doc.line(40, 88, pageWidth - 40, 88);
+
+    doc.text(titleLine1, pageWidth/2, 50, { align: 'center' });
+    doc.text(titleLine2, pageWidth/2, 68, { align: 'center' });
+
+    // Logos (Sized and positioned to avoid overlap)
+    const logoSize = 55;
+    const leftLogo = config.brasaoEsquerdoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Coat_of_arms_of_Brazil.svg/200px-Coat_of_arms_of_Brazil.svg.png';
+    const rightLogo = config.brasaoDireitoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Star_of_life2.svg/200px-Star_of_life2.svg.png';
+
+    try {
+      doc.addImage(leftLogo, 'PNG', 45, 20, logoSize, logoSize); 
+    } catch (e) {
+      console.warn("Left logo link fail or CORS issue", e);
+    }
+
+    try {
+      doc.addImage(rightLogo, 'PNG', pageWidth - 45 - logoSize, 20, logoSize, logoSize); 
+    } catch (e) {
+      console.warn("Right logo link fail or CORS issue", e);
+    }
+    
+    // Subinfo
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Período: ${dataInicio ? formatarDataBR(dataInicio) : 'INÍCIO'} a ${dataFim ? formatarDataBR(dataFim) : 'ATUAL'}`, 40, 105);
+    
+    if (reportTipo === 'INDIVIDUAL' && reportMilitarId) {
+      const m = allMilitares.find(m => m.id === reportMilitarId);
+      let policialNome = '...';
+      if (m) {
+        const postGrad = m.patente;
+        const numeral = m.numero ? ` ${m.numero}` : '';
+        const nome = m.nome.toUpperCase();
+        const mf = m.matriculaFuncional ? `, M.F. nº ${m.matriculaFuncional}` : ', M.F. nº';
+        policialNome = `${postGrad}${numeral} ${nome}${mf}`;
+      }
+      doc.text(`Policial: ${policialNome}`, 40, 118);
+    } else if (reportTipo === 'FUNCAO' && reportFuncao) {
+      doc.text(`Função: ${reportFuncao}`, 40, 118);
+    } else if (reportTipo === 'SETOR' && reportSetor) {
+      doc.text(`Setor: ${reportSetor}`, 40, 118);
+    }
+
+    // Statistics Card Block
+    const approvedPermutasForStats = filteredPermutas.filter(p => p.status === 'APROVADO');
+    const totalExchanges = approvedPermutasForStats.length;
+    const cumpridas = approvedPermutasForStats.filter(p => todayStr > p.dataRealizacao).length;
+    const pendentes = approvedPermutasForStats.filter(p => todayStr <= p.dataRealizacao).length;
+    const canceladas = 0;
+    const taxaConclusao = totalExchanges > 0 ? Math.round((cumpridas / totalExchanges) * 100) : 0;
+
+    const cardY = 132;
+    const cardHeight = 45;
+    const cardWidth = 95;
+    const gap = 10;
+    
+    const drawCard = (x: number, y: number, w: number, h: number, title: string, value: string, borderColor: [number, number, number]) => {
+      doc.setFillColor(248, 250, 252); 
+      doc.roundedRect(x, y, w, h, 4, 4, 'F');
+      
+      doc.setFillColor(borderColor[0], borderColor[1], borderColor[2]);
+      doc.rect(x, y, w, 3, 'F');
+      
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(x, y, w, h, 4, 4, 'D');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(title, x + w / 2, y + 18, { align: 'center' });
+      
       doc.setFont("helvetica", "bold");
       doc.setFontSize(14);
-      const titleLine1 = `DIRETORIA DE SAÚDE`;
-      const titleLine2 = `RELATÓRIO DE PERMUTAS`;
-      const pageWidth = doc.internal.pageSize.getWidth();
+      doc.setTextColor(15, 23, 42);
+      doc.text(value, x + w / 2, y + 36, { align: 'center' });
+    };
+
+    drawCard(40, cardY, cardWidth, cardHeight, "TOTAL PERMUTAS", String(totalExchanges), [30, 41, 59]);
+    drawCard(40 + (cardWidth + gap) * 1, cardY, cardWidth, cardHeight, "CUMPRIDAS", String(cumpridas), [22, 101, 52]);
+    drawCard(40 + (cardWidth + gap) * 2, cardY, cardWidth, cardHeight, "PENDENTES", String(pendentes), [217, 119, 6]);
+    drawCard(40 + (cardWidth + gap) * 3, cardY, cardWidth, cardHeight, "CANCELADAS", String(canceladas), [220, 38, 38]);
+    drawCard(40 + (cardWidth + gap) * 4, cardY, cardWidth, cardHeight, "CONCLUÍDAS (%)", `${taxaConclusao}%`, [13, 148, 136]);
+
+    const approvedPermutas = filteredPermutas.filter(p => p.status === 'APROVADO');
+
+    const tableData = approvedPermutas.map(p => {
+      const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
+      const substituido = allMilitares.find(m => m.id === p.militarSubstituidoId);
       
-      // Draw a subtle double line for style
-      doc.setDrawColor(200, 200, 200);
-      doc.line(40, 85, pageWidth - 40, 85);
-      doc.line(40, 88, pageWidth - 40, 88);
-
-      doc.text(titleLine1, pageWidth/2, 50, { align: 'center' });
-      doc.text(titleLine2, pageWidth/2, 68, { align: 'center' });
-
-      // Logos (Sized and positioned to avoid overlap) with robust fallback defaults when database has quota issues
-      const logoSize = 55;
-      const leftLogo = config.brasaoEsquerdoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Coat_of_arms_of_Brazil.svg/200px-Coat_of_arms_of_Brazil.svg.png';
-      const rightLogo = config.brasaoDireitoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Star_of_life2.svg/200px-Star_of_life2.svg.png';
-
-      try {
-        doc.addImage(leftLogo, 'PNG', 45, 20, logoSize, logoSize); 
-      } catch (e) {
-        console.warn("Left logo link fail or CORS issue", e);
-      }
-
-      try {
-        doc.addImage(rightLogo, 'PNG', pageWidth - 45 - logoSize, 20, logoSize, logoSize); 
-      } catch (e) {
-        console.warn("Right logo link fail or CORS issue", e);
-      }
+      const rawDate = p.dataAssinaturaGestor ? p.dataAssinaturaGestor.replace('T', ' ').split(' ')[0] : '';
+      const dataHomologacao = rawDate ? formatarDataBR(rawDate) : '00-00-0000';
       
-      // Subinfo
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-      doc.text(`Período: ${dataInicio ? formatarDataBR(dataInicio) : 'INÍCIO'} a ${dataFim ? formatarDataBR(dataFim) : 'ATUAL'}`, 40, 110);
-      
-      if (reportTipo === 'INDIVIDUAL' && reportMilitarId) {
-        const m = allMilitares.find(m => m.id === reportMilitarId);
-        let policialNome = '...';
-        if (m) {
-          const postGrad = m.patente;
-          const numeral = m.numero ? ` ${m.numero}` : '';
-          const nome = m.nome.toUpperCase();
-          const mf = m.matriculaFuncional ? `, M.F. nº ${m.matriculaFuncional}` : ', M.F. nº';
-          policialNome = `${postGrad}${numeral} ${nome}${mf}`;
-        }
-        doc.text(`Policial: ${policialNome}`, 40, 125);
-      } else if (reportTipo === 'FUNCAO' && reportFuncao) {
-        doc.text(`Função: ${reportFuncao}`, 40, 125);
-      } else if (reportTipo === 'SETOR' && reportSetor) {
-        doc.text(`Setor: ${reportSetor}`, 40, 125);
-      }
-      
-      const tempY = ((reportTipo === 'INDIVIDUAL' && reportMilitarId) || (reportTipo === 'FUNCAO' && reportFuncao) || (reportTipo === 'SETOR' && reportSetor)) ? 145 : 130;
-      
-      const startY = tempY + 5;
+      const nameParts = (p.gestorNome || "").split(' ');
+      const actualName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : (p.gestorNome || "");
+      const gestorObj = p.gestorNome ? allMilitares.find(m => 
+        m.nomeGuerra.toUpperCase() === p.gestorNome!.toUpperCase() ||
+        m.nome.toUpperCase().includes(p.gestorNome!.toUpperCase())
+      ) : null;
+      const gestorClean = gestorObj ? `${gestorObj.patente} ${actualName}` : (p.gestorNome || "");
+      const homolStr = p.gestorNome ? `${dataHomologacao} - ${gestorClean}` : `${dataHomologacao} - Pendente`;
 
-      const approvedPermutas = filteredPermutas.filter(p => p.status === 'APROVADO');
+      const subObj = formatMilitarRelatorio(substituto);
+      const subdoObj = formatMilitarRelatorio(substituido);
+      const statusCell = getModernStatusCell(p, todayStr);
 
-      const tableData = approvedPermutas.map(p => {
-        const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
-        const substituido = allMilitares.find(m => m.id === p.militarSubstituidoId);
+      return [
+        p.turno.replace('TURNO ', ''),
+        formatarDataBR(p.dataRealizacao),
+        subObj,
+        subdoObj,
+        homolStr,
+        statusCell
+      ];
+    });
+
+    const totalPagesExp = '{total_pages_count_string}';
+
+    autoTable(doc, {
+      startY: 195,
+      head: [['TURNO', 'DATA', 'MILITAR SUBSTITUTO', 'MILITAR SUBSTITUÍDO', 'DADOS DA HOMOLOGAÇÃO', 'STATUS DO SERVIÇO']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { 
+        fillColor: [15, 23, 42], 
+        textColor: [255, 255, 255], 
+        fontStyle: 'bold', 
+        fontSize: 8, 
+        halign: 'center',
+        valign: 'middle'
+      },
+      styles: { 
+        fontSize: 7, 
+        cellPadding: 4, 
+        overflow: 'linebreak', 
+        halign: 'center', 
+        valign: 'middle' 
+      },
+      columnStyles: {
+        0: { cellWidth: 45 },
+        1: { cellWidth: 55 },
+        2: { cellWidth: 'auto' },
+        3: { cellWidth: 'auto' },
+        4: { cellWidth: 120, fontSize: 6.5 },
+        5: { cellWidth: 'auto', fontSize: 6.5 }
+      },
+      alternateRowStyles: { 
+        fillColor: [248, 250, 252] 
+      },
+      didDrawPage: (data) => {
+        const pageCount = doc.getNumberOfPages();
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
         
-        // Robust extraction of YYYY-MM-DD from 'YYYY-MM-DD HH:MM' or 'YYYY-MM-DDTHH:MM'
-        const rawDate = p.dataAssinaturaGestor ? p.dataAssinaturaGestor.replace('T', ' ').split(' ')[0] : '';
-        const dataHomologacao = rawDate ? formatarDataBR(rawDate) : '00-00-0000';
+        const emissionDate = new Date().toLocaleString('pt-BR');
+        doc.text(`Gerado em: ${emissionDate}`, 40, doc.internal.pageSize.getHeight() - 20);
         
-        const nameParts = (p.gestorNome || "").split(' ');
-        const actualName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : (p.gestorNome || "");
-        const gestorObj = p.gestorNome ? allMilitares.find(m => 
-          m.nomeGuerra.toUpperCase() === p.gestorNome!.toUpperCase() ||
-          m.nome.toUpperCase().includes(p.gestorNome!.toUpperCase())
-        ) : null;
-        const gestorClean = gestorObj ? `${gestorObj.patente} ${actualName}` : (p.gestorNome || "");
-        const homolStr = p.gestorNome ? `${dataHomologacao} - ${gestorClean}` : `${dataHomologacao} - Pendente`;
+        const pageStr = `Página ${pageCount} de ${totalPagesExp}`;
+        doc.text(pageStr, doc.internal.pageSize.getWidth() - 40 - doc.getTextWidth(pageStr), doc.internal.pageSize.getHeight() - 20);
+      }
+    });
 
-        const subObj = formatMilitarRelatorio(substituto);
-        const subdoObj = formatMilitarRelatorio(substituido);
-        const statusServico = getStatusServico(p);
+    const finalY = (doc as any).lastAutoTable.finalY || 195;
+    const comandante = (userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
 
-        return [
-          p.turno.replace('TURNO ', ''),
-          formatarDataBR(p.dataRealizacao),
-          subObj,
-          subdoObj,
-          homolStr,
-          statusServico
-        ];
-      });
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let currentY = finalY;
+    if (currentY + 150 > pageHeight - 40) {
+      doc.addPage();
+      currentY = 40;
+    }
 
-      autoTable(doc, {
-        startY: startY,
-        head: [['TURNO', 'DATA', 'MILITAR SUBSTITUTO', 'MILITAR SUBSTITUÍDO', 'DADOS DA HOMOLOGAÇÃO', 'STATUS DO SERVIÇO']],
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [0, 128, 0], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, halign: 'center' },
-        styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak', halign: 'center', valign: 'middle' },
-        columnStyles: {
-          0: { cellWidth: 45 },
-          1: { cellWidth: 55 },
-          2: { cellWidth: 'auto' },
-          3: { cellWidth: 'auto' },
-          4: { cellWidth: 120, fontSize: 6.5 },
-          5: { cellWidth: 'auto', fontSize: 6.5 }
-        },
-        alternateRowStyles: { fillColor: [250, 250, 250] }
-      });
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 23, 42);
+    doc.text("TURNOS:", 40, currentY + 15);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text("A: 06H às 18H | B: 18H às 06H | 24H: 06H às 06H | EXPEDIENTE", 40, currentY + 27);
+    
+    const sigY = currentY + 80;
+    doc.setDrawColor(148, 163, 184); 
+    doc.setLineWidth(1);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    const sigText = `${comandante.nome.toUpperCase()} - ${comandante.patente} ${comandante.quadro || 'QPPM'}`;
+    const textWidth = doc.getTextWidth(sigText);
+    doc.line(pageWidth / 2 - textWidth / 2, sigY, pageWidth / 2 + textWidth / 2, sigY);
+    
+    doc.text(sigText, pageWidth / 2, sigY + 15, { align: 'center' });
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.text(comandante.funcao, pageWidth / 2, sigY + 30, { align: 'center' });
+    doc.text(`M.F. ${comandante.matriculaFuncional || '___.___._-_'}`, pageWidth / 2, sigY + 45, { align: 'center' });
 
-      const finalY = (doc as any).lastAutoTable.finalY || startY;
-      const comandante = (userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
+    if (typeof (doc as any).putTotalPages === 'function') {
+      (doc as any).putTotalPages(totalPagesExp);
+    }
 
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.text("TURNOS:", 40, finalY + 15);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.text("A: 06H às 18H | B: 18H às 06H | 24H: 06H às 06H | EXPEDIENTE", 40, finalY + 27);
-      
-      const sigY = finalY + 80;
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(1);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      const sigText = `${comandante.nome.toUpperCase()} - ${comandante.patente} ${comandante.quadro || 'QPPM'}`;
-      const textWidth = doc.getTextWidth(sigText);
-      doc.line(pageWidth / 2 - textWidth / 2, sigY, pageWidth / 2 + textWidth / 2, sigY);
-      
-      doc.text(sigText, pageWidth / 2, sigY + 15, { align: 'center' });
-      doc.setFont("helvetica", "normal");
-      doc.text(comandante.funcao, pageWidth / 2, sigY + 30, { align: 'center' });
-      doc.text(`M.F. ${comandante.matriculaFuncional || '___.___._-_'}`, pageWidth / 2, sigY + 45, { align: 'center' });
+    doc.save(`relatorio-permutas-moderno-${reportTipo.toLowerCase()}.pdf`);
+  };
 
-      doc.save(`relatorio-permutas-${reportTipo.toLowerCase()}.pdf`);
+  const handleGerarPDF = async () => {
+    try {
+      if (reportModel === 'MODERNO') {
+        await gerarPDFModerno();
+      } else {
+        await gerarPDFClassico();
+      }
     } catch (err) {
       console.error('Failed to generate PDF', err);
       // Fallback
@@ -1728,6 +1990,37 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                     ))}
                 </select>
             )}
+
+            {/* Model selector buttons */}
+            <div className="col-span-2 mt-2 p-3 bg-hud-card border border-hud-border/40 rounded-xl space-y-2">
+              <label className="text-[10px] font-mono text-cyber-cyan uppercase font-bold tracking-wider block">
+                Modelo de Relatório
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReportModel('CLASSICO')}
+                  className={`py-2 px-3 rounded-lg border text-[11px] font-bold font-sans flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    reportModel === 'CLASSICO'
+                      ? 'bg-cyber-cyan/20 border-cyber-cyan text-cyber-cyan shadow-[0_0_15px_rgba(0,242,255,0.15)]'
+                      : 'bg-slate-900/40 border-hud-border/40 text-slate-400 hover:text-slate-300 hover:bg-slate-900/80'
+                  }`}
+                >
+                  <span>📄 Relatório Clássico</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReportModel('MODERNO')}
+                  className={`py-2 px-3 rounded-lg border text-[11px] font-bold font-sans flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    reportModel === 'MODERNO'
+                      ? 'bg-cyber-cyan/20 border-cyber-cyan text-cyber-cyan shadow-[0_0_15px_rgba(0,242,255,0.15)]'
+                      : 'bg-slate-900/40 border-hud-border/40 text-slate-400 hover:text-slate-300 hover:bg-slate-900/80'
+                  }`}
+                >
+                  <span>✨ Relatório Moderno</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* ==========================================
@@ -1736,172 +2029,393 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
               centralização, proporções e estilo.
               ========================================== */}
           <div id="pdf-report-content" className="bg-white p-6 md:p-10 text-black rounded-xl my-4 print:my-0 print:p-0 shadow-2xl border border-slate-200" style={{ fontFamily: 'Inter, Arial, sans-serif' }}>
-            
-            <div className="relative flex justify-between items-center mb-8 pb-4">
-               {/* Left Logo */}
-               <div className="w-24 h-24 flex items-center justify-center">
-                 <img 
-                   src={config.brasaoEsquerdoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Coat_of_arms_of_Brazil.svg/200px-Coat_of_arms_of_Brazil.svg.png'} 
-                   alt="Logo Esq" 
-                   className="max-w-full max-h-full object-contain" 
-                   referrerPolicy="no-referrer" 
-                 />
-               </div>
-               
-               {/* Center Title */}
-               <div className="flex-1 text-center px-4">
-                 <div className="space-y-1">
-                   <h1 className="text-slate-900 font-black text-lg uppercase tracking-tight leading-tight">Diretoria de Saúde</h1>
-                   <h2 className="text-slate-600 font-bold text-sm uppercase tracking-widest border-t border-slate-100 pt-1">Relatório de Permutas</h2>
-                 </div>
-               </div>
-               
-               {/* Right Logo */}
-               <div className="w-24 h-24 flex items-center justify-center">
-                 <img 
-                   src={config.brasaoDireitoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Star_of_life2.svg/200px-Star_of_life2.svg.png'} 
-                   alt="Logo Dir" 
-                   className="max-w-full max-h-full object-contain" 
-                   referrerPolicy="no-referrer" 
-                 />
-               </div>
-               
-               {/* Stylish decorative lines */}
-               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-100"></div>
-               <div className="absolute bottom-1 left-20 right-20 h-px bg-slate-200"></div>
-            </div>
+            {reportModel === 'CLASSICO' ? (
+              <>
+                <div className="relative flex justify-between items-center mb-8 pb-4">
+                   {/* Left Logo */}
+                   <div className="w-24 h-24 flex items-center justify-center">
+                     <img 
+                       src={config.brasaoEsquerdoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Coat_of_arms_of_Brazil.svg/200px-Coat_of_arms_of_Brazil.svg.png'} 
+                       alt="Logo Esq" 
+                       className="max-w-full max-h-full object-contain" 
+                       referrerPolicy="no-referrer" 
+                     />
+                   </div>
+                   
+                   {/* Center Title */}
+                   <div className="flex-1 text-center px-4">
+                     <div className="space-y-1">
+                       <h1 className="text-slate-900 font-black text-lg uppercase tracking-tight leading-tight">Diretoria de Saúde</h1>
+                       <h2 className="text-slate-600 font-bold text-sm uppercase tracking-widest border-t border-slate-100 pt-1">Relatório de Permutas</h2>
+                     </div>
+                   </div>
+                   
+                   {/* Right Logo */}
+                   <div className="w-24 h-24 flex items-center justify-center">
+                     <img 
+                       src={config.brasaoDireitoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Star_of_life2.svg/200px-Star_of_life2.svg.png'} 
+                       alt="Logo Dir" 
+                       className="max-w-full max-h-full object-contain" 
+                       referrerPolicy="no-referrer" 
+                     />
+                   </div>
+                   
+                   {/* Stylish decorative lines */}
+                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-100"></div>
+                   <div className="absolute bottom-1 left-20 right-20 h-px bg-slate-200"></div>
+                </div>
 
-            <div className="text-[12px] space-y-4 mb-8">
-                <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
-                    <div className="flex items-center space-x-2">
-                      <Clock className="w-4 h-4 text-slate-400" />
-                      <p className="text-slate-700"><strong>Período:</strong> <span className="text-slate-400 font-medium">{dataInicio ? formatarDataBR(dataInicio) : 'INÍCIO'} a {dataFim ? formatarDataBR(dataFim) : 'ATUAL'}</span></p>
+                <div className="text-[12px] space-y-4 mb-8">
+                    <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
+                        <div className="flex items-center space-x-2">
+                          <Clock className="w-4 h-4 text-slate-400" />
+                          <p className="text-slate-700"><strong>Período:</strong> <span className="text-slate-400 font-medium">{dataInicio ? formatarDataBR(dataInicio) : 'INÍCIO'} a {dataFim ? formatarDataBR(dataFim) : 'ATUAL'}</span></p>
+                        </div>
+                        {reportTipo === 'INDIVIDUAL' && (
+                          <div className="flex items-center space-x-2">
+                            <User className="w-4 h-4 text-slate-400" />
+                            <p className="text-slate-700"><strong>Policial:</strong> <span className="text-slate-400 font-medium">
+                              {(() => {
+                                const m = allMilitares.find(m => m.id === reportMilitarId);
+                                if (!m) return '...';
+                                const postGrad = m.patente;
+                                const numeral = m.numero ? ` ${m.numero}` : '';
+                                const nome = m.nome.toUpperCase();
+                                const mf = m.matriculaFuncional ? `, M.F. nº ${m.matriculaFuncional}` : ', M.F. nº';
+                                return `${postGrad}${numeral} ${nome}${mf}`;
+                              })()}
+                            </span></p>
+                          </div>
+                        )}
+                        {reportTipo === 'FUNCAO' && (
+                          <div className="flex items-center space-x-2">
+                            <User className="w-4 h-4 text-slate-400" />
+                            <p className="text-slate-700"><strong>Função:</strong> <span className="text-slate-400 font-medium">{reportFuncao || '...'}</span></p>
+                          </div>
+                        )}
+                        {reportTipo === 'SETOR' && (
+                          <div className="flex items-center space-x-2">
+                            <User className="w-4 h-4 text-slate-400" />
+                            <p className="text-slate-700"><strong>Setor:</strong> <span className="text-slate-400 font-medium">{reportSetor || '...'}</span></p>
+                          </div>
+                        )}
                     </div>
-                    {reportTipo === 'INDIVIDUAL' && (
-                      <div className="flex items-center space-x-2">
-                        <User className="w-4 h-4 text-slate-400" />
-                        <p className="text-slate-700"><strong>Policial:</strong> <span className="text-slate-400 font-medium">
-                          {(() => {
-                            const m = allMilitares.find(m => m.id === reportMilitarId);
-                            if (!m) return '...';
-                            const postGrad = m.patente;
-                            const numeral = m.numero ? ` ${m.numero}` : '';
-                            const nome = m.nome.toUpperCase();
-                            const mf = m.matriculaFuncional ? `, M.F. nº ${m.matriculaFuncional}` : ', M.F. nº';
-                            return `${postGrad}${numeral} ${nome}${mf}`;
-                          })()}
-                        </span></p>
+                    
+                    <div className="border border-slate-200 p-4 rounded-xl bg-gradient-to-r from-slate-50 to-white shadow-sm">
+                      <p className="font-bold text-slate-900 uppercase tracking-[0.2em] mb-2 text-[9px] flex items-center text-center justify-center">
+                        <TrendingUp className="w-3 h-3 mr-2" /> TURNOS
+                      </p>
+                      <div className="grid grid-cols-3 gap-4 text-center">
+                        <div className="p-2 bg-white rounded border border-slate-100 shadow-sm">
+                          <span className="block text-[10px] font-black text-slate-800">TURNO A</span>
+                          <span className="text-[9px] text-slate-400">06H às 18H</span>
+                        </div>
+                        <div className="p-2 bg-white rounded border border-slate-100 shadow-sm">
+                          <span className="block text-[10px] font-black text-slate-800">TURNO B</span>
+                          <span className="text-[9px] text-slate-400">18H às 06H</span>
+                        </div>
+                        <div className="p-2 bg-white rounded border border-slate-100 shadow-sm">
+                          <span className="block text-[10px] font-black text-slate-800">24H</span>
+                          <span className="text-[9px] text-slate-400">06H às 06H</span>
+                        </div>
                       </div>
-                    )}
-                    {reportTipo === 'FUNCAO' && (
-                      <div className="flex items-center space-x-2">
-                        <User className="w-4 h-4 text-slate-400" />
-                        <p className="text-slate-700"><strong>Função:</strong> <span className="text-slate-400 font-medium">{reportFuncao || '...'}</span></p>
-                      </div>
-                    )}
-                    {reportTipo === 'SETOR' && (
-                      <div className="flex items-center space-x-2">
-                        <User className="w-4 h-4 text-slate-400" />
-                        <p className="text-slate-700"><strong>Setor:</strong> <span className="text-slate-400 font-medium">{reportSetor || '...'}</span></p>
-                      </div>
-                    )}
+                    </div>
+                </div>
+
+                {/* Responsive table container */}
+                <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-lg">
+                  <table className="w-full text-[10px] text-center border-collapse min-w-[700px]">
+                      <thead>
+                          <tr className="bg-slate-900 text-white font-bold uppercase tracking-wider text-[9px]">
+                              <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[10%]">Turno</th>
+                              <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[10%]">Data</th>
+                              <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[20%]">Militar Substituto</th>
+                              <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[20%]">Militar Substituído</th>
+                              <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[20%]">Homologação</th>
+                              <th className="p-4 whitespace-nowrap w-[20%]">Status do Serviço</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                          {filteredPermutas
+                            .filter(p => p.status === 'APROVADO' || p.status === 'SEM_EFEITO')
+                            .sort((a, b) => new Date(a.dataRealizacao).getTime() - new Date(b.dataRealizacao).getTime())
+                            .map(p => {
+                              const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
+                              const substituido = allMilitares.find(m => m.id === p.militarSubstituidoId);
+                              
+                              // Robust extraction of YYYY-MM-DD from 'YYYY-MM-DD HH:MM' or 'YYYY-MM-DDTHH:MM'
+                              const rawDate = p.dataAssinaturaGestor ? p.dataAssinaturaGestor.replace('T', ' ').split(' ')[0] : '';
+                              const dataHomol = rawDate ? formatarDataBR(rawDate) : '00-00-0000';
+                              
+                              const nameParts = (p.gestorNome || "").split(' ');
+                              const actualName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : (p.gestorNome || "");
+                              const gestorObj = p.gestorNome ? allMilitares.find(m => 
+                                  m.nomeGuerra.toUpperCase() === p.gestorNome!.toUpperCase() ||
+                                  m.nome.toUpperCase().includes(p.gestorNome!.toUpperCase())
+                              ) : null;
+                              const gestorClean = gestorObj ? `${gestorObj.patente} ${actualName}` : (p.gestorNome || "");
+                              const homolLabel = p.gestorNome ? `${dataHomol} - ${gestorClean}` : `${dataHomol} - Pendente`;
+                              
+                              const subObj = formatMilitarRelatorio(substituto);
+                              const subdoObj = formatMilitarRelatorio(substituido);
+                              const statusServico = getStatusServico(p);
+                              
+                              return (
+                                <tr key={p.id} className="border-b border-slate-100 even:bg-slate-50/50 hover:bg-slate-100/50 transition-colors whitespace-nowrap text-[9px]">
+                                   <td className="p-4 border-r border-slate-100 font-black text-slate-900 text-center">{p.turno}</td>
+                                   <td className="p-4 border-r border-slate-100 text-slate-600 text-center">{formatarDataBR(p.dataRealizacao)}</td>
+                                   <td className="p-4 border-r border-slate-100 text-slate-800 font-medium text-center">
+                                     {subObj}
+                                   </td>
+                                   <td className="p-4 border-r border-slate-100 text-slate-800 font-medium text-center">
+                                     {subdoObj}
+                                   </td>
+                                   <td className="p-4 border-r border-slate-100 text-slate-400 italic text-[8.5px] leading-tight text-center">
+                                     {homolLabel}
+                                   </td>
+                                   <td className="p-4 text-slate-700 font-bold text-[8.5px] leading-tight text-center uppercase">
+                                     {statusServico}
+                                   </td>
+                                </tr>
+                              );
+                          })}
+                      </tbody>
+                  </table>
                 </div>
                 
-                <div className="border border-slate-200 p-4 rounded-xl bg-gradient-to-r from-slate-50 to-white shadow-sm">
-                  <p className="font-bold text-slate-900 uppercase tracking-[0.2em] mb-2 text-[9px] flex items-center text-center justify-center">
-                    <TrendingUp className="w-3 h-3 mr-2" /> TURNOS
-                  </p>
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div className="p-2 bg-white rounded border border-slate-100 shadow-sm">
-                      <span className="block text-[10px] font-black text-slate-800">TURNO A</span>
-                      <span className="text-[9px] text-slate-400">06H às 18H</span>
-                    </div>
-                    <div className="p-2 bg-white rounded border border-slate-100 shadow-sm">
-                      <span className="block text-[10px] font-black text-slate-800">TURNO B</span>
-                      <span className="text-[9px] text-slate-400">18H às 06H</span>
-                    </div>
-                    <div className="p-2 bg-white rounded border border-slate-100 shadow-sm">
-                      <span className="block text-[10px] font-black text-slate-800">24H</span>
-                      <span className="text-[9px] text-slate-400">06H às 06H</span>
-                    </div>
-                  </div>
+                <div className="mt-16 pt-8 text-center flex flex-col items-center text-[12px]">
+                    <div className="w-64 border-t border-black mb-2"></div>
+                    {(() => {
+                      const comandante = (userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
+                      return (
+                        <React.Fragment>
+                          <p className="font-bold">{comandante.nome.toUpperCase()} - {comandante.patente} {comandante.quadro || 'QPPM'}</p>
+                          <p>{comandante.funcao}</p>
+                          <p>M.F. {comandante.matriculaFuncional || '___.___._-_'}</p>
+                        </React.Fragment>
+                      );
+                    })()}
                 </div>
-            </div>
+              </>
+            ) : (
+              <>
+                {/* Modern Corporate Header */}
+                <div className="relative flex justify-between items-center mb-8 pb-4">
+                   {/* Left Logo */}
+                   <div className="w-24 h-24 flex items-center justify-center">
+                     <img 
+                       src={config.brasaoEsquerdoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Coat_of_arms_of_Brazil.svg/200px-Coat_of_arms_of_Brazil.svg.png'} 
+                       alt="Logo Esq" 
+                       className="max-w-full max-h-full object-contain" 
+                       referrerPolicy="no-referrer" 
+                     />
+                   </div>
+                   
+                   {/* Center Title */}
+                   <div className="flex-1 text-center px-4">
+                     <div className="space-y-1">
+                       <h1 className="text-slate-900 font-black text-lg uppercase tracking-tight leading-tight">Diretoria de Saúde</h1>
+                       <h2 className="text-slate-600 font-bold text-sm uppercase tracking-widest border-t border-slate-100 pt-1">Relatório de Permutas</h2>
+                     </div>
+                   </div>
+                   
+                   {/* Right Logo */}
+                   <div className="w-24 h-24 flex items-center justify-center">
+                     <img 
+                       src={config.brasaoDireitoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Star_of_life2.svg/200px-Star_of_life2.svg.png'} 
+                       alt="Logo Dir" 
+                       className="max-w-full max-h-full object-contain" 
+                       referrerPolicy="no-referrer" 
+                     />
+                   </div>
+                   
+                   {/* Stylish decorative lines */}
+                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-100"></div>
+                   <div className="absolute bottom-1 left-20 right-20 h-px bg-slate-200"></div>
+                </div>
 
-            {/* Responsive table container */}
-            <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-lg">
-              <table className="w-full text-[10px] text-center border-collapse min-w-[700px]">
-                  <thead>
-                      <tr className="bg-slate-900 text-white font-bold uppercase tracking-wider text-[9px]">
-                          <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[10%]">Turno</th>
-                          <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[10%]">Data</th>
-                          <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[20%]">Militar Substituto</th>
-                          <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[20%]">Militar Substituído</th>
-                          <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[20%]">Homologação</th>
-                          <th className="p-4 whitespace-nowrap w-[20%]">Status do Serviço</th>
-                      </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                      {filteredPermutas
-                        .filter(p => p.status === 'APROVADO' || p.status === 'SEM_EFEITO')
-                        .sort((a, b) => new Date(a.dataRealizacao).getTime() - new Date(b.dataRealizacao).getTime())
-                        .map(p => {
-                          const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
-                          const substituido = allMilitares.find(m => m.id === p.militarSubstituidoId);
-                          
-                          // Robust extraction of YYYY-MM-DD from 'YYYY-MM-DD HH:MM' or 'YYYY-MM-DDTHH:MM'
-                          const rawDate = p.dataAssinaturaGestor ? p.dataAssinaturaGestor.replace('T', ' ').split(' ')[0] : '';
-                          const dataHomol = rawDate ? formatarDataBR(rawDate) : '00-00-0000';
-                          
-                          const nameParts = (p.gestorNome || "").split(' ');
-                          const actualName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : (p.gestorNome || "");
-                          const gestorObj = p.gestorNome ? allMilitares.find(m => 
-                              m.nomeGuerra.toUpperCase() === p.gestorNome!.toUpperCase() ||
-                              m.nome.toUpperCase().includes(p.gestorNome!.toUpperCase())
-                          ) : null;
-                          const gestorClean = gestorObj ? `${gestorObj.patente} ${actualName}` : (p.gestorNome || "");
-                          const homolLabel = p.gestorNome ? `${dataHomol} - ${gestorClean}` : `${dataHomol} - Pendente`;
-                          
-                          const subObj = formatMilitarRelatorio(substituto);
-                          const subdoObj = formatMilitarRelatorio(substituido);
-                          const statusServico = getStatusServico(p);
-                          
-                          return (
-                            <tr key={p.id} className="border-b border-slate-100 even:bg-slate-50/50 hover:bg-slate-100/50 transition-colors whitespace-nowrap text-[9px]">
-                               <td className="p-4 border-r border-slate-100 font-black text-slate-900 text-center">{p.turno}</td>
-                               <td className="p-4 border-r border-slate-100 text-slate-600 text-center">{formatarDataBR(p.dataRealizacao)}</td>
-                               <td className="p-4 border-r border-slate-100 text-slate-800 font-medium text-center">
-                                 {subObj}
-                               </td>
-                               <td className="p-4 border-r border-slate-100 text-slate-800 font-medium text-center">
-                                 {subdoObj}
-                               </td>
-                               <td className="p-4 border-r border-slate-100 text-slate-400 italic text-[8.5px] leading-tight text-center">
-                                 {homolLabel}
-                               </td>
-                               <td className="p-4 text-slate-700 font-bold text-[8.5px] leading-tight text-center uppercase">
-                                 {statusServico}
-                               </td>
-                            </tr>
-                          );
-                      })}
-                  </tbody>
-              </table>
-            </div>
-            
-            <div className="mt-16 pt-8 text-center flex flex-col items-center text-[12px]">
-                <div className="w-64 border-t border-black mb-2"></div>
-                {(() => {
-                  const comandante = (userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
-                  return (
-                    <React.Fragment>
-                      <p className="font-bold">{comandante.nome.toUpperCase()} - {comandante.patente} {comandante.quadro || 'QPPM'}</p>
-                      <p>{comandante.funcao}</p>
-                      <p>M.F. {comandante.matriculaFuncional || '___.___._-_'}</p>
-                    </React.Fragment>
-                  );
-                })()}
-            </div>
+                <div className="text-[12px] space-y-6 mb-8">
+                    {/* Modern Institutional Info Header */}
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100 shadow-sm">
+                        <div className="flex items-center space-x-2">
+                          <Clock className="w-4 h-4 text-slate-500" />
+                          <p className="text-slate-700"><strong>Período:</strong> <span className="text-slate-500 font-bold">{dataInicio ? formatarDataBR(dataInicio) : 'INÍCIO'} a {dataFim ? formatarDataBR(dataFim) : 'ATUAL'}</span></p>
+                        </div>
+                        {reportTipo === 'INDIVIDUAL' && (
+                          <div className="flex items-center space-x-2">
+                            <User className="w-4 h-4 text-slate-500" />
+                            <p className="text-slate-700"><strong>Policial:</strong> <span className="text-slate-500 font-bold">
+                              {(() => {
+                                const m = allMilitares.find(m => m.id === reportMilitarId);
+                                if (!m) return '...';
+                                const postGrad = m.patente;
+                                const numeral = m.numero ? ` ${m.numero}` : '';
+                                const nome = m.nome.toUpperCase();
+                                const mf = m.matriculaFuncional ? `, M.F. nº ${m.matriculaFuncional}` : ', M.F. nº';
+                                return `${postGrad}${numeral} ${nome}${mf}`;
+                              })()}
+                            </span></p>
+                          </div>
+                        )}
+                        {reportTipo === 'FUNCAO' && (
+                          <div className="flex items-center space-x-2">
+                            <User className="w-4 h-4 text-slate-500" />
+                            <p className="text-slate-700"><strong>Função:</strong> <span className="text-slate-500 font-bold">{reportFuncao || '...'}</span></p>
+                          </div>
+                        )}
+                        {reportTipo === 'SETOR' && (
+                          <div className="flex items-center space-x-2">
+                            <User className="w-4 h-4 text-slate-500" />
+                            <p className="text-slate-700"><strong>Setor:</strong> <span className="text-slate-500 font-bold">{reportSetor || '...'}</span></p>
+                          </div>
+                        )}
+                    </div>
+
+                    {/* Dashboard Stats / Resumo Cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      {(() => {
+                        const today = new Date();
+                        const tStr = today.toLocaleDateString('en-CA');
+                        const approvedPermutasForStats = filteredPermutas.filter(p => p.status === 'APROVADO');
+                        const totalExchanges = approvedPermutasForStats.length;
+                        const cumpridas = approvedPermutasForStats.filter(p => tStr > p.dataRealizacao).length;
+                        const pendentes = approvedPermutasForStats.filter(p => tStr <= p.dataRealizacao).length;
+                        const canceladas = 0;
+                        const taxaConclusao = totalExchanges > 0 ? Math.round((cumpridas / totalExchanges) * 100) : 0;
+                        
+                        return (
+                          <>
+                            <div className="bg-slate-50/70 border-t-4 border-slate-800 border border-slate-200/60 p-3 rounded-lg text-center shadow-sm">
+                              <span className="block text-[8px] font-mono font-bold uppercase text-slate-500 tracking-wider">Total Permutas</span>
+                              <span className="text-lg font-black text-slate-800">{totalExchanges}</span>
+                            </div>
+                            <div className="bg-green-50/40 border-t-4 border-green-600 border border-slate-200/60 p-3 rounded-lg text-center shadow-sm">
+                              <span className="block text-[8px] font-mono font-bold uppercase text-slate-500 tracking-wider">Cumpridas</span>
+                              <span className="text-lg font-black text-green-700">{cumpridas}</span>
+                            </div>
+                            <div className="bg-amber-50/40 border-t-4 border-amber-500 border border-slate-200/60 p-3 rounded-lg text-center shadow-sm">
+                              <span className="block text-[8px] font-mono font-bold uppercase text-slate-500 tracking-wider">Pendentes</span>
+                              <span className="text-lg font-black text-amber-700">{pendentes}</span>
+                            </div>
+                            <div className="bg-red-50/40 border-t-4 border-red-500 border border-slate-200/60 p-3 rounded-lg text-center shadow-sm">
+                              <span className="block text-[8px] font-mono font-bold uppercase text-slate-500 tracking-wider">Canceladas</span>
+                              <span className="text-lg font-black text-red-700">{canceladas}</span>
+                            </div>
+                            <div className="bg-teal-50/40 border-t-4 border-teal-500 border border-slate-200/60 p-3 rounded-lg text-center shadow-sm col-span-2 md:col-span-1">
+                              <span className="block text-[8px] font-mono font-bold uppercase text-slate-500 tracking-wider">Taxa Conclusão</span>
+                              <span className="text-lg font-black text-teal-700">{taxaConclusao}%</span>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                </div>
+
+                {/* Modern styled table container */}
+                <div className="overflow-x-auto border border-slate-200/80 rounded-xl shadow-md">
+                  <table className="w-full text-[10px] text-center border-collapse min-w-[700px]">
+                      <thead>
+                          <tr className="bg-slate-800 text-white font-bold uppercase tracking-wider text-[9px]">
+                              <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[10%]">Turno</th>
+                              <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[10%] font-semibold">Data</th>
+                              <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[20%]">Militar Substituto</th>
+                              <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[20%]">Militar Substituído</th>
+                              <th className="p-4 border-r border-slate-700 whitespace-nowrap w-[20%]">Homologação</th>
+                              <th className="p-4 whitespace-nowrap w-[20%]">Status do Serviço</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                          {(() => {
+                            const today = new Date();
+                            const tStr = today.toLocaleDateString('en-CA');
+                            
+                            return filteredPermutas
+                              .filter(p => p.status === 'APROVADO')
+                              .sort((a, b) => new Date(a.dataRealizacao).getTime() - new Date(b.dataRealizacao).getTime())
+                              .map(p => {
+                                const substituto = allMilitares.find(m => m.id === p.militarSubstitutoId);
+                                const substituido = allMilitares.find(m => m.id === p.militarSubstituidoId);
+                                
+                                const rawDate = p.dataAssinaturaGestor ? p.dataAssinaturaGestor.replace('T', ' ').split(' ')[0] : '';
+                                const dataHomol = rawDate ? formatarDataBR(rawDate) : '00-00-0000';
+                                
+                                const nameParts = (p.gestorNome || "").split(' ');
+                                const actualName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : (p.gestorNome || "");
+                                const gestorObj = p.gestorNome ? allMilitares.find(m => 
+                                    m.nomeGuerra.toUpperCase() === p.gestorNome!.toUpperCase() ||
+                                    m.nome.toUpperCase().includes(p.gestorNome!.toUpperCase())
+                                ) : null;
+                                const gestorClean = gestorObj ? `${gestorObj.patente} ${actualName}` : (p.gestorNome || "");
+                                const homolLabel = p.gestorNome ? `${dataHomol} - ${gestorClean}` : `${dataHomol} - Pendente`;
+                                
+                                const subObj = formatMilitarRelatorio(substituto);
+                                const subdoObj = formatMilitarRelatorio(substituido);
+                                
+                                // Determine status display details for modern table
+                                let statusText = 'PENDENTE';
+                                let badgeStyles = 'bg-amber-50 text-amber-700 border-amber-200/60';
+                                
+                                if (p.status === 'SEM_EFEITO' || p.status === 'REJEITADO' || p.status === 'REJEITADO_SUBSTITUTO') {
+                                  statusText = 'CANCELADA';
+                                  badgeStyles = 'bg-red-50 text-red-700 border-red-200/60';
+                                } else if (p.status === 'APROVADO') {
+                                  if (tStr > p.dataRealizacao) {
+                                    statusText = 'CUMPRIDA';
+                                    badgeStyles = 'bg-green-50 text-green-700 border-green-200/60';
+                                  } else {
+                                    statusText = 'HOMOLOGADA';
+                                    badgeStyles = 'bg-blue-50 text-blue-700 border-blue-200/60';
+                                  }
+                                }
+
+                                return (
+                                  <tr key={p.id} className="border-b border-slate-100 even:bg-slate-50/30 hover:bg-slate-50/60 transition-colors whitespace-nowrap text-[9px]">
+                                     <td className="p-4 border-r border-slate-100 font-black text-slate-900 text-center">{p.turno.replace('TURNO ', '')}</td>
+                                     <td className="p-4 border-r border-slate-100 text-slate-600 text-center font-medium">{formatarDataBR(p.dataRealizacao)}</td>
+                                     <td className="p-4 border-r border-slate-100 text-slate-800 font-medium text-center">
+                                       {subObj}
+                                     </td>
+                                     <td className="p-4 border-r border-slate-100 text-slate-800 font-medium text-center">
+                                       {subdoObj}
+                                     </td>
+                                     <td className="p-4 border-r border-slate-100 text-slate-600 font-mono text-[8.5px] leading-tight text-center">
+                                       {homolLabel}
+                                     </td>
+                                     <td className="p-4 text-center">
+                                       <span className={`inline-block px-3 py-1 text-[8.5px] font-bold rounded-full border ${badgeStyles}`}>
+                                         {statusText}
+                                       </span>
+                                     </td>
+                                  </tr>
+                                );
+                            });
+                          })()}
+                      </tbody>
+                  </table>
+                </div>
+
+                {/* Modern Footer Area */}
+                <div className="mt-8 pt-4 border-t border-slate-100 flex justify-between items-center text-slate-400 font-mono text-[8px] print:hidden">
+                  <div>Gerado em: {new Date().toLocaleString('pt-BR')}</div>
+                  <div>Página 1 de 1</div>
+                </div>
+
+                {/* Modern Signatures Block */}
+                <div className="mt-12 pt-6 text-center flex flex-col items-center text-[11px]">
+                    <div className="w-64 border-t border-slate-300 mb-2"></div>
+                    {(() => {
+                      const comandante = (userLogged?.role === 'COMANDANTE' || userLogged?.role === 'ADMIN') ? userLogged : (allMilitares.find(m => m.role === 'COMANDANTE') || userLogged);
+                      return (
+                        <div className="text-slate-800">
+                          <p className="font-bold tracking-wide">{comandante.nome.toUpperCase()} - {comandante.patente} {comandante.quadro || 'QPPM'}</p>
+                          <p className="text-slate-500 font-medium">{comandante.funcao}</p>
+                          <p className="text-slate-400 font-mono text-[9px]">M.F. {comandante.matriculaFuncional || '___.___._-_'}</p>
+                        </div>
+                      );
+                    })()}
+                </div>
+              </>
+            )}
           </div>
 
           <button onClick={handleGerarPDF} className="w-full bg-slate-600 text-white py-2 rounded font-bold uppercase hover:bg-opacity-90 transition print:hidden">
