@@ -141,3 +141,15 @@ export interface AppConfig {
   theme?: string;
 }
 
+export interface Notificacao {
+  id: string;
+  militarId: string;
+  titulo: string;
+  mensagem: string;
+  dataHora: string;
+  visualizada: boolean;
+  permutaId?: string;
+  tipo?: string;
+}
+
+

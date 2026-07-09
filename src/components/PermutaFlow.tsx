@@ -350,7 +350,7 @@ export default function PermutaFlow({
           </h3>
           
           <p className="text-[11px] text-slate-300 leading-relaxed font-sans px-2">
-            A proposta foi enviada para aprovação de <strong>{lastSubstituteName}</strong>.
+            Solicitação de permuta enviada com sucesso! Aguarde a análise e assinatura do policial substituto.
           </p>
 
           {/* DYNAMIC REDIRECT/CHAIN BUTTONS */}

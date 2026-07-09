@@ -14,7 +14,7 @@ import {
   generateSimpleHash,
   formatarDataBR
 } from './data';
-import { Militar, Escala, Alerta, BlockchainLog, Permuta, ChatMessage, Role, BackupSnapshot, AppConfig } from './types';
+import { Militar, Escala, Alerta, BlockchainLog, Permuta, ChatMessage, Role, BackupSnapshot, AppConfig, Notificacao } from './types';
 import MilitaryMobileFrame from './components/MilitaryMobileFrame';
 import BiometricLogin from './components/BiometricLogin';
 import InstallAppBanner from './components/InstallAppBanner';
@@ -38,7 +38,10 @@ import {
   PlusCircle,
   ChevronDown,
   ChevronRight,
-  LogOut
+  LogOut,
+  Bell,
+  BellRing,
+  Check
 } from 'lucide-react';
 
 import { setSupabaseCredentials, getSupabase, getEnvUrl, getEnvKey } from './supabase';
@@ -138,6 +141,14 @@ export default function App() {
     } catch (e) {}
     return CHATS_INICIAIS;
   });
+  const [notificacoes, setNotificacoes] = useState<Notificacao[]>(() => {
+    try {
+      const saved = localStorage.getItem('permucyber_notificacoes');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
+  const [showNotificationCenter, setShowNotificationCenter] = useState<boolean>(false);
   const [backups, setBackups] = useState<BackupSnapshot[]>(() => {
     try {
       const list: BackupSnapshot[] = [];
@@ -340,6 +351,12 @@ export default function App() {
   }, [messages]);
 
   useEffect(() => {
+    if (notificacoes) {
+      try { localStorage.setItem('permucyber_notificacoes', JSON.stringify(notificacoes)); } catch (e) {}
+    }
+  }, [notificacoes]);
+
+  useEffect(() => {
     if (config) {
       try {
         localStorage.setItem('permucyber_config', JSON.stringify(config));
@@ -478,6 +495,7 @@ export default function App() {
           const newLogs: BlockchainLog[] = [];
           const newMessages: ChatMessage[] = [];
           const newBackups: BackupSnapshot[] = [];
+          const newNotificacoes: Notificacao[] = [];
 
           data.forEach(row => {
             const obj = row.dados_json;
@@ -490,6 +508,7 @@ export default function App() {
             else if (obj.prioridade && obj.conteudo) newAlertas.push(obj);
             else if (obj.hashAtual && obj.tipoEvento) newLogs.push(obj);
             else if (obj.deMilitarId && obj.paraMilitarId && obj.conteudo) newMessages.push(obj);
+            else if (obj.militarId && obj.titulo && obj.mensagem && obj.dataHora) newNotificacoes.push(obj);
             else if (obj.quantidadeMilitares && obj.quantidadeEscalas && (obj.militares || obj.encrypted_payload)) {
               if (obj.encrypted_payload) {
                 try {
@@ -528,6 +547,9 @@ export default function App() {
 
             const uniqueAl = newAlertas.filter((a, idx, arr) => arr.findIndex(x => x.id === a.id) === idx);
             setAlertas(uniqueAl);
+
+            const uniqueNot = newNotificacoes.filter((n, idx, arr) => arr.findIndex(x => x.id === n.id) === idx);
+            setNotificacoes(uniqueNot.sort((a,b) => b.dataHora.localeCompare(a.dataHora)));
 
             setLogs(newLogs.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
             setMessages(newMessages.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
@@ -604,6 +626,12 @@ export default function App() {
                 if (exists) return prev.map(m => m.id === obj.id ? obj : m).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
                 return [...prev, obj].sort((a,b) => a.timestamp.localeCompare(b.timestamp));
               });
+            } else if (obj.militarId && obj.titulo && obj.mensagem && obj.dataHora) {
+              setNotificacoes(prev => {
+                const exists = prev.some(n => n.id === obj.id);
+                if (exists) return prev.map(n => n.id === obj.id ? obj : n).sort((a,b) => b.dataHora.localeCompare(a.dataHora));
+                return [obj, ...prev].sort((a,b) => b.dataHora.localeCompare(a.dataHora));
+              });
             } else if (obj.brasaoEsquerdoUrl !== undefined || obj.theme !== undefined) {
               setConfig(prev => {
                 const updatedUrl = obj.supabaseUrl || prev.supabaseUrl;
@@ -629,6 +657,7 @@ export default function App() {
             setAlertas(prev => prev.filter(a => a.id !== deletedId && toSupabaseFriendlyUUID(a.id) !== deletedId));
             setLogs(prev => prev.filter(l => l.id !== deletedId && toSupabaseFriendlyUUID(l.id) !== deletedId));
             setMessages(prev => prev.filter(m => m.id !== deletedId && toSupabaseFriendlyUUID(m.id) !== deletedId));
+            setNotificacoes(prev => prev.filter(n => n.id !== deletedId && toSupabaseFriendlyUUID(n.id) !== deletedId));
             setBackups(prev => prev.filter(b => b.id !== deletedId && toSupabaseFriendlyUUID(b.id) !== deletedId).slice(0, 3));
           }
         }
@@ -1162,12 +1191,13 @@ export default function App() {
             const obj = row.dados_json;
             if (!obj) continue;
             
-            // Critérios para detecção de sujeira de testes (permutas, mensagens, logs e backups)
+            // Critérios para detecção de sujeira de testes (permutas, mensagens, logs, notificações e backups)
             const isPermuta = obj.protocoloId !== undefined;
             const isBackup = obj.quantidadeMilitares !== undefined && obj.quantidadeEscalas !== undefined;
             const isChat = obj.deMilitarId !== undefined && obj.paraMilitarId !== undefined;
+            const isNotif = obj.militarId !== undefined && obj.titulo !== undefined && obj.mensagem !== undefined && obj.dataHora !== undefined;
             
-            if (isPermuta || isBackup || isChat) {
+            if (isPermuta || isBackup || isChat || isNotif) {
               console.log(`[Saneamento Deep] Deletando registro zumbi de ID: ${row.id}`);
               await supabaseClient.from('dados_app').delete().eq('id', row.id);
             }
@@ -1184,6 +1214,7 @@ export default function App() {
       setPermutas([]);
       setBackups([]);
       setMessages([]);
+      setNotificacoes([]);
 
       // 4. Limpar o localStorage de todas as chaves de teste antigas e de dispensas de alertas
       try {
@@ -1195,6 +1226,7 @@ export default function App() {
             key === 'permucyber_backups' || 
             key === 'permucyber_permutas' ||
             key === 'permucyber_messages' ||
+            key === 'permucyber_notificacoes' ||
             key === 'permucyber_dismissed_warnings'
           )) {
             keysToDelete.push(key);
@@ -1480,6 +1512,74 @@ export default function App() {
     await appendAuditLog('INTEGRALIZAÇÃO', `Transmissão de texto plano criptografada with sucesso de ${loggedUser.nomeGuerra} para ${recipient}. Protocolo seguro ativado.`, loggedUser.nomeGuerra, logs);
   };
 
+  const [creationSuccessMessage, setCreationSuccessMessage] = useState<string | null>(null);
+
+  const sendNotification = async (militarId: string, titulo: string, mensagem: string, permutaId?: string, tipo?: string) => {
+    const newNotif: Notificacao = {
+      id: `N-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      militarId,
+      titulo,
+      mensagem,
+      dataHora: new Date().toISOString(),
+      visualizada: false,
+      permutaId,
+      tipo
+    };
+
+    setNotificacoes(prev => {
+      if (prev.some(n => n.id === newNotif.id)) return prev;
+      return [newNotif, ...prev];
+    });
+
+    try {
+      await salvarDados(
+        SYSTEM_USER_ID,
+        `NOTIFICACAO: ${militarId}`,
+        mensagem,
+        newNotif,
+        newNotif.id
+      );
+    } catch (e) {
+      console.error("[App] Erro ao enviar notificação para Supabase:", e);
+    }
+  };
+
+  const handleMarkNotificationAsRead = async (id: string) => {
+    const notif = notificacoes.find(n => n.id === id);
+    if (!notif) return;
+    const updated = { ...notif, visualizada: true };
+    setNotificacoes(prev => prev.map(n => n.id === id ? updated : n));
+    try {
+      await atualizarDados(id, { dados_json: updated });
+    } catch (e) {
+      console.error("Error marking notification as read:", e);
+    }
+  };
+
+  const handleMarkAllNotificationsAsRead = async () => {
+    if (!loggedUser) return;
+    const userNotifs = notificacoes.filter(n => n.militarId === loggedUser.id && !n.visualizada);
+    if (userNotifs.length === 0) return;
+    
+    setNotificacoes(prev => prev.map(n => n.militarId === loggedUser.id ? { ...n, visualizada: true } : n));
+    for (const n of userNotifs) {
+      try {
+        await atualizarDados(n.id, { dados_json: { ...n, visualizada: true } });
+      } catch (e) {
+        console.error("Error marking notification as read:", e);
+      }
+    }
+  };
+
+  const handleClearNotification = async (id: string) => {
+    setNotificacoes(prev => prev.filter(n => n.id !== id));
+    try {
+      await deletarDados(id);
+    } catch (e) {
+      console.error("Error deleting notification:", e);
+    }
+  };
+
   const handleCreatePermuta = async (novaPermuta: Permuta) => {
     if (!loggedUser) return;
 
@@ -1563,6 +1663,16 @@ export default function App() {
         return [...prev, automatedMsg].sort((a,b) => a.timestamp.localeCompare(b.timestamp));
       });
     }
+
+    setCreationSuccessMessage("Solicitação de permuta enviada com sucesso! Aguarde a análise e assinatura do policial substituto.");
+
+    await sendNotification(
+      novaPermuta.militarSubstitutoId,
+      "Nova Solicitação de Permuta",
+      `O policial ${loggedUser.nomeGuerra} iniciou uma solicitação de permuta com você para o dia ${formatarDataBR(novaPermuta.dataRealizacao)}.`,
+      novaPermuta.id,
+      "CRIADA"
+    );
   };
 
   const handleAcceptPermuta = async (permutaId: string, peerSignature: string) => {
@@ -1634,14 +1744,23 @@ export default function App() {
     setPermutas(prev => prev.map(p => p.id === permutaId ? { ...p, status: 'PENDENTE_GESTOR', assinaturaSubstituta: peerSignature } : p));
 
     await appendAuditLog('PERMUTA_ACEITA', `${loggedUser.patente} ${loggedUser.nomeGuerra} assinou digitalmente aceitando a permuta ref. protocolo ${targetPermuta.protocoloId}. Encaminhado ao conselho operacional.`, loggedUser.nomeGuerra, logs);
+    
+    await sendNotification(
+      targetPermuta.militarSubstituidoId,
+      "Permuta Assinada pelo Substituto",
+      "Sua solicitação foi aceita e assinada pelo policial substituto. Aguarde a homologação do administrador.",
+      targetPermuta.id,
+      "ACEITA"
+    );
+
     setActiveReviewPermuta(null);
     setCurrentTab('PERMUTAS');
   };
 
   const handleDeclinePermuta = async (permutaId: string) => {
     if (!loggedUser) return;
+    const targetP = permutas.find(p => p.id === permutaId);
     try {
-      const targetP = permutas.find(p => p.id === permutaId);
       if (targetP) {
         await atualizarDados(permutaId, { 
           dados_json: { ...targetP, status: 'REJEITADO_SUBSTITUTO' } 
@@ -1655,6 +1774,24 @@ export default function App() {
     setPermutas(prev => prev.map(p => p.id === permutaId ? { ...p, status: 'REJEITADO_SUBSTITUTO' } : p));
 
     await appendAuditLog('INTEGRALIZAÇÃO', `Solicitação de permuta cancelada/rejeitada pelo militar substituto. Protocolo suspenso.`, loggedUser.nomeGuerra, logs);
+    
+    if (targetP) {
+      await sendNotification(
+        targetP.militarSubstituidoId,
+        "Permuta Recusada pelo Substituto",
+        `A solicitação de permuta para o serviço do dia ${formatarDataBR(targetP.dataRealizacao)} foi recusada pelo militar substituto.`,
+        targetP.id,
+        "REJEITADA"
+      );
+      await sendNotification(
+        targetP.militarSubstitutoId,
+        "Permuta Recusada",
+        `Você recusou a solicitação de permuta para o serviço do dia ${formatarDataBR(targetP.dataRealizacao)}.`,
+        targetP.id,
+        "REJEITADA"
+      );
+    }
+
     setActiveReviewPermuta(null);
     setCurrentTab('PERMUTAS');
   };
@@ -2451,11 +2588,26 @@ export default function App() {
 
     await appendAuditLog('PROCESSO_APROVADO', `Homologação oficial ativada por ${gestorNome} para protocolo ${targetPermuta.protocoloId}. Escala atualizada. Vias digitais autenticadas.`, gestorNome, logs);
     
+    await sendNotification(
+      targetPermuta.militarSubstituidoId,
+      "Permuta Homologada",
+      "Sua permuta foi homologada com sucesso.",
+      targetPermuta.id,
+      "HOMOLOGADA"
+    );
+    await sendNotification(
+      targetPermuta.militarSubstitutoId,
+      "Permuta Homologada",
+      "Sua permuta foi homologada com sucesso.",
+      targetPermuta.id,
+      "HOMOLOGADA"
+    );
+
     // Trigger auto-backup after significant state change
     await generateBackup('AUTO', gestorNome);
   };
 
-  const handleRejectPermutaGestor = async (permutaId: string) => {
+  const handleRejectPermutaGestor = async (permutaId: string, motivo?: string) => {
     if (!loggedUser) return;
     const targetPermuta = permutas.find(p => p.id === permutaId);
     if (!targetPermuta) return;
@@ -2468,7 +2620,8 @@ export default function App() {
           ...targetPermuta, 
           status: 'REJEITADO', 
           gestorNome: loggedUser.nomeGuerra, 
-          dataAssinaturaGestor 
+          dataAssinaturaGestor,
+          comentarioAlteracao: motivo || ''
         } 
       });
     } catch (e) {
@@ -2480,10 +2633,27 @@ export default function App() {
       ...p,
       status: 'REJEITADO',
       gestorNome: loggedUser.nomeGuerra,
-      dataAssinaturaGestor
+      dataAssinaturaGestor,
+      comentarioAlteracao: motivo || ''
     } : p));
 
     await appendAuditLog('PROCESSO_REJEITADO', `Permuta ID ${targetPermuta.protocoloId} rejeitada administrativamente pelo Comando de Batalhão.`, loggedUser.nomeGuerra, logs);
+
+    const motivoStr = motivo ? ` Motivo: "${motivo}"` : "";
+    await sendNotification(
+      targetPermuta.militarSubstituidoId,
+      "Permuta Rejeitada pelo Comando",
+      `Sua permuta ref. ao dia ${formatarDataBR(targetPermuta.dataRealizacao)} foi rejeitada pelo Comando.${motivoStr}`,
+      targetPermuta.id,
+      "REJEITADA"
+    );
+    await sendNotification(
+      targetPermuta.militarSubstitutoId,
+      "Permuta Rejeitada pelo Comando",
+      `Sua permuta ref. ao dia ${formatarDataBR(targetPermuta.dataRealizacao)} foi rejeitada pelo Comando.${motivoStr}`,
+      targetPermuta.id,
+      "REJEITADA"
+    );
 
     // Trigger auto-backup
     await generateBackup('AUTO', loggedUser.nomeGuerra);
@@ -2582,6 +2752,14 @@ export default function App() {
       if (exists) return prev;
       return [...prev, automatedMsg].sort((a,b) => a.timestamp.localeCompare(b.timestamp));
     });
+
+    await sendNotification(
+      targetPermuta.militarSubstituidoId,
+      "Ajuste de Permuta Solicitado",
+      `Sua permuta ref. ao dia ${formatarDataBR(targetPermuta.dataRealizacao)} necessita de ajustes solicitados pelo Comando: "${justificativa}"`,
+      targetPermuta.id,
+      "REJEITADA"
+    );
   };
 
   const handleUpdateAlerta = async (alertaId: string, conteudo: string, color: string, icon: string, velocidade?: number, tamanho?: number) => {
@@ -2651,6 +2829,9 @@ export default function App() {
     );
   }
 
+  const userNotificacoes = loggedUser ? notificacoes.filter(n => n.militarId === loggedUser.id) : [];
+  const unreadCount = userNotificacoes.filter(n => !n.visualizada).length;
+
   return (
     <MilitaryMobileFrame
       userLogged={loggedUser}
@@ -2692,6 +2873,150 @@ export default function App() {
       ) : (
         /* LOGGED IN CORE TACTICAL EXPERIENCE */
         <div className="flex-1 flex flex-col justify-between h-full bg-hud-bg relative">
+          
+          {/* Top Tactical Status & Notification Bar */}
+          <div className="h-10 px-4 border-b border-hud-border bg-[#020507] flex items-center justify-between select-none shrink-0 relative z-40">
+            <div className="flex items-center space-x-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyber-green animate-pulse" />
+              <span className="text-[9px] font-mono tracking-widest text-[#00e5ff] font-extrabold uppercase">REDE TÁTICA ATIVA</span>
+            </div>
+            
+            {/* Notification Bell with Badge */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotificationCenter(!showNotificationCenter)}
+                className="p-1.5 rounded-lg border border-hud-border/60 bg-black/40 hover:bg-[#00e5ff]/10 hover:border-[#00e5ff]/50 transition-all focus:outline-none flex items-center justify-center relative group"
+                id="notification-bell-btn"
+              >
+                {unreadCount > 0 ? (
+                  <BellRing className="w-4 h-4 text-cyber-amber animate-bounce" />
+                ) : (
+                  <Bell className="w-4 h-4 text-slate-400 group-hover:text-cyber-blue" />
+                )}
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1.5 bg-cyber-red text-white text-[8px] font-black rounded-full w-4 h-4 flex items-center justify-center border border-black animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Notification Center Popover Panel */}
+          {showNotificationCenter && (
+            <div className="absolute top-11 right-4 left-4 max-w-sm bg-[#040d11] border-2 border-[#00e5ff]/30 rounded-xl p-4 shadow-[0_4px_25px_rgba(0,0,0,0.8)] z-50 animate-fade-in font-sans" id="notification-center-panel">
+              <div className="flex items-center justify-between border-b border-hud-border/50 pb-2 mb-2">
+                <div className="flex items-center space-x-2">
+                  <Bell className="w-4 h-4 text-[#00e5ff]" />
+                  <h4 className="text-xs font-black text-white uppercase tracking-wider font-mono">Central de Notificações</h4>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={handleMarkAllNotificationsAsRead}
+                      className="text-[9px] text-[#00e5ff] font-bold hover:underline uppercase font-mono"
+                      id="notif-mark-all-read-btn"
+                    >
+                      ✓ Ler Todas
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowNotificationCenter(false)}
+                    className="text-xs text-slate-400 hover:text-white px-1.5 py-0.5 rounded border border-hud-border bg-black/20"
+                    id="notif-close-btn"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                {userNotificacoes.length === 0 ? (
+                  <div className="text-center py-6 text-slate-400 text-xs font-mono uppercase">
+                    Nenhuma notificação tática registrada.
+                  </div>
+                ) : (
+                  userNotificacoes.map((n) => (
+                    <div
+                      key={n.id}
+                      className={`p-2.5 rounded-lg border text-xs transition-all relative ${
+                        n.visualizada 
+                          ? 'bg-black/10 border-hud-border/40 text-slate-400' 
+                          : 'bg-cyber-blue/5 border-cyber-blue/30 text-slate-200 shadow-[0_0_8px_rgba(0,229,255,0.05)]'
+                      }`}
+                      id={`notif-item-${n.id}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center space-x-1.5 mb-1 flex-wrap gap-1">
+                            {!n.visualizada && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-cyber-amber shrink-0" />
+                            )}
+                            <span className="font-bold text-[11px] text-white tracking-wide uppercase font-mono">{n.titulo}</span>
+                            {n.tipo && (
+                              <span className={`text-[8px] px-1 py-0.2 rounded font-mono font-black uppercase tracking-widest ${
+                                n.tipo === 'HOMOLOGADA' ? 'bg-cyber-green/10 text-cyber-green border border-cyber-green/20' :
+                                n.tipo === 'REJEITADA' ? 'bg-cyber-red/10 text-cyber-red border border-cyber-red/20' :
+                                'bg-cyber-blue/10 text-cyber-blue border border-cyber-blue/20'
+                              }`}>
+                                {n.tipo}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10.5px] leading-relaxed text-slate-300 pr-4">{n.mensagem}</p>
+                          <span className="text-[8px] font-mono text-slate-500 mt-1 block">
+                            {new Date(n.dataHora).toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5 shrink-0">
+                          {!n.visualizada && (
+                            <button
+                              onClick={() => handleMarkNotificationAsRead(n.id)}
+                              className="text-[9px] text-[#00e5ff] hover:text-white p-1 bg-black/20 rounded border border-hud-border/40"
+                              title="Marcar como lida"
+                              id={`notif-mark-read-${n.id}`}
+                            >
+                              ✓
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleClearNotification(n.id)}
+                            className="text-[9px] text-cyber-red/80 hover:text-cyber-red p-1 bg-black/20 rounded border border-hud-border/40"
+                            title="Remover"
+                            id={`notif-clear-${n.id}`}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Immediate creation confirmation toast modal */}
+          {creationSuccessMessage && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-55 animate-fade-in select-none">
+              <div className="max-w-xs w-full bg-[#040d11] border-2 border-cyber-cyan/50 rounded-2xl p-5 flex flex-col items-center text-center space-y-4 shadow-[0_0_30px_rgba(0,229,255,0.25)] relative overflow-hidden font-sans">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyber-cyan to-transparent"></div>
+                <div className="w-12 h-12 rounded-full bg-cyber-green/10 border-2 border-cyber-green flex items-center justify-center shadow-[0_0_15px_rgba(0,255,102,0.2)] animate-pulse">
+                  <Check className="w-6 h-6 text-cyber-green" />
+                </div>
+                <h4 className="text-xs font-black text-white uppercase tracking-widest font-mono">SOLICITAÇÃO PROTOCOLADA!</h4>
+                <p className="text-[10.5px] text-slate-300 leading-normal">{creationSuccessMessage}</p>
+                <button
+                  onClick={() => setCreationSuccessMessage(null)}
+                  className="w-full bg-cyber-cyan text-black hover:bg-white hover:text-black transition-all text-[10px] font-extrabold py-2.5 rounded-xl font-mono uppercase shadow-[0_0_10px_rgba(0,229,255,0.15)] cursor-pointer"
+                  id="confirm-creation-toast-btn"
+                >
+                  CONCORDAR E CONTINUAR
+                </button>
+              </div>
+            </div>
+          )}
           
           {/* Scrolling Pane viewports */}
           <div className="flex-1 overflow-y-auto">
