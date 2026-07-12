@@ -926,11 +926,69 @@ export default function App() {
     setAlertas(prev => [newAlerta, ...prev]);
   };
 
+  const isDeepEqual = (val1: any, val2: any): boolean => {
+    if (val1 === val2) return true;
+    if (typeof val1 !== typeof val2) return false;
+    if (val1 === null || val2 === null) return false;
+    if (typeof val1 !== 'object') return false;
+
+    if (Array.isArray(val1)) {
+      if (!Array.isArray(val2) || val1.length !== val2.length) return false;
+      for (let i = 0; i < val1.length; i++) {
+        if (!isDeepEqual(val1[i], val2[i])) return false;
+      }
+      return true;
+    }
+
+    if (Array.isArray(val2)) return false;
+
+    const keys1 = Object.keys(val1);
+    const keys2 = Object.keys(val2);
+    if (keys1.length !== keys2.length) return false;
+
+    for (const key of keys1) {
+      if (!Object.prototype.hasOwnProperty.call(val2, key)) return false;
+      if (!isDeepEqual(val1[key], val2[key])) return false;
+    }
+    return true;
+  };
+
+  const areCollectionsEqual = (arr1: any[] | undefined, arr2: any[] | undefined): boolean => {
+    if (!arr1 && !arr2) return true;
+    if (!arr1 || !arr2) return false;
+    if (arr1.length !== arr2.length) return false;
+
+    const sorted1 = [...arr1].sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+    const sorted2 = [...arr2].sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+
+    for (let i = 0; i < sorted1.length; i++) {
+      if (!isDeepEqual(sorted1[i], sorted2[i])) return false;
+    }
+    return true;
+  };
+
   const generateBackup = async (tipo: 'AUTO' | 'MANUAL', autor: string, forcedMilitares?: Militar[], forcedEscalas?: Escala[], forcedPermutas?: Permuta[]): Promise<BackupSnapshot | null> => {
     try {
       const activeMilitares = forcedMilitares || militares;
       const activeEscalas = forcedEscalas || escalas;
       const activePermutas = forcedPermutas || permutas;
+
+      // Se for backup automático (AUTO), verifica se houve alguma mudança em relação ao backup mais recente
+      if (tipo === 'AUTO' && backups && backups.length > 0) {
+        const lastBackup = [...backups].sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
+        if (lastBackup) {
+          const milsEqual = areCollectionsEqual(activeMilitares, lastBackup.militares);
+          const escalasEqual = areCollectionsEqual(activeEscalas, lastBackup.escalas);
+          const permutasEqual = areCollectionsEqual(activePermutas, lastBackup.permutas);
+          const alertasEqual = areCollectionsEqual(alertas, lastBackup.alertas);
+          const logsEqual = areCollectionsEqual(logs, lastBackup.logs);
+
+          if (milsEqual && escalasEqual && permutasEqual && alertasEqual && logsEqual) {
+            console.log(`[Backup Service] Nenhum dado real foi alterado desde o último backup [${lastBackup.id}]. Ignorando auto-backup redundante.`);
+            return lastBackup;
+          }
+        }
+      }
 
       const bkId = `BK-${Date.now().toString().slice(-6)}`;
       const newSnapshot: BackupSnapshot = {
