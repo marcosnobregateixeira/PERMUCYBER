@@ -469,15 +469,15 @@ export default function App() {
     console.log("[App] Configurando Realtime Supabase para sincronização total...");
     setRealtimeStatus('connecting');
 
-    // 1. Fetch Inicial do Supabase para garantir que todos comecem com os mesmos dados
+    // 1. Fetch Inicial do Supabase para garantir que todos comecem com os mesmos dados (Sincronização Delta)
     const fetchInitialData = async () => {
       try {
-        const { data, error } = await supabaseClient
+        // Busca apenas os IDs e timestamps para calcular a diferença (Delta)
+        const { data: dbRecords, error } = await supabaseClient
           .from('dados_app')
-          .select('*');
+          .select('id, criado_em');
         
         if (error) {
-          // Se o erro for PGRST116 (Resource not found), a tabela não existe.
           if (error.code === 'PGRST116' || error.message?.includes('relation "dados_app" does not exist')) {
             console.warn("[App] Tabela 'dados_app' não encontrada no Supabase. Certifique-se de criá-la conforme as instruções.");
             return;
@@ -485,44 +485,106 @@ export default function App() {
           throw error;
         }
 
-        if (data && data.length > 0) {
-          console.log(`[App] Sincronização inicial: ${data.length} registros recuperados do Supabase.`);
-          
-          const newMilitares: Militar[] = [];
-          const newEscalas: Escala[] = [];
-          const newPermutas: Permuta[] = [];
-          const newAlertas: Alerta[] = [];
-          const newLogs: BlockchainLog[] = [];
-          const newMessages: ChatMessage[] = [];
-          const newBackups: BackupSnapshot[] = [];
-          const newNotificacoes: Notificacao[] = [];
+        if (dbRecords && dbRecords.length > 0) {
+          // Lê os estados locais sincronizados do localStorage para evitar fechamento estático
+          const localMils: Militar[] = JSON.parse(localStorage.getItem('permucyber_militares') || '[]');
+          const localEscs: Escala[] = JSON.parse(localStorage.getItem('permucyber_escalas') || '[]');
+          const localPerms: Permuta[] = JSON.parse(localStorage.getItem('permucyber_permutas') || '[]');
+          const localAls: Alerta[] = JSON.parse(localStorage.getItem('permucyber_alertas') || '[]');
+          const localLogs: BlockchainLog[] = JSON.parse(localStorage.getItem('permucyber_logs') || '[]');
+          const localMsgs: ChatMessage[] = JSON.parse(localStorage.getItem('permucyber_messages') || '[]');
+          const localNots: Notificacao[] = JSON.parse(localStorage.getItem('permucyber_notificacoes') || '[]');
+          const localBkps: BackupSnapshot[] = JSON.parse(localStorage.getItem('permucyber_backups') || '[]');
 
-          data.forEach(row => {
+          const localIds = new Set<string>();
+          localMils.forEach(m => localIds.add(toSupabaseFriendlyUUID(m.id)));
+          localEscs.forEach(e => localIds.add(toSupabaseFriendlyUUID(e.id)));
+          localPerms.forEach(p => localIds.add(toSupabaseFriendlyUUID(p.id)));
+          localAls.forEach(a => localIds.add(toSupabaseFriendlyUUID(a.id)));
+          localLogs.forEach(l => localIds.add(toSupabaseFriendlyUUID(l.id)));
+          localMsgs.forEach(m => localIds.add(toSupabaseFriendlyUUID(m.id)));
+          localNots.forEach(n => localIds.add(toSupabaseFriendlyUUID(n.id)));
+          localBkps.forEach(b => localIds.add(toSupabaseFriendlyUUID(b.id)));
+          localIds.add(toSupabaseFriendlyUUID('config-system'));
+
+          const localTimestamps: Record<string, string> = JSON.parse(localStorage.getItem('permucyber_sync_timestamps') || '{}');
+          const idsToFetch: string[] = [];
+          const nextTimestamps = { ...localTimestamps };
+
+          dbRecords.forEach((row: any) => {
+            const dbId = row.id;
+            const dbTime = row.criado_em || '';
+            const localTime = localTimestamps[dbId] || '';
+
+            if (!localIds.has(dbId) || !localTime || dbTime > localTime) {
+              idsToFetch.push(dbId);
+            }
+            nextTimestamps[dbId] = dbTime;
+          });
+
+          let fetchedRows: any[] = [];
+          if (idsToFetch.length > 0) {
+            console.log(`[App] Delta Sync: Buscando ${idsToFetch.length} novos/alterados registros do Supabase.`);
+            const chunkSize = 50;
+            for (let i = 0; i < idsToFetch.length; i += chunkSize) {
+              const chunk = idsToFetch.slice(i, i + chunkSize);
+              const { data: chunkData, error: chunkError } = await supabaseClient
+                .from('dados_app')
+                .select('*')
+                .in('id', chunk);
+              if (chunkError) throw chunkError;
+              if (chunkData) fetchedRows.push(...chunkData);
+            }
+          }
+
+          let currentMil = [...localMils];
+          let currentEsc = [...localEscs];
+          let currentPerm = [...localPerms];
+          let currentAl = [...localAls];
+          let currentLog = [...localLogs];
+          let currentMsg = [...localMsgs];
+          let currentNot = [...localNots];
+          let currentBkp = [...localBkps];
+
+          fetchedRows.forEach(row => {
             const obj = row.dados_json;
             if (!obj) return;
+            const dbId = row.id;
 
             // Identificação robusta por propriedades únicas
-            if (obj.nomeGuerra && obj.patente && obj.companhia) newMilitares.push(obj);
-            else if (obj.turno && obj.data && obj.militarId && !obj.protocoloId) newEscalas.push(obj);
-            else if (obj.protocoloId) newPermutas.push(obj);
-            else if (obj.prioridade && obj.conteudo) newAlertas.push(obj);
-            else if (obj.hashAtual && obj.tipoEvento) newLogs.push(obj);
-            else if (obj.deMilitarId && obj.paraMilitarId && obj.conteudo) newMessages.push(obj);
-            else if (obj.militarId && obj.titulo && obj.mensagem && obj.dataHora) newNotificacoes.push(obj);
-            else if (obj.quantidadeMilitares && obj.quantidadeEscalas && (obj.militares || obj.encrypted_payload)) {
+            if (obj.nomeGuerra && obj.patente && obj.companhia) {
+              currentMil = currentMil.filter(m => toSupabaseFriendlyUUID(m.id) !== dbId);
+              currentMil.push(obj);
+            } else if (obj.turno && obj.data && obj.militarId && !obj.protocoloId) {
+              currentEsc = currentEsc.filter(e => toSupabaseFriendlyUUID(e.id) !== dbId);
+              currentEsc.push(obj);
+            } else if (obj.protocoloId) {
+              currentPerm = currentPerm.filter(p => toSupabaseFriendlyUUID(p.id) !== dbId);
+              currentPerm.push(obj);
+            } else if (obj.prioridade && obj.conteudo) {
+              currentAl = currentAl.filter(a => toSupabaseFriendlyUUID(a.id) !== dbId);
+              currentAl.push(obj);
+            } else if (obj.hashAtual && obj.tipoEvento) {
+              currentLog = currentLog.filter(l => toSupabaseFriendlyUUID(l.id) !== dbId);
+              currentLog.push(obj);
+            } else if (obj.deMilitarId && obj.paraMilitarId && obj.conteudo) {
+              currentMsg = currentMsg.filter(m => toSupabaseFriendlyUUID(m.id) !== dbId);
+              currentMsg.push(obj);
+            } else if (obj.militarId && obj.titulo && obj.mensagem && obj.dataHora) {
+              currentNot = currentNot.filter(n => toSupabaseFriendlyUUID(n.id) !== dbId);
+              currentNot.push(obj);
+            } else if (obj.quantidadeMilitares && obj.quantidadeEscalas && (obj.militares || obj.encrypted_payload)) {
+              let bk = obj;
               if (obj.encrypted_payload) {
                 try {
-                  const decrypted = decryptBackup(obj.encrypted_payload);
-                  newBackups.push(decrypted);
+                  bk = decryptBackup(obj.encrypted_payload);
                 } catch (err) {
                   console.error("Falha ao descriptografar backup " + obj.id, err);
-                  newBackups.push(obj);
                 }
-              } else {
-                newBackups.push(obj);
               }
-            }
-            else if (obj.brasaoEsquerdoUrl !== undefined || obj.theme !== undefined) {
+              currentBkp = currentBkp.filter(b => toSupabaseFriendlyUUID(b.id) !== dbId);
+              currentBkp.push(bk);
+            } else if (obj.brasaoEsquerdoUrl !== undefined || obj.theme !== undefined) {
               setConfig(prev => {
                 const updatedUrl = obj.supabaseUrl || prev.supabaseUrl;
                 const updatedKey = obj.supabaseAnonKey || prev.supabaseAnonKey;
@@ -531,33 +593,36 @@ export default function App() {
             }
           });
 
-          const uniqueMil = newMilitares.filter((m, idx, arr) => arr.findIndex(x => x.id === m.id) === idx);
+          // Processamento inteligente de remoções (Deletados no servidor)
+          const dbIdSet = new Set(dbRecords.map((r: any) => r.id));
+          const hasCloudData = currentMil.length > 0 || fetchedRows.some(row => row.dados_json && row.dados_json.nomeGuerra);
           
-          // Se houver militares cadastrados na nuvem, consideramos que a base de dados Supabase foi inicializada
-          // e sobrescrevemos o estado local de forma segura. Caso contrário, mantemos os mocks locais padrão 
-          // para evitar que um novo aparelho carregue uma tela vazia sem usuários ou escalas.
-          if (uniqueMil.length > 0) {
-            setMilitares(uniqueMil.sort(sortMilitarByPatente));
+          if (hasCloudData) {
+            currentMil = currentMil.filter(m => dbIdSet.has(toSupabaseFriendlyUUID(m.id)));
+            currentEsc = currentEsc.filter(e => dbIdSet.has(toSupabaseFriendlyUUID(e.id)));
+            currentPerm = currentPerm.filter(p => dbIdSet.has(toSupabaseFriendlyUUID(p.id)));
+            currentAl = currentAl.filter(a => dbIdSet.has(toSupabaseFriendlyUUID(a.id)));
+            currentLog = currentLog.filter(l => dbIdSet.has(toSupabaseFriendlyUUID(l.id)));
+            currentMsg = currentMsg.filter(m => dbIdSet.has(toSupabaseFriendlyUUID(m.id)));
+            currentNot = currentNot.filter(n => dbIdSet.has(toSupabaseFriendlyUUID(n.id)));
+            currentBkp = currentBkp.filter(b => dbIdSet.has(toSupabaseFriendlyUUID(b.id)));
+          }
 
-            const uniqueEsc = newEscalas.filter((e, idx, arr) => arr.findIndex(x => x.id === e.id) === idx);
-            setEscalas(uniqueEsc);
-
-            const uniquePerm = newPermutas.filter((p, idx, arr) => arr.findIndex(x => x.id === p.id) === idx);
-            setPermutas(uniquePerm);
-
-            const uniqueAl = newAlertas.filter((a, idx, arr) => arr.findIndex(x => x.id === a.id) === idx);
-            setAlertas(uniqueAl);
-
-            const uniqueNot = newNotificacoes.filter((n, idx, arr) => arr.findIndex(x => x.id === n.id) === idx);
-            setNotificacoes(uniqueNot.sort((a,b) => b.dataHora.localeCompare(a.dataHora)));
-
-            setLogs(newLogs.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
-            setMessages(newMessages.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
-            setBackups(newBackups.sort((a,b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 3));
-            console.log("[App] Sincronização inicial concluída com sucesso com os dados da nuvem.");
+          if (hasCloudData) {
+            setMilitares(currentMil.sort(sortMilitarByPatente));
+            setEscalas(currentEsc);
+            setPermutas(currentPerm);
+            setAlertas(currentAl);
+            setNotificacoes(currentNot.sort((a,b) => b.dataHora.localeCompare(a.dataHora)));
+            setLogs(currentLog.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
+            setMessages(currentMsg.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
+            setBackups(currentBkp.sort((a,b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 3));
           } else {
             console.log("[App] Banco de dados em nuvem vazio ou não inicializado. Preservando mocks locais para novos aparelhos.");
           }
+
+          // Grava o mapa de controle de timestamps para as próximas verificações
+          localStorage.setItem('permucyber_sync_timestamps', JSON.stringify(nextTimestamps));
         } else {
           console.log("[App] Supabase conectado, mas nenhum dado encontrado na tabela 'dados_app'.");
         }
@@ -568,11 +633,11 @@ export default function App() {
 
     fetchInitialData();
 
-    // 2. Fallback de polling periódico para garantir sincronização mesmo sem Realtime habilitado no painel da Supabase
+    // 2. Fallback de polling periódico para garantir sincronização mesmo sem Realtime (Otimizado para 30 segundos)
     const pollInterval = setInterval(() => {
-      console.log("[Polling] Buscando atualizações incrementais...");
+      console.log("[Polling] Buscando atualizações incrementais delta...");
       fetchInitialData();
-    }, 12000);
+    }, 30000);
 
     // 3. Canal de Realtime
     const channel = supabaseClient
@@ -590,6 +655,18 @@ export default function App() {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const obj = payload.new.dados_json;
             if (!obj) return;
+
+            // Registra o timestamp da mudança em tempo real para evitar que o polling tente buscar novamente
+            const dbId = payload.new.id;
+            const dbTime = payload.new.criado_em;
+            if (dbId && dbTime) {
+              try {
+                const localTimestamps = JSON.parse(localStorage.getItem('permucyber_sync_timestamps') || '{}');
+                localTimestamps[dbId] = dbTime;
+                localStorage.setItem('permucyber_sync_timestamps', JSON.stringify(localTimestamps));
+              } catch (e) {}
+            }
+
             if (obj.nomeGuerra && obj.patente && obj.companhia) {
               setMilitares(prev => {
                 const exists = prev.some(m => m.id === obj.id);

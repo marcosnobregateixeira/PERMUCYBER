@@ -138,9 +138,13 @@ export async function atualizarDados(
 
   try {
     console.log(`[Fallback DB] Atualizando no Supabase (ID: ${id})...`);
+    const updatePayload: any = {
+      ...fields,
+      criado_em: new Date().toISOString()
+    };
     const { error } = await supabaseClient
       .from(TABLE_NAME)
-      .update(fields)
+      .update(updatePayload)
       .eq('id', supabaseId);
 
     if (error) throw new Error(error.message);
