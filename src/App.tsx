@@ -280,10 +280,10 @@ export default function App() {
     });
   };
 
-  // --- LIMPEZA DE REGISTROS ZUMBIS (04, 05, 13 JULHO) ---
+  // --- LIMPEZA DE REGISTROS ZUMBIS (04, 05 JULHO) ---
   useEffect(() => {
     const cleanupZombies = () => {
-      const targetDates = ['2026-07-04', '2026-07-05', '2026-07-13'];
+      const targetDates = ['2026-07-04', '2026-07-05'];
       
       setPermutas(prev => {
         const filtered = prev.filter(p => !targetDates.includes(p.dataRealizacao));
