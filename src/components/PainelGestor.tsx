@@ -74,6 +74,7 @@ interface PainelGestorProps {
   onCreateBackup?: (tipo: 'AUTO' | 'MANUAL') => Promise<any>;
   onRestoreBackup?: (bk: any) => void;
   onForceSyncToCloud?: () => Promise<void>;
+  onLoadBackupsOnDemand?: () => Promise<void>;
   config: import('../types').AppConfig;
   onUpdateConfig: (cfg: Partial<import('../types').AppConfig>) => void;
 }
@@ -121,6 +122,7 @@ export default function PainelGestor({
   onCreateBackup,
   onRestoreBackup,
   onForceSyncToCloud,
+  onLoadBackupsOnDemand,
   config,
   onUpdateConfig
 }: PainelGestorProps) {
@@ -196,6 +198,13 @@ export default function PainelGestor({
       loadSupabaseData();
     }
   }, [activeSubTab]);
+
+  // Carregar backups sob demanda apenas quando o administrador acessar a aba SISTEMA (tela de Backups)
+  useEffect(() => {
+    if (activeSubTab === 'SISTEMA' && onLoadBackupsOnDemand) {
+      onLoadBackupsOnDemand();
+    }
+  }, [activeSubTab, onLoadBackupsOnDemand]);
 
   const loadSupabaseData = async () => {
     if (!userLogged) return;
@@ -2715,9 +2724,20 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
 
             {/* List of Backups available */}
             <div className="space-y-2 pt-1 border-t border-hud-border/30">
-              <span className="text-[9.5px] font-mono text-slate-400 block uppercase font-bold tracking-wider">
-                ✓ HISTÓRICO DE AUDITORIA DE IMAGENS DO BANCO DE DADOS
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-[9.5px] font-mono text-slate-400 block uppercase font-bold tracking-wider">
+                  ✓ HISTÓRICO DE AUDITORIA DE IMAGENS DO BANCO DE DADOS
+                </span>
+                {onLoadBackupsOnDemand && (
+                  <button
+                    type="button"
+                    onClick={onLoadBackupsOnDemand}
+                    className="bg-cyber-blue/15 hover:bg-cyber-blue/35 text-cyber-cyan border border-cyber-blue/30 px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase transition-all cursor-pointer flex items-center gap-1"
+                  >
+                    🔄 SINCRONIZAR NUVEM
+                  </button>
+                )}
+              </div>
 
               {(!backups || backups.length === 0) ? (
                 <div className="text-[10px] text-slate-400 italic py-2.5 text-center bg-[#03090b]/50 rounded border border-hud-border/40">

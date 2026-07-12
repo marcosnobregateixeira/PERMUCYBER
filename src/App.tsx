@@ -516,6 +516,11 @@ export default function App() {
             const dbTime = row.criado_em || '';
             const localTime = localTimestamps[dbId] || '';
 
+            // Impedir que backups sejam baixados automaticamente pela sincronização delta/inicial
+            if (dbId.toLowerCase().startsWith('424b2d')) {
+              return;
+            }
+
             if (!localIds.has(dbId) || !localTime || dbTime > localTime) {
               idsToFetch.push(dbId);
             }
@@ -653,11 +658,16 @@ export default function App() {
           console.log("[Realtime] Mudança detectada:", payload.eventType);
           
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const dbId = payload.new.id;
+            // Ignorar backups no Realtime para evitar downloads automáticos ou por usuários comuns
+            if (dbId && dbId.toLowerCase().startsWith('424b2d')) {
+              return;
+            }
+
             const obj = payload.new.dados_json;
             if (!obj) return;
 
             // Registra o timestamp da mudança em tempo real para evitar que o polling tente buscar novamente
-            const dbId = payload.new.id;
             const dbTime = payload.new.criado_em;
             if (dbId && dbTime) {
               try {
@@ -1146,6 +1156,50 @@ export default function App() {
         alert("⚠️ Erro ao gerar backup: " + (err as Error).message);
       }
       return null;
+    }
+  };
+
+  const handleLoadBackupsOnDemand = async () => {
+    try {
+      const supabaseClient = getSupabase();
+      if (!supabaseClient) {
+        setBackupStatusMsg("⚠️ Supabase não configurado.");
+        return;
+      }
+      setBackupStatusMsg("⌛ Carregando backups da nuvem...");
+      
+      const { data, error } = await supabaseClient
+        .from('dados_app')
+        .select('*');
+        
+      if (error) throw error;
+      
+      if (data) {
+        const bkpsList: BackupSnapshot[] = [];
+        data.forEach(row => {
+          const dbId = row.id;
+          const obj = row.dados_json;
+          if (dbId.toLowerCase().startsWith('424b2d') || (obj && obj.quantidadeMilitares !== undefined && (obj.militares || obj.encrypted_payload))) {
+            let bk = obj;
+            if (obj.encrypted_payload) {
+              try {
+                bk = decryptBackup(obj.encrypted_payload);
+              } catch (err) {
+                console.error("Falha ao descriptografar backup " + obj.id, err);
+              }
+            }
+            bkpsList.push(bk);
+          }
+        });
+        
+        const sorted = bkpsList.sort((a,b) => b.timestamp.localeCompare(a.timestamp));
+        setBackups(sorted);
+        localStorage.setItem('permucyber_backups', JSON.stringify(sorted));
+        setBackupStatusMsg("✓ Backups carregados com sucesso.");
+      }
+    } catch (err) {
+      console.error("Erro ao carregar backups sob demanda:", err);
+      setBackupStatusMsg("❌ Erro ao carregar backups.");
     }
   };
 
@@ -3535,6 +3589,7 @@ export default function App() {
                         onCreateBackup={(tipo) => generateBackup(tipo, loggedUser?.nomeGuerra || 'SISTEMA')}
                         onRestoreBackup={handleRestoreBackup}
                         onForceSyncToCloud={handleForceSyncToCloud}
+                        onLoadBackupsOnDemand={handleLoadBackupsOnDemand}
                         config={config}
                         onUpdateConfig={handleUpdateConfig}
                       />
