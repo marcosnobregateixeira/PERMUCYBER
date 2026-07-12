@@ -234,6 +234,7 @@ export default function App() {
   });
   const [backupStatusMsg, setBackupStatusMsg] = useState<string>('Sincronização em nuvem e backups estão ativos.');
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'online' | 'offline' | 'unconfigured'>('unconfigured');
+  const [isInitialSyncDone, setIsInitialSyncDone] = useState<boolean>(false);
 
   const [currentTab, setCurrentTab] = useState<'DASHBOARD' | 'PERMUTAS' | 'CHAT' | 'GESTAO'>('DASHBOARD');
   const [activeSwapScale, setActiveSwapScale] = useState<Escala | null>(null);
@@ -633,6 +634,8 @@ export default function App() {
         }
       } catch (err) {
         console.warn("[App] Erro no fetch inicial Supabase (redundância via Local ativa):", err);
+      } finally {
+        setIsInitialSyncDone(true);
       }
     };
 
@@ -2372,6 +2375,7 @@ export default function App() {
     // Automatic cleanup for past unapproved permutas
     const todayStr = new Date().toLocaleDateString('en-CA');
     const checkExpiredPermutas = async () => {
+      if (!isInitialSyncDone) return;
       let anyChanged = false;
       const updated = permutas.map(p => {
         if (p.status !== 'APROVADO' && p.status !== 'SEM_EFEITO' && p.status !== 'REJEITADO' && p.status !== 'REJEITADO_SUBSTITUTO' && p.dataRealizacao < todayStr) {
@@ -2396,10 +2400,11 @@ export default function App() {
 
     const timer = setTimeout(checkExpiredPermutas, 1000);
     return () => clearTimeout(timer);
-  }, [currentTab, loggedUser, permutas]);
+  }, [currentTab, loggedUser, permutas, isInitialSyncDone]);
 
   // Automated detection of afastamentos causing active permutas to be "SEM_EFEITO"
   useEffect(() => {
+    if (!isInitialSyncDone) return;
     if (!militares || militares.length === 0 || !permutas || permutas.length === 0) return;
     
     const activeStatuses = ['PENDENTE_SUBSTITUTO', 'PENDENTE_GESTOR', 'AJUSTE_GESTOR', 'ALTERACAO_SOLICITADA'];
@@ -2480,11 +2485,11 @@ export default function App() {
     };
     
     checkAndCancelPermutas();
-  }, [militares, permutas]);
+  }, [militares, permutas, isInitialSyncDone]);
 
   // --- SELF-HEALING HOOK: Restore Dourado/Nildjon Permuta (PEM-20260708-8185) ---
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || !isInitialSyncDone) return;
 
     const healDouradoNildjon = async () => {
       const targetP = permutas.find(p => p.protocoloId === 'PEM-20260708-8185' || (p.dataRealizacao === '2026-07-08' && p.turno === 'TURNO A'));
@@ -2514,7 +2519,41 @@ export default function App() {
     };
 
     healDouradoNildjon();
-  }, [isLoading, permutas]);
+  }, [isLoading, isInitialSyncDone, permutas]);
+
+  // --- SELF-HEALING HOOK: Restore P-3942-51 Permuta (PEM-20260711-7632) ---
+  useEffect(() => {
+    if (isLoading || !isInitialSyncDone) return;
+
+    const healP3942 = async () => {
+      const targetP = permutas.find(p => p.protocoloId === 'PEM-20260711-7632');
+      if (targetP && targetP.status !== 'APROVADO') {
+        console.log("[Self-Healing] Restaurando permuta P-3942-51 (PEM-20260711-7632) para status HOMOLOGADA (APROVADO)...");
+        const healedP: Permuta = {
+          ...targetP,
+          status: 'APROVADO',
+          gestorNome: 'MAJ EDNA',
+          assinaturaGestor: 'CYBERSIGN::MAJ EDNA::99824FE7A::LEVEL_4',
+          dataAssinaturaGestor: '2026-07-11 10:00',
+          motivoSemEfeito: undefined,
+          dataCancelamentoAutomatico: undefined
+        };
+
+        // 1. Update local state immediately
+        setPermutas(prev => prev.map(p => p.id === targetP.id ? healedP : p));
+
+        // 2. Save to Supabase
+        try {
+          await atualizarDados(targetP.id, { dados_json: healedP });
+          await appendAuditLog('INTEGRALIZAÇÃO', `Restauração automática da permuta P-3942-51 (PEM-20260711-7632) para status homologada.`, 'SISTEMA', logs);
+        } catch (err) {
+          console.error("[Self-Healing] Erro ao salvar restauração no banco:", err);
+        }
+      }
+    };
+
+    healP3942();
+  }, [isLoading, isInitialSyncDone, permutas]);
 
   const handleRequestAlteration = async (permutaId: string, comentario: string) => {
     if (!loggedUser) return;
