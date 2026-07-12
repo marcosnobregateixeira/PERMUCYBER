@@ -75,6 +75,7 @@ interface PainelGestorProps {
   onRestoreBackup?: (bk: any) => void;
   onForceSyncToCloud?: () => Promise<void>;
   onLoadBackupsOnDemand?: () => Promise<void>;
+  onFetchFullBackup?: (bkId: string, dbUuid?: string) => Promise<any>;
   config: import('../types').AppConfig;
   onUpdateConfig: (cfg: Partial<import('../types').AppConfig>) => void;
 }
@@ -123,6 +124,7 @@ export default function PainelGestor({
   onRestoreBackup,
   onForceSyncToCloud,
   onLoadBackupsOnDemand,
+  onFetchFullBackup,
   config,
   onUpdateConfig
 }: PainelGestorProps) {
@@ -2765,8 +2767,20 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                       <div className="flex items-center gap-1 shrink-0">
                         <button
                           type="button"
-                          onClick={() => {
-                            const blob = new Blob([JSON.stringify(bk, null, 2)], { type: 'application/json' });
+                          onClick={async () => {
+                            let dataToDownload = bk;
+                            if (bk.isMetadataOnly && onFetchFullBackup) {
+                              if (onUpdateBackupStatusMsg) onUpdateBackupStatusMsg(`⌛ Baixando conteúdo integral do backup ${bk.id}...`);
+                              const loaded = await onFetchFullBackup(bk.id, bk.dbUuid);
+                              if (loaded) {
+                                dataToDownload = loaded;
+                                if (onUpdateBackupStatusMsg) onUpdateBackupStatusMsg(`✓ Backup ${bk.id} carregado para download.`);
+                              } else {
+                                if (onUpdateBackupStatusMsg) onUpdateBackupStatusMsg(`❌ Falha ao baixar backup ${bk.id}.`);
+                                return;
+                              }
+                            }
+                            const blob = new Blob([JSON.stringify(dataToDownload, null, 2)], { type: 'application/json' });
                             const url = URL.createObjectURL(blob);
                             const dlAnchor = document.createElement('a');
                             dlAnchor.setAttribute("href", url);

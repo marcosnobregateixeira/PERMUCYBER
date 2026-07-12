@@ -1173,24 +1173,45 @@ export default function App() {
       
       const { data, error } = await supabaseClient
         .from('dados_app')
-        .select('*');
+        .select(`
+          id,
+          user_id,
+          titulo,
+          descricao,
+          criado_em,
+          bk_id:dados_json->id,
+          bk_timestamp:dados_json->timestamp,
+          bk_tipo:dados_json->tipo,
+          bk_autor:dados_json->autor,
+          bk_quantidadeMilitares:dados_json->quantidadeMilitares,
+          bk_quantidadeEscalas:dados_json->quantidadeEscalas,
+          bk_quantidadePermutas:dados_json->quantidadePermutas
+        `);
         
       if (error) throw error;
       
       if (data) {
         const bkpsList: BackupSnapshot[] = [];
-        data.forEach(row => {
+        data.forEach((row: any) => {
           const dbId = row.id;
-          const obj = row.dados_json;
-          if (dbId.toLowerCase().startsWith('424b2d') || (obj && obj.quantidadeMilitares !== undefined && (obj.militares || obj.encrypted_payload))) {
-            let bk = obj;
-            if (obj.encrypted_payload) {
-              try {
-                bk = decryptBackup(obj.encrypted_payload);
-              } catch (err) {
-                console.error("Falha ao descriptografar backup " + obj.id, err);
-              }
-            }
+          const bkId = row.bk_id;
+          if (dbId.toLowerCase().startsWith('424b2d') || (bkId && bkId.startsWith('BK-'))) {
+            const bk: any = {
+              id: bkId || ('BK-' + dbId.slice(-6)),
+              timestamp: row.bk_timestamp || row.criado_em?.replace('T', ' ').slice(0, 19) || new Date().toISOString(),
+              tipo: row.bk_tipo || (row.titulo?.includes('AUTO') ? 'AUTO' : 'MANUAL'),
+              autor: row.bk_autor || 'SISTEMA',
+              quantidadeMilitares: Number(row.bk_quantidadeMilitares || 0),
+              quantidadeEscalas: Number(row.bk_quantidadeEscalas || 0),
+              quantidadePermutas: Number(row.bk_quantidadePermutas || 0),
+              militares: [],
+              escalas: [],
+              permutas: [],
+              alertas: [],
+              logs: [],
+              isMetadataOnly: true,
+              dbUuid: dbId
+            };
             bkpsList.push(bk);
           }
         });
@@ -1206,10 +1227,52 @@ export default function App() {
     }
   };
 
+  const fetchFullBackup = async (bkId: string, dbUuid?: string): Promise<BackupSnapshot | null> => {
+    try {
+      const supabaseClient = getSupabase();
+      if (!supabaseClient) {
+        throw new Error("Supabase não configurado.");
+      }
+      
+      const targetUuid = dbUuid || toSupabaseFriendlyUUID(bkId);
+      console.log(`[Backup Service] Carregando conteúdo completo do backup ${bkId} (UUID: ${targetUuid}) sob demanda...`);
+      
+      const { data, error } = await supabaseClient
+        .from('dados_app')
+        .select('dados_json')
+        .eq('id', targetUuid)
+        .single();
+        
+      if (error) throw error;
+      if (!data || !data.dados_json) {
+        throw new Error("Backup não encontrado no banco de dados.");
+      }
+      
+      let fullBackup = data.dados_json;
+      if (fullBackup.encrypted_payload) {
+        fullBackup = decryptBackup(fullBackup.encrypted_payload);
+      }
+      return fullBackup;
+    } catch (err) {
+      console.error(`[Backup Service] Erro ao carregar backup completo ${bkId}:`, err);
+      alert(`⚠️ Erro ao carregar dados do backup: ${(err as Error).message}`);
+      return null;
+    }
+  };
+
   const handleRestoreBackup = async (snapshot: any, silent = false, _localOnly = false) => {
     try {
       let activeSnapshot = snapshot;
-      if (snapshot && snapshot.encrypted_payload) {
+      if (snapshot && snapshot.isMetadataOnly) {
+        setBackupStatusMsg(`⌛ Carregando conteúdo integral do backup ${snapshot.id}...`);
+        const loaded = await fetchFullBackup(snapshot.id, snapshot.dbUuid);
+        if (!loaded) {
+          setBackupStatusMsg(`❌ Erro ao carregar backup ${snapshot.id} da nuvem.`);
+          return;
+        }
+        activeSnapshot = loaded;
+      }
+      if (activeSnapshot && activeSnapshot.encrypted_payload) {
         try {
           activeSnapshot = decryptBackup(snapshot.encrypted_payload);
           console.log("[Backup Service] Backup descriptografado com sucesso para restauração:", activeSnapshot.id);
@@ -3629,6 +3692,7 @@ export default function App() {
                         onRestoreBackup={handleRestoreBackup}
                         onForceSyncToCloud={handleForceSyncToCloud}
                         onLoadBackupsOnDemand={handleLoadBackupsOnDemand}
+                        onFetchFullBackup={fetchFullBackup}
                         config={config}
                         onUpdateConfig={handleUpdateConfig}
                       />
