@@ -19,6 +19,7 @@ export interface AppDataRecord {
  */
 const TABLE_NAME = 'dados_app';
 export const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
+export const BACKUP_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 function isValidUUID(uuid: string) {
   const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

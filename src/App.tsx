@@ -45,7 +45,7 @@ import {
 } from 'lucide-react';
 
 import { setSupabaseCredentials, getSupabase, getEnvUrl, getEnvKey } from './supabase';
-import { salvarDados, deletarDados, atualizarDados, listarDados, SYSTEM_USER_ID, toSupabaseFriendlyUUID } from './databaseFallback';
+import { salvarDados, deletarDados, atualizarDados, listarDados, SYSTEM_USER_ID, BACKUP_USER_ID, toSupabaseFriendlyUUID } from './databaseFallback';
 import { 
   encryptBackup, 
   decryptBackup, 
@@ -655,7 +655,8 @@ export default function App() {
         {
           event: '*',
           schema: 'public',
-          table: 'dados_app'
+          table: 'dados_app',
+          filter: `user_id=eq.${SYSTEM_USER_ID}`
         },
         (payload) => {
           console.log("[Realtime] Mudança detectada:", payload.eventType);
@@ -1114,7 +1115,7 @@ export default function App() {
       const transmitToCloud = async () => {
         try {
           const dbResult = await salvarDados(
-            SYSTEM_USER_ID,
+            BACKUP_USER_ID,
             `Cópia de Segurança ${tipo} [${bkId}]`,
             `Snapshot integral: ${activeMilitares.length} policiais, ${activeEscalas.length} escalas, ${activePermutas.length} permutas. Gerado por ${autor}`,
             encryptedEnvelope,
@@ -1186,7 +1187,8 @@ export default function App() {
           bk_quantidadeMilitares:dados_json->quantidadeMilitares,
           bk_quantidadeEscalas:dados_json->quantidadeEscalas,
           bk_quantidadePermutas:dados_json->quantidadePermutas
-        `);
+        `)
+        .in('user_id', [SYSTEM_USER_ID, BACKUP_USER_ID]);
         
       if (error) throw error;
       
