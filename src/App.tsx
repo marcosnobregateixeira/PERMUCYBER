@@ -236,6 +236,18 @@ export default function App() {
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'online' | 'offline' | 'unconfigured'>('unconfigured');
   const [isInitialSyncDone, setIsInitialSyncDone] = useState<boolean>(false);
 
+  const realtimeStatusRef = React.useRef(realtimeStatus);
+  const loggedUserRoleRef = React.useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    realtimeStatusRef.current = realtimeStatus;
+  }, [realtimeStatus]);
+
+  useEffect(() => {
+    const currentLoggedUser = militares.find((m) => m.id === selectedMilitarId);
+    loggedUserRoleRef.current = currentLoggedUser?.role;
+  }, [selectedMilitarId, militares]);
+
   const [currentTab, setCurrentTab] = useState<'DASHBOARD' | 'PERMUTAS' | 'CHAT' | 'GESTAO'>('DASHBOARD');
   const [activeSwapScale, setActiveSwapScale] = useState<Escala | null>(null);
   const [activeReviewPermuta, setActiveReviewPermuta] = useState<Permuta | null>(null);
@@ -473,6 +485,47 @@ export default function App() {
     // 1. Fetch Inicial do Supabase para garantir que todos comecem com os mesmos dados (Sincronização Delta)
     const fetchInitialData = async () => {
       try {
+        const localTimestamps: Record<string, string> = JSON.parse(localStorage.getItem('permucyber_sync_timestamps') || '{}');
+        const localRecordKeys = Object.keys(localTimestamps).filter(id => !id.toLowerCase().startsWith('424b2d'));
+        const localRecordCount = localRecordKeys.length;
+        const localMaxTimestamp = localRecordKeys.reduce((max, id) => {
+          const time = localTimestamps[id] || '';
+          return time > max ? time : max;
+        }, '');
+
+        if (isInitialSyncDone) {
+          try {
+            // 1. Verificar a quantidade total de registros ativos (excluindo backups)
+            const { count: dbRecordCount, error: countError } = await supabaseClient
+              .from('dados_app')
+              .select('*', { count: 'exact', head: true })
+              .not('id', 'like', '424b2d%');
+
+            if (!countError && dbRecordCount !== null) {
+              // 2. Verificar o timestamp do último registro ativo criado/modificado
+              const { data: latestRecords, error: latestError } = await supabaseClient
+                .from('dados_app')
+                .select('criado_em')
+                .not('id', 'like', '424b2d%')
+                .order('criado_em', { ascending: false })
+                .limit(1);
+
+              if (!latestError && latestRecords) {
+                const dbMaxTimestamp = latestRecords[0]?.criado_em || '';
+                
+                // Se a quantidade de registros e o último timestamp coincidem, não houve alteração.
+                // Reutiliza cache e evita qualquer processamento.
+                if (dbRecordCount === localRecordCount && dbMaxTimestamp <= localMaxTimestamp) {
+                  console.log("[App] Sincronização inteligente (Polling): nenhuma alteração detectada. Reutilizando cache local.");
+                  return;
+                }
+              }
+            }
+          } catch (checkErr) {
+            console.warn("[App] Erro na verificação incremental leve, executando fallback completo:", checkErr);
+          }
+        }
+
         // Busca apenas os IDs e timestamps para calcular a diferença (Delta)
         const { data: dbRecords, error } = await supabaseClient
           .from('dados_app')
@@ -641,11 +694,23 @@ export default function App() {
 
     fetchInitialData();
 
-    // 2. Fallback de polling periódico para garantir sincronização mesmo sem Realtime (Otimizado para 30 segundos)
+    // 2. Fallback de polling periódico para garantir sincronização mesmo sem Realtime (Adaptativo)
+    let lastPollTime = Date.now();
     const pollInterval = setInterval(() => {
-      console.log("[Polling] Buscando atualizações incrementais delta...");
-      fetchInitialData();
-    }, 30000);
+      const isOnline = realtimeStatusRef.current === 'online';
+      const isAdmin = loggedUserRoleRef.current === 'ADMIN';
+      const now = Date.now();
+      
+      // Se for administrador e realtime estiver online, aumentar o intervalo para 5 minutos (300000ms) para economizar PostgREST.
+      // Caso contrário (desconectado ou usuário comum), restaurar o polling de segurança padrão de 30 segundos (30000ms).
+      const intervalLimit = (isAdmin && isOnline) ? 300000 : 30000;
+      
+      if (now - lastPollTime >= intervalLimit) {
+        console.log(`[Polling] Buscando atualizações incrementais delta... (Intervalo ativo: ${intervalLimit / 1000}s, Administrador: ${isAdmin})`);
+        fetchInitialData();
+        lastPollTime = now;
+      }
+    }, 10000); // Verifica a cada 10 segundos para máxima reatividade
 
     // 3. Canal de Realtime
     const channel = supabaseClient
