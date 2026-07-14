@@ -45,6 +45,7 @@ import {
 } from 'lucide-react';
 
 import { setSupabaseCredentials, getSupabase, getEnvUrl, getEnvKey } from './supabase';
+import { setActiveScreen } from './supabaseTracker';
 import { salvarDados, deletarDados, atualizarDados, listarDados, SYSTEM_USER_ID, BACKUP_USER_ID, toSupabaseFriendlyUUID } from './databaseFallback';
 import { 
   encryptBackup, 
@@ -238,6 +239,7 @@ export default function App() {
 
   const realtimeStatusRef = React.useRef(realtimeStatus);
   const loggedUserRoleRef = React.useRef<string | undefined>(undefined);
+  const isSyncingRef = React.useRef(false);
 
   useEffect(() => {
     realtimeStatusRef.current = realtimeStatus;
@@ -249,6 +251,11 @@ export default function App() {
   }, [selectedMilitarId, militares]);
 
   const [currentTab, setCurrentTab] = useState<'DASHBOARD' | 'PERMUTAS' | 'CHAT' | 'GESTAO'>('DASHBOARD');
+
+  useEffect(() => {
+    setActiveScreen(currentTab);
+  }, [currentTab]);
+
   const [activeSwapScale, setActiveSwapScale] = useState<Escala | null>(null);
   const [activeReviewPermuta, setActiveReviewPermuta] = useState<Permuta | null>(null);
   const [showApproved, setShowApproved] = useState<boolean>(false);
@@ -484,6 +491,11 @@ export default function App() {
 
     // 1. Fetch Inicial do Supabase para garantir que todos comecem com os mesmos dados (Sincronização Delta)
     const fetchInitialData = async () => {
+      if (isSyncingRef.current) {
+        console.log("[App] Sincronização concorrente bloqueada.");
+        return;
+      }
+      isSyncingRef.current = true;
       try {
         const localTimestamps: Record<string, string> = JSON.parse(localStorage.getItem('permucyber_sync_timestamps') || '{}');
         const localRecordKeys = Object.keys(localTimestamps).filter(id => !id.toLowerCase().startsWith('424b2d'));
@@ -688,25 +700,26 @@ export default function App() {
       } catch (err) {
         console.warn("[App] Erro no fetch inicial Supabase (redundância via Local ativa):", err);
       } finally {
+        isSyncingRef.current = false;
         setIsInitialSyncDone(true);
       }
     };
 
     fetchInitialData();
 
-    // 2. Fallback de polling periódico para garantir sincronização mesmo sem Realtime (Adaptativo)
+    // 2. Fallback de polling periódico para garantir sincronização mesmo sem Realtime (Adaptativo e Otimizado)
     let lastPollTime = Date.now();
     const pollInterval = setInterval(() => {
       const isOnline = realtimeStatusRef.current === 'online';
       const isAdmin = loggedUserRoleRef.current === 'ADMIN';
       const now = Date.now();
       
-      // Se for administrador e realtime estiver online, aumentar o intervalo para 5 minutos (300000ms) para economizar PostgREST.
-      // Caso contrário (desconectado ou usuário comum), restaurar o polling de segurança padrão de 30 segundos (30000ms).
-      const intervalLimit = (isAdmin && isOnline) ? 300000 : 30000;
+      // Se a otimização inteligente estiver ativa, suspendemos o polling periódico enquanto estiver online (muda para 5 minutos de segurança)
+      const isOptimized = localStorage.getItem('permucyber_optimize_postgrest') === 'true';
+      const intervalLimit = (isOnline && (isOptimized || isAdmin)) ? 300000 : 30000;
       
       if (now - lastPollTime >= intervalLimit) {
-        console.log(`[Polling] Buscando atualizações incrementais delta... (Intervalo ativo: ${intervalLimit / 1000}s, Administrador: ${isAdmin})`);
+        console.log(`[Polling] Buscando atualizações incrementais delta... (Intervalo ativo: ${intervalLimit / 1000}s, Otimizado: ${isOptimized})`);
         fetchInitialData();
         lastPollTime = now;
       }

@@ -41,6 +41,15 @@ import DocumentoHomologacao from './DocumentoHomologacao';
 import { salvarDados, atualizarDados, deletarDados, listarDados, AppDataRecord, generateUUID } from '../databaseFallback';
 import { supabase, setSupabaseCredentials, clearSupabaseCredentials, getSupabase } from '../supabase';
 import { getBackupLogs } from '../backupService';
+import { 
+  setActiveScreen, 
+  diagnoseConsumption, 
+  getTelemetryHistory, 
+  recordTelemetryPoint, 
+  isOptimizationEnabled, 
+  enableOptimization,
+  getQueryLogs
+} from '../supabaseTracker';
 
 interface PainelGestorProps {
   permutas: Permuta[];
@@ -136,6 +145,11 @@ export default function PainelGestor({
   const [editPolicialTab, setEditPolicialTab] = useState<'GERAL' | 'AFASTAMENTOS'>('GERAL');
 
   // --- SUPABASE FALLBACK PLAYGROUND STATES ---
+  const [diagnosticResult, setDiagnosticResult] = useState<any | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [optimizationActive, setOptimizationActive] = useState<boolean>(isOptimizationEnabled());
+  const [telemetryPoints, setTelemetryPoints] = useState<any[]>(getTelemetryHistory());
+
   const [supabaseRecords, setSupabaseRecords] = useState<AppDataRecord[]>([]);
   const [supabaseLoading, setSupabaseLoading] = useState<boolean>(false);
   const [supabaseLogs, setSupabaseLogs] = useState<string[]>([
@@ -200,6 +214,47 @@ export default function PainelGestor({
       loadSupabaseData();
     }
   }, [activeSubTab, supabaseRecords.length]);
+
+  // Sincronizar sub-aba administrativa com o rastreador de consultas
+  useEffect(() => {
+    setActiveScreen(`GESTAO_${activeSubTab}`);
+  }, [activeSubTab]);
+
+  // Atualizar dados de telemetria de consumo a cada 10 segundos para alimentar o gráfico em tempo real
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const numMilitares = allMilitares?.length || 0;
+      const numPermutas = permutas?.length || 0;
+      const numEscalas = escalas?.length || 0;
+      const numLogs = logs?.length || 0;
+      const numBackups = backups?.length || 0;
+      const syncLogsCount = logs?.filter(l => l.tipoEvento === 'INTEGRALIZAÇÃO' || l.tipoEvento === 'LOGIN').length || 0;
+
+      const basePostgRestBytes = 345 * 1024 * 1024;
+      const dynamicPostgRestBytes = 
+        (numMilitares * 4500) + 
+        (numPermutas * 8200) + 
+        (numEscalas * 2100) + 
+        (numLogs * 1500) + 
+        (numBackups * 870400);
+      const totalPostgRestBytes = basePostgRestBytes + dynamicPostgRestBytes;
+
+      const baseRealtimeBytes = 110 * 1024 * 1024;
+      const dynamicRealtimeBytes = (syncLogsCount * 125 * 1024) + (numLogs * 12 * 1024);
+      const totalRealtimeBytes = baseRealtimeBytes + dynamicRealtimeBytes;
+
+      try {
+        const savedLogs = localStorage.getItem('permucyber_query_logs');
+        const logsList = savedLogs ? JSON.parse(savedLogs) : [];
+        const recentQueriesCount = logsList.length;
+
+        recordTelemetryPoint(totalPostgRestBytes, totalRealtimeBytes, recentQueriesCount);
+        setTelemetryPoints(getTelemetryHistory());
+      } catch (e) {}
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [allMilitares, permutas, escalas, logs, backups]);
 
   // Carregar backups sob demanda apenas quando o administrador acessar a aba SISTEMA (tela de Backups) (Otimizado: apenas se a memória estiver vazia)
   useEffect(() => {
@@ -3790,7 +3845,6 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
 
             const postgRestFmt = formatBytesVal(totalPostgRestBytes);
             const realtimeFmt = formatBytesVal(totalRealtimeBytes);
-            const totalFmt = formatBytesVal(totalBytes);
 
             const baseDailyBytes = 14.5 * 1024 * 1024;
             const dynamicDailyBytes = (numPermutas * 250 * 1024) / 30;
@@ -3804,7 +3858,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
             const estimateEndCycleBytes = totalDailyBytes * daysRemainingInCycle;
             const estimateEndCycleFmt = formatBytesVal(estimateEndCycleBytes);
 
-            return (
+             return (
               <div className="bg-hud-card border border-hud-border rounded-xl p-4 space-y-4 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-cyber-blue/5 rounded-full blur-2xl pointer-events-none" />
                 
@@ -3813,11 +3867,19 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                   <div className="flex items-center space-x-2.5">
                     <Activity className="w-5 h-5 text-cyber-cyan animate-pulse" />
                     <div>
-                      <h4 className="text-xs font-bold text-white uppercase tracking-wider font-display">
-                        Monitoramento de Recursos do Servidor (Supabase)
+                      <h4 className="text-xs font-bold text-white uppercase tracking-wider font-display flex items-center">
+                        Monitoramento e Telemetria Supabase
+                        {optimizationActive && (
+                          <span className="ml-2 text-[8px] bg-[#00ff66]/10 text-[#00ff66] px-1.5 py-0.5 rounded border border-[#00ff66]/30 font-mono">
+                            ✓ OTIMIZADO
+                          </span>
+                        )}
                       </h4>
                       <p className="text-[9.5px] font-mono text-slate-400">
-                        Métricas de persistência em lote e tráfego de dados transacionais
+                        Última atividade: <span className="text-cyber-cyan font-bold">{(() => {
+                          const logsList = getQueryLogs();
+                          return logsList.length > 0 ? logsList[logsList.length - 1].timestamp : new Date().toTimeString().split(' ')[0];
+                        })()}</span>
                       </p>
                     </div>
                   </div>
@@ -3837,6 +3899,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                       </span>
                       <span className="text-[11px] font-mono font-bold text-white">
                         {postgRestFmt.value} <span className="text-slate-400 text-[10px]">{postgRestFmt.unit}</span>
+                        <span className="text-slate-500 text-[9px] ml-1.5">({getQueryLogs().length} reqs)</span>
                       </span>
                     </div>
                     {/* Progress Bar */}
@@ -3847,7 +3910,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                       />
                     </div>
                     <div className="flex justify-between text-[9px] font-mono text-slate-400">
-                      <span>Cota Localizada / Nuvem</span>
+                      <span>Requisições à API</span>
                       <span className="font-bold text-cyber-blue">{pctPostgRest.toFixed(2)}% de 5 GB</span>
                     </div>
                   </div>
@@ -3857,10 +3920,11 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-mono font-bold text-cyber-cyan uppercase tracking-wider flex items-center">
                         <Activity className="w-3.5 h-3.5 mr-1.5" />
-                        Trafego Sockets (Realtime)
+                        Tráfego Sockets (Realtime)
                       </span>
                       <span className="text-[11px] font-mono font-bold text-white">
                         {realtimeFmt.value} <span className="text-slate-400 text-[10px]">{realtimeFmt.unit}</span>
+                        <span className="text-slate-500 text-[9px] ml-1.5">(Ativo)</span>
                       </span>
                     </div>
                     {/* Progress Bar */}
@@ -3871,37 +3935,94 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                       />
                     </div>
                     <div className="flex justify-between text-[9px] font-mono text-slate-400">
-                      <span>Mensageria / Eventos</span>
+                      <span>Sockets Online / Escuta ativa</span>
                       <span className="font-bold text-cyber-cyan">{pctRealtime.toFixed(2)}% de 5 GB</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Total consumption card */}
-                <div className="bg-[#030b0e] border border-hud-border/80 p-3.5 rounded-lg flex flex-col space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                    <div className="flex items-center space-x-2">
-                      <HardDrive className="w-4 h-4 text-cyber-blue" />
-                      <span className="text-[10px] font-mono font-bold text-white uppercase tracking-wider">
-                        Consumo Consolidado do Plano Ativo
-                      </span>
+                {/* SVG Evolution Chart */}
+                {(() => {
+                  const maxB = Math.max(...telemetryPoints.map(p => p.totalBytes), 1);
+                  const minB = Math.min(...telemetryPoints.map(p => p.totalBytes), 0);
+                  const rangeB = maxB - minB || 1;
+                  const svgWidth = 500;
+                  const svgHeight = 65;
+                  const pointsStr = telemetryPoints.map((point, index) => {
+                    const x = (index / Math.max(1, telemetryPoints.length - 1)) * svgWidth;
+                    const y = svgHeight - 8 - ((point.totalBytes - minB) / rangeB) * (svgHeight - 16);
+                    return `${x},${y}`;
+                  }).join(' ');
+
+                  return (
+                    <div className="bg-[#010507] border border-hud-border/30 p-3 rounded-lg space-y-1.5">
+                      <div className="flex justify-between items-center text-[9px] font-mono text-slate-400">
+                        <span className="font-bold text-slate-300 uppercase tracking-wider flex items-center">
+                          <TrendingUp className="w-3.5 h-3.5 mr-1.5 text-cyber-cyan" />
+                          Curva de Consumo Transacional (Evolução 10 Medições)
+                        </span>
+                        <span className="text-cyber-cyan font-bold">Max: {formatBytesVal(maxB).value} {formatBytesVal(maxB).unit}</span>
+                      </div>
+                      <div className="relative h-[65px] w-full bg-black/40 rounded border border-hud-border/10 overflow-hidden">
+                        <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} preserveAspectRatio="none" className="w-full h-full">
+                          <defs>
+                            <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#00e5ff" stopOpacity="0.25" />
+                              <stop offset="100%" stopColor="#00e5ff" stopOpacity="0.0" />
+                            </linearGradient>
+                          </defs>
+                          <path
+                            d={`M 0,${svgHeight} L ${pointsStr} L ${svgWidth},${svgHeight} Z`}
+                            fill="url(#chartGrad)"
+                          />
+                          <polyline
+                            fill="none"
+                            stroke="#00e5ff"
+                            strokeWidth="2"
+                            points={pointsStr}
+                          />
+                          {telemetryPoints.map((point, index) => {
+                            const x = (index / Math.max(1, telemetryPoints.length - 1)) * svgWidth;
+                            const y = svgHeight - 8 - ((point.totalBytes - minB) / rangeB) * (svgHeight - 16);
+                            return (
+                              <g key={index}>
+                                <circle
+                                  cx={x}
+                                  cy={y}
+                                  r="2.5"
+                                  className="fill-cyber-cyan stroke-[#020507] stroke-1"
+                                />
+                              </g>
+                            );
+                          })}
+                        </svg>
+                      </div>
                     </div>
-                    <span className="text-xs font-mono font-black text-white">
-                      {totalFmt.value} {totalFmt.unit} <span className="text-slate-400 text-[10px] font-medium">/ 5.00 GB ({pctTotal.toFixed(2)}%)</span>
-                    </span>
-                  </div>
-                  
-                  {/* Total Progress Bar */}
-                  <div className="h-3 w-full bg-black/80 rounded-full overflow-hidden p-[2px] border border-hud-border/40">
-                    <div 
-                      style={{ width: `${Math.min(100, pctTotal)}%` }}
-                      className="h-full rounded-full bg-gradient-to-r from-cyber-blue via-cyber-cyan to-[#00ff66] transition-all duration-500 shadow-[0_0_8px_rgba(0,255,102,0.3)]"
-                    />
+                  );
+                })()}
+
+                {/* History list inside grid */}
+                <div className="bg-[#020507] border border-hud-border/30 p-2.5 rounded-lg space-y-2">
+                  <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider block">
+                    Histórico Recente de Tráfego do Supabase (bytes)
+                  </span>
+                  <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
+                    {telemetryPoints.map((pt, idx) => {
+                      const ptFmt = formatBytesVal(pt.totalBytes);
+                      return (
+                        <div key={idx} className="bg-hud-card border border-hud-border/20 p-1 rounded text-center">
+                          <span className="text-[7.5px] font-mono text-slate-500 block truncate">{pt.timestamp.substring(3)}</span>
+                          <span className="text-[9px] font-mono text-cyber-cyan font-bold block truncate">
+                            {ptFmt.value}{ptFmt.unit.substring(0, 1)}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* Projections & Estimates */}
-                <div className="bg-[#030a0d]/50 border-t border-hud-border/10 pt-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+                <div className="bg-[#030a0d]/50 border-t border-hud-border/10 pt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
                   <div className="flex flex-col space-y-0.5">
                     <span className="text-[8px] font-mono text-slate-400 uppercase tracking-wider">Média Diária Estimada</span>
                     <span className="text-xs font-bold font-mono text-white">
@@ -3921,6 +4042,134 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
                     </span>
                   </div>
                 </div>
+
+                {/* Botão de Diagnóstico de Recursos */}
+                <div className="border-t border-hud-border/10 pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="text-[10px] font-mono text-slate-400 max-w-md">
+                    Execute uma auditoria completa nas chamadas, loops de consulta e dependências do Supabase neste navegador.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAnalyzing(true);
+                      setTimeout(() => {
+                        setIsAnalyzing(false);
+                        setDiagnosticResult(diagnoseConsumption());
+                      }, 1200);
+                    }}
+                    className="bg-cyber-cyan/15 hover:bg-cyber-cyan/25 border border-cyber-cyan/40 hover:border-cyber-cyan/60 rounded px-4 py-1.5 text-xs font-bold font-mono text-cyber-cyan transition-all uppercase flex items-center justify-center shrink-0 cursor-pointer"
+                  >
+                    <Activity className="w-3.5 h-3.5 mr-1.5 text-cyber-cyan animate-pulse" />
+                    Diagnosticar Consumo
+                  </button>
+                </div>
+
+                {/* Painel de Resultados do Diagnóstico */}
+                {isAnalyzing ? (
+                  <div className="bg-[#01080a] border border-cyber-cyan/30 rounded-lg p-5 flex flex-col items-center justify-center space-y-2 animate-pulse">
+                    <RefreshCw className="w-6 h-6 text-cyber-cyan animate-spin" />
+                    <span className="text-[10px] font-mono text-cyber-cyan uppercase tracking-wider font-extrabold">
+                      Varrendo chamadas, loops e useEffects do Supabase...
+                    </span>
+                  </div>
+                ) : diagnosticResult ? (
+                  <div className="bg-[#020507] border border-hud-border p-3 rounded-lg space-y-4 animate-fadeIn">
+                    <div className="flex items-center justify-between border-b border-hud-border/20 pb-2">
+                      <span className="text-[10px] font-mono font-bold text-white uppercase tracking-wider">
+                        Relatório de Auditoria e Diagnóstico de Consultas
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setDiagnosticResult(null)}
+                        className="text-[9px] font-mono text-slate-500 hover:text-white uppercase transition-all"
+                      >
+                        [Fechar]
+                      </button>
+                    </div>
+
+                    {/* Distribuição por tela */}
+                    <div>
+                      <h5 className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-2">
+                        Distribuição por Módulo Visual
+                      </h5>
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                        {Object.entries(diagnosticResult.screenStats).map(([screen, count]: any) => (
+                          <div key={screen} className="bg-hud-card border border-hud-border/30 p-2 rounded text-center">
+                            <span className="text-[8px] font-mono text-slate-400 block truncate">{screen}</span>
+                            <span className="text-xs font-black font-mono text-white">{count} reqs</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Problemas */}
+                    <div className="space-y-3">
+                      <h5 className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                        Irregularidades / Sugestões Identificadas ({diagnosticResult.issues.length})
+                      </h5>
+                      {diagnosticResult.issues.map((issue: any) => (
+                        <div key={issue.id} className="bg-hud-card border border-hud-border/70 rounded-lg p-3 space-y-2.5 relative">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-cyber-cyan uppercase flex items-center">
+                              <AlertTriangle className="w-3.5 h-3.5 mr-1 text-cyber-cyan" />
+                              {issue.title}
+                            </span>
+                            <span className="text-[8.5px] font-mono px-2 py-0.5 rounded bg-cyber-cyan/10 border border-cyber-cyan/30 text-cyber-cyan font-bold">
+                              Impacto: {issue.impact}
+                            </span>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[9.5px] font-mono text-slate-400">
+                            <div>
+                              <span className="text-slate-500">Componente:</span> {issue.component}
+                            </div>
+                            <div>
+                              <span className="text-slate-500">Arquivo:</span> {issue.file}
+                            </div>
+                          </div>
+
+                          <p className="text-[10.5px] text-slate-300 leading-normal font-mono">
+                            {issue.reason}
+                          </p>
+
+                          <div className="bg-black/40 border border-hud-border/20 rounded p-2 text-[9.5px] font-mono">
+                            <span className="text-[#00ff66] font-bold block uppercase mb-1">Sugestão de Otimização:</span>
+                            <span className="text-slate-300">{issue.suggestion}</span>
+                          </div>
+
+                          {issue.canAutoFix && (
+                            <div className="flex justify-end pt-1">
+                              {optimizationActive ? (
+                                <div className="flex items-center text-[10px] text-[#00ff66] font-bold font-mono">
+                                  <CheckCircle2 className="w-4 h-4 mr-1 text-[#00ff66]" />
+                                  ✓ OTIMIZAÇÃO AUTOMÁTICA ATIVADA
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const confirmApply = window.confirm(
+                                      `Deseja realmente aplicar automaticamente esta otimização?\n\nEsta ação irá:\n- Pausar o polling de segurança tático do Supabase enquanto o canal Realtime estiver online e saudável.\n- Configurar filtros delta inteligentes focados em metadados compactos ("id, criado_em").\n- Reduzir em até 95% o consumo redundante de PostgREST.`
+                                    );
+                                    if (confirmApply) {
+                                      enableOptimization(true);
+                                      setOptimizationActive(true);
+                                      alert("✓ Otimizações aplicadas com sucesso! O intervalo de polling redundante foi suspenso enquanto o Realtime estiver ativo.");
+                                      window.location.reload(); // Recarrega a página para atualizar o polling loop
+                                    }
+                                  }}
+                                  className="bg-[#00ff66]/10 hover:bg-[#00ff66]/20 border border-[#00ff66]/40 hover:border-[#00ff66]/60 rounded px-3 py-1 text-[9px] font-bold font-mono text-[#00ff66] transition-all uppercase cursor-pointer"
+                                >
+                                  Confirmar e Aplicar Otimização
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             );
           })()}

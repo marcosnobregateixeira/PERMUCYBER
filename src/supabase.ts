@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { wrapSupabaseWithTracker } from './supabaseTracker';
 
 // Função para limpar as chaves de aspas acidentais, barras finais ou sufixos de rota REST
 export const cleanSupabaseUrl = (url: string): string => {
@@ -116,7 +117,8 @@ export let supabase = null;
 
 if (initial.url && initial.key && isValidHttpUrl(initial.url)) {
   try {
-    supabase = createClient(initial.url, initial.key);
+    const rawClient = createClient(initial.url, initial.key);
+    supabase = wrapSupabaseWithTracker(rawClient);
   } catch (error) {
     console.error("❌ Erro ao instanciar o cliente Supabase inicial:", error);
   }
@@ -138,7 +140,8 @@ export function setSupabaseCredentials(url: string, key: string, saveToLocal: bo
       localStorage.setItem('VITE_SUPABASE_URL', cleanedUrl);
       localStorage.setItem('VITE_SUPABASE_ANON_KEY', cleanedKey);
     }
-    supabase = createClient(cleanedUrl, cleanedKey);
+    const rawClient = createClient(cleanedUrl, cleanedKey);
+    supabase = wrapSupabaseWithTracker(rawClient);
     console.log(`✓ Cliente Supabase inicializado para: ${cleanedUrl}`);
     console.log("👉 Dica: Certifique-se de que a tabela 'dados_app' existe e que as permissões RLS estão desativadas ou configuradas para permitir INSERT anônimo se você não estiver usando Auth.");
     return true;
@@ -160,7 +163,8 @@ export function clearSupabaseCredentials() {
 
   if (envUrl && envKey && isValidHttpUrl(envUrl)) {
     try {
-      supabase = createClient(envUrl, envKey);
+      const rawClient = createClient(envUrl, envKey);
+      supabase = wrapSupabaseWithTracker(rawClient);
     } catch (e) {
       supabase = null;
     }
@@ -206,7 +210,8 @@ export function getSupabase() {
 
   if (url && key && isValidHttpUrl(url)) {
     try {
-      supabase = createClient(url, key);
+      const rawClient = createClient(url, key);
+      supabase = wrapSupabaseWithTracker(rawClient);
       console.log("✓ Cliente Supabase re-inicializado com sucesso.");
     } catch (error) {
       console.error("❌ Erro ao re-instanciar o cliente Supabase:", error);
