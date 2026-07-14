@@ -385,9 +385,15 @@ function wrapQueryBuilder(builder: any, tableName: string): any {
 // LocalStorage optimization status helpers
 export function isOptimizationEnabled(): boolean {
   try {
-    return localStorage.getItem('permucyber_optimize_postgrest') === 'true';
+    const val = localStorage.getItem('permucyber_optimize_postgrest');
+    if (val === null) {
+      // Ativar otimização inteligente por padrão para benefício imediato
+      localStorage.setItem('permucyber_optimize_postgrest', 'true');
+      return true;
+    }
+    return val === 'true';
   } catch (e) {
-    return false;
+    return true;
   }
 }
 
