@@ -111,12 +111,12 @@ export async function salvarDados(
         },
         { onConflict: 'id' }
       )
-      .select();
+      .select('id');
 
     if (error) throw new Error(error.message);
 
     console.log("[Fallback DB] ✓ Registro salvo no Supabase.");
-    const savedData = data && data.length > 0 ? data[0] : record;
+    const savedData = data && data.length > 0 ? { ...record, id: data[0].id } : record;
     return { success: true, source: 'supabase', id: recordId, data: { ...savedData, origem: 'supabase' } };
   } catch (err: any) {
     console.error("[Fallback DB] Erro Supabase:", err.message);

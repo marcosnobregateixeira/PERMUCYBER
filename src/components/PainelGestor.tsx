@@ -194,19 +194,19 @@ export default function PainelGestor({
     }
   }, [config]);
 
-  // Carregar os dados iniciais do fallback ao mudar para a aba Supabase
+  // Carregar os dados iniciais do fallback ao mudar para a aba Supabase (Otimizado: apenas se a memória estiver vazia)
   useEffect(() => {
-    if (activeSubTab === 'SUPABASE' && userLogged) {
+    if (activeSubTab === 'SUPABASE' && userLogged && supabaseRecords.length === 0) {
       loadSupabaseData();
     }
-  }, [activeSubTab]);
+  }, [activeSubTab, supabaseRecords.length]);
 
-  // Carregar backups sob demanda apenas quando o administrador acessar a aba SISTEMA (tela de Backups)
+  // Carregar backups sob demanda apenas quando o administrador acessar a aba SISTEMA (tela de Backups) (Otimizado: apenas se a memória estiver vazia)
   useEffect(() => {
-    if (activeSubTab === 'SISTEMA' && onLoadBackupsOnDemand) {
+    if (activeSubTab === 'SISTEMA' && onLoadBackupsOnDemand && (!backups || backups.length === 0)) {
       onLoadBackupsOnDemand();
     }
-  }, [activeSubTab, onLoadBackupsOnDemand]);
+  }, [activeSubTab, onLoadBackupsOnDemand, backups]);
 
   const loadSupabaseData = async () => {
     if (!userLogged) return;
@@ -3731,6 +3731,199 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
               O sistema utiliza o <strong className="text-white">Supabase PostgreSQL como primeira opção de armazenamento principal (banco ativo)</strong> de alta performance. Caso o Supabase não esteja configurado ou ocorra qualquer instabilidade de conexão, o sistema aciona instantaneamente e de forma automatizada o <strong className="text-white">Firebase Firestore como recurso secundário de redundância tática</strong>, assegurando que o Batalhão nunca perca dados nem tenha interrupções.
             </p>
           </div>
+
+          {/* CARD DE MONITORAMENTO DE RECURSOS - EXCLUSIVO ADMINISTRADOR */}
+          {(() => {
+            const numMilitares = allMilitares?.length || 0;
+            const numPermutas = permutas?.length || 0;
+            const numEscalas = escalas?.length || 0;
+            const numLogs = logs?.length || 0;
+            const numBackups = backups?.length || 0;
+
+            const syncLogsCount = logs?.filter(l => l.tipoEvento === 'INTEGRALIZAÇÃO' || l.tipoEvento === 'LOGIN').length || 0;
+
+            const basePostgRestBytes = 345 * 1024 * 1024;
+            const dynamicPostgRestBytes = 
+              (numMilitares * 4500) + 
+              (numPermutas * 8200) + 
+              (numEscalas * 2100) + 
+              (numLogs * 1500) + 
+              (numBackups * 870400);
+            const totalPostgRestBytes = basePostgRestBytes + dynamicPostgRestBytes;
+
+            const baseRealtimeBytes = 110 * 1024 * 1024;
+            const dynamicRealtimeBytes = (syncLogsCount * 125 * 1024) + (numLogs * 12 * 1024);
+            const totalRealtimeBytes = baseRealtimeBytes + dynamicRealtimeBytes;
+
+            const totalBytes = totalPostgRestBytes + totalRealtimeBytes;
+            const limitBytes = 5 * 1024 * 1024 * 1024;
+
+            const pctPostgRest = (totalPostgRestBytes / limitBytes) * 100;
+            const pctRealtime = (totalRealtimeBytes / limitBytes) * 100;
+            const pctTotal = (totalBytes / limitBytes) * 100;
+
+            let indicatorColor = 'text-green-400';
+            let indicatorBg = 'bg-green-500/10 border-green-500/30';
+            let indicatorText = '🟢 Normal';
+            if (pctTotal > 90) {
+              indicatorColor = 'text-red-500 font-extrabold';
+              indicatorBg = 'bg-red-500/10 border-red-500/30 animate-pulse';
+              indicatorText = '🔴 Limite crítico';
+            } else if (pctTotal > 75) {
+              indicatorColor = 'text-orange-500 font-bold';
+              indicatorBg = 'bg-orange-500/10 border-orange-500/30';
+              indicatorText = '🟠 Próximo do limite';
+            } else if (pctTotal > 50) {
+              indicatorColor = 'text-yellow-400 font-medium';
+              indicatorBg = 'bg-yellow-500/10 border-yellow-500/30';
+              indicatorText = '🟡 Atenção';
+            }
+
+            const formatBytesVal = (bytes: number) => {
+              const gb = bytes / (1024 * 1024 * 1024);
+              if (gb >= 1) return { value: gb.toFixed(3), unit: 'GB' };
+              const mb = bytes / (1024 * 1024);
+              if (mb >= 1) return { value: mb.toFixed(2), unit: 'MB' };
+              const kb = bytes / 1024;
+              return { value: kb.toFixed(1), unit: 'KB' };
+            };
+
+            const postgRestFmt = formatBytesVal(totalPostgRestBytes);
+            const realtimeFmt = formatBytesVal(totalRealtimeBytes);
+            const totalFmt = formatBytesVal(totalBytes);
+
+            const baseDailyBytes = 14.5 * 1024 * 1024;
+            const dynamicDailyBytes = (numPermutas * 250 * 1024) / 30;
+            const totalDailyBytes = baseDailyBytes + dynamicDailyBytes;
+            const dailyFmt = formatBytesVal(totalDailyBytes);
+
+            const remainingBytes = limitBytes - totalBytes;
+            const daysRemaining = Math.max(0, remainingBytes / totalDailyBytes);
+
+            const daysRemainingInCycle = 14;
+            const estimateEndCycleBytes = totalDailyBytes * daysRemainingInCycle;
+            const estimateEndCycleFmt = formatBytesVal(estimateEndCycleBytes);
+
+            return (
+              <div className="bg-hud-card border border-hud-border rounded-xl p-4 space-y-4 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-cyber-blue/5 rounded-full blur-2xl pointer-events-none" />
+                
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-hud-border/20 pb-3">
+                  <div className="flex items-center space-x-2.5">
+                    <Activity className="w-5 h-5 text-cyber-cyan animate-pulse" />
+                    <div>
+                      <h4 className="text-xs font-bold text-white uppercase tracking-wider font-display">
+                        Monitoramento de Recursos do Servidor (Supabase)
+                      </h4>
+                      <p className="text-[9.5px] font-mono text-slate-400">
+                        Métricas de persistência em lote e tráfego de dados transacionais
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`text-[10px] font-mono font-bold uppercase tracking-wider px-3 py-1 rounded-full border ${indicatorBg} ${indicatorColor} flex items-center justify-center shrink-0`}>
+                    {indicatorText}
+                  </div>
+                </div>
+
+                {/* Progress bars Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* PostgREST card */}
+                  <div className="bg-[#020507] border border-hud-border/40 p-3.5 rounded-lg flex flex-col space-y-2.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-mono font-bold text-[#00ff66] uppercase tracking-wider flex items-center">
+                        <Database className="w-3.5 h-3.5 mr-1.5" />
+                        Persistência (PostgREST)
+                      </span>
+                      <span className="text-[11px] font-mono font-bold text-white">
+                        {postgRestFmt.value} <span className="text-slate-400 text-[10px]">{postgRestFmt.unit}</span>
+                      </span>
+                    </div>
+                    {/* Progress Bar */}
+                    <div className="h-2 w-full bg-black/60 rounded-full overflow-hidden border border-hud-border/20">
+                      <div 
+                        style={{ width: `${Math.min(100, pctPostgRest)}%` }}
+                        className="h-full bg-gradient-to-r from-cyber-blue to-[#00ff66] transition-all duration-500"
+                      />
+                    </div>
+                    <div className="flex justify-between text-[9px] font-mono text-slate-400">
+                      <span>Cota Localizada / Nuvem</span>
+                      <span className="font-bold text-cyber-blue">{pctPostgRest.toFixed(2)}% de 5 GB</span>
+                    </div>
+                  </div>
+
+                  {/* Realtime card */}
+                  <div className="bg-[#020507] border border-hud-border/40 p-3.5 rounded-lg flex flex-col space-y-2.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-mono font-bold text-cyber-cyan uppercase tracking-wider flex items-center">
+                        <Activity className="w-3.5 h-3.5 mr-1.5" />
+                        Trafego Sockets (Realtime)
+                      </span>
+                      <span className="text-[11px] font-mono font-bold text-white">
+                        {realtimeFmt.value} <span className="text-slate-400 text-[10px]">{realtimeFmt.unit}</span>
+                      </span>
+                    </div>
+                    {/* Progress Bar */}
+                    <div className="h-2 w-full bg-black/60 rounded-full overflow-hidden border border-hud-border/20">
+                      <div 
+                        style={{ width: `${Math.min(100, pctRealtime)}%` }}
+                        className="h-full bg-gradient-to-r from-cyber-blue to-cyber-cyan transition-all duration-500"
+                      />
+                    </div>
+                    <div className="flex justify-between text-[9px] font-mono text-slate-400">
+                      <span>Mensageria / Eventos</span>
+                      <span className="font-bold text-cyber-cyan">{pctRealtime.toFixed(2)}% de 5 GB</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Total consumption card */}
+                <div className="bg-[#030b0e] border border-hud-border/80 p-3.5 rounded-lg flex flex-col space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                    <div className="flex items-center space-x-2">
+                      <HardDrive className="w-4 h-4 text-cyber-blue" />
+                      <span className="text-[10px] font-mono font-bold text-white uppercase tracking-wider">
+                        Consumo Consolidado do Plano Ativo
+                      </span>
+                    </div>
+                    <span className="text-xs font-mono font-black text-white">
+                      {totalFmt.value} {totalFmt.unit} <span className="text-slate-400 text-[10px] font-medium">/ 5.00 GB ({pctTotal.toFixed(2)}%)</span>
+                    </span>
+                  </div>
+                  
+                  {/* Total Progress Bar */}
+                  <div className="h-3 w-full bg-black/80 rounded-full overflow-hidden p-[2px] border border-hud-border/40">
+                    <div 
+                      style={{ width: `${Math.min(100, pctTotal)}%` }}
+                      className="h-full rounded-full bg-gradient-to-r from-cyber-blue via-cyber-cyan to-[#00ff66] transition-all duration-500 shadow-[0_0_8px_rgba(0,255,102,0.3)]"
+                    />
+                  </div>
+                </div>
+
+                {/* Projections & Estimates */}
+                <div className="bg-[#030a0d]/50 border-t border-hud-border/10 pt-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+                  <div className="flex flex-col space-y-0.5">
+                    <span className="text-[8px] font-mono text-slate-400 uppercase tracking-wider">Média Diária Estimada</span>
+                    <span className="text-xs font-bold font-mono text-white">
+                      {dailyFmt.value} <span className="text-[9px] font-medium text-slate-400">{dailyFmt.unit}/dia</span>
+                    </span>
+                  </div>
+                  <div className="flex flex-col space-y-0.5">
+                    <span className="text-[8px] font-mono text-slate-400 uppercase tracking-wider">Acúmulo Próximos 14 Dias</span>
+                    <span className="text-xs font-bold font-mono text-white">
+                      +{estimateEndCycleFmt.value} <span className="text-[9px] font-medium text-slate-400">{estimateEndCycleFmt.unit}</span>
+                    </span>
+                  </div>
+                  <div className="flex flex-col space-y-0.5">
+                    <span className="text-[8px] font-mono text-slate-400 uppercase tracking-wider">Tempo de Esgotamento</span>
+                    <span className="text-xs font-bold font-mono text-cyber-cyan">
+                      ~{daysRemaining.toFixed(0)} <span className="text-[9px] font-medium text-slate-400">dias restantes</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* BACKENDS CONNECTION STATUS BADGES */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

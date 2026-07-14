@@ -799,68 +799,168 @@ export default function App() {
       const logsToPush = localLogsStr ? JSON.parse(localLogsStr) as BlockchainLog[] : logs;
       const chatToPush = localChatStr ? JSON.parse(localChatStr) as ChatMessage[] : messages;
 
-      // 1. Militares
-      for (const m of milToPush) {
-        try {
-          await salvarDados(
-            SYSTEM_USER_ID,
-            `POLICIAL: ${m.patente} ${m.nomeGuerra}`,
-            `Cadastro sincronizado de ${m.nome}`,
-            m,
-            m.id
-          );
-        } catch (sbErr) {
-          console.warn(`Erro Supabase (Militar ${m.id}):`, sbErr);
-        }
-      }
-      
-      // 2. Escalas
-      for (const e of escToPush) {
-        try {
-          await salvarDados(
-            SYSTEM_USER_ID,
-            `ESCALA: ${e.data} - ${e.turno}`,
-            `Escala sincronizada para ${e.militarNome}`,
-            e,
-            e.id
-          );
-        } catch (sbErr) {
-          console.warn(`Erro Supabase (Escala ${e.id}):`, sbErr);
-        }
-      }
-      
-      // 3. Permutas
-      for (const p of permToPush) {
-        try {
-          await salvarDados(
-            SYSTEM_USER_ID,
-            `PERMUTA: ${p.protocoloId}`,
-            `Permuta sincronizada: ${p.proponenteNome} -> ${p.substitutoNome}`,
-            p,
-            p.id
-          );
-        } catch (sbErr) {
-          console.warn(`Erro Supabase (Permuta ${p.id}):`, sbErr);
-        }
-      }
+      // 1. Sincronização em Lote de Produção altamente otimizada via Supabase
+      const supabaseClient = getSupabase();
+      if (supabaseClient) {
+        const recordsToUpsert: any[] = [];
 
-      // 4. Alertas
-      for (const a of alertsToPush) {
-        await salvarDados(SYSTEM_USER_ID, 'ALERTA', a.titulo, a, a.id);
-      }
+        // Militares
+        milToPush.forEach(m => {
+          recordsToUpsert.push({
+            id: toSupabaseFriendlyUUID(m.id),
+            user_id: SYSTEM_USER_ID,
+            titulo: `POLICIAL: ${m.patente} ${m.nomeGuerra}`,
+            descricao: `Cadastro sincronizado de ${m.nome}`,
+            dados_json: m,
+            criado_em: new Date().toISOString()
+          });
+        });
 
-      // 5. Logs
-      for (const l of logsToPush) {
-        await salvarDados(SYSTEM_USER_ID, `LOG: ${l.tipoEvento}`, l.evento, l, l.id);
-      }
+        // Escalas
+        escToPush.forEach(e => {
+          recordsToUpsert.push({
+            id: toSupabaseFriendlyUUID(e.id),
+            user_id: SYSTEM_USER_ID,
+            titulo: `ESCALA: ${e.data} - ${e.turno}`,
+            descricao: `Escala sincronizada para ${e.militarNome}`,
+            dados_json: e,
+            criado_em: new Date().toISOString()
+          });
+        });
 
-      // 6. Mensagens
-      for (const c of chatToPush) {
-        await salvarDados(SYSTEM_USER_ID, 'MENSAGEM', 'Mensagem sincronizada', c, c.id);
+        // Permutas
+        permToPush.forEach(p => {
+          recordsToUpsert.push({
+            id: toSupabaseFriendlyUUID(p.id),
+            user_id: SYSTEM_USER_ID,
+            titulo: `PERMUTA: ${p.protocoloId}`,
+            descricao: `Permuta sincronizada: ${p.proponenteNome} -> ${p.substitutoNome}`,
+            dados_json: p,
+            criado_em: new Date().toISOString()
+          });
+        });
+
+        // Alertas
+        alertsToPush.forEach(a => {
+          recordsToUpsert.push({
+            id: toSupabaseFriendlyUUID(a.id),
+            user_id: SYSTEM_USER_ID,
+            titulo: 'ALERTA',
+            descricao: a.titulo,
+            dados_json: a,
+            criado_em: new Date().toISOString()
+          });
+        });
+
+        // Logs
+        logsToPush.forEach(l => {
+          recordsToUpsert.push({
+            id: toSupabaseFriendlyUUID(l.id),
+            user_id: SYSTEM_USER_ID,
+            titulo: `LOG: ${l.tipoEvento}`,
+            descricao: l.evento,
+            dados_json: l,
+            criado_em: new Date().toISOString()
+          });
+        });
+
+        // Mensagens
+        chatToPush.forEach(c => {
+          recordsToUpsert.push({
+            id: toSupabaseFriendlyUUID(c.id),
+            user_id: SYSTEM_USER_ID,
+            titulo: 'MENSAGEM',
+            descricao: 'Mensagem sincronizada',
+            dados_json: c,
+            criado_em: new Date().toISOString()
+          });
+        });
+
+        // Configurações
+        recordsToUpsert.push({
+          id: toSupabaseFriendlyUUID('config-system'),
+          user_id: SYSTEM_USER_ID,
+          titulo: 'CONFIG',
+          descricao: 'Configurações de sistema',
+          dados_json: configToPush,
+          criado_em: new Date().toISOString()
+        });
+
+        if (recordsToUpsert.length > 0) {
+          // Divisão em blocos (chunks) de 100 registros para segurança e resiliência
+          for (let i = 0; i < recordsToUpsert.length; i += 100) {
+            const chunk = recordsToUpsert.slice(i, i + 100);
+            const { error: upsertError } = await supabaseClient
+              .from('dados_app')
+              .upsert(chunk, { onConflict: 'id' });
+            if (upsertError) throw upsertError;
+          }
+        }
+      } else {
+        // Fallback local caso cliente Supabase esteja indisponível
+        // 1. Militares
+        for (const m of milToPush) {
+          try {
+            await salvarDados(
+              SYSTEM_USER_ID,
+              `POLICIAL: ${m.patente} ${m.nomeGuerra}`,
+              `Cadastro sincronizado de ${m.nome}`,
+              m,
+              m.id
+            );
+          } catch (sbErr) {
+            console.warn(`Erro Supabase (Militar ${m.id}):`, sbErr);
+          }
+        }
+        
+        // 2. Escalas
+        for (const e of escToPush) {
+          try {
+            await salvarDados(
+              SYSTEM_USER_ID,
+              `ESCALA: ${e.data} - ${e.turno}`,
+              `Escala sincronizada para ${e.militarNome}`,
+              e,
+              e.id
+            );
+          } catch (sbErr) {
+            console.warn(`Erro Supabase (Escala ${e.id}):`, sbErr);
+          }
+        }
+        
+        // 3. Permutas
+        for (const p of permToPush) {
+          try {
+            await salvarDados(
+              SYSTEM_USER_ID,
+              `PERMUTA: ${p.protocoloId}`,
+              `Permuta sincronizada: ${p.proponenteNome} -> ${p.substitutoNome}`,
+              p,
+              p.id
+            );
+          } catch (sbErr) {
+            console.warn(`Erro Supabase (Permuta ${p.id}):`, sbErr);
+          }
+        }
+
+        // 4. Alertas
+        for (const a of alertsToPush) {
+          await salvarDados(SYSTEM_USER_ID, 'ALERTA', a.titulo, a, a.id);
+        }
+
+        // 5. Logs
+        for (const l of logsToPush) {
+          await salvarDados(SYSTEM_USER_ID, `LOG: ${l.tipoEvento}`, l.evento, l, l.id);
+        }
+
+        // 6. Mensagens
+        for (const c of chatToPush) {
+          await salvarDados(SYSTEM_USER_ID, 'MENSAGEM', 'Mensagem sincronizada', c, c.id);
+        }
+        
+        // 7. Configurações
+        await salvarDados(SYSTEM_USER_ID, 'CONFIG', 'Configurações de sistema', configToPush, 'config-system');
       }
-      
-      // 7. Configurações
-      await salvarDados(SYSTEM_USER_ID, 'CONFIG', 'Configurações de sistema', configToPush, 'config-system');
       
       // 8. Gerar um backup snapshot final
       const snapshot = await generateBackup('MANUAL', loggedUser?.nomeGuerra || 'SISTEMA', milToPush, escToPush, permToPush);
@@ -1091,15 +1191,14 @@ export default function App() {
             localStorage.removeItem(`BACKUP_${id}`);
           });
           
-          // Deleta do Supabase
+          // Deleta do Supabase em lote (Bulk Delete)
           const supabaseClient = getSupabase();
           if (supabaseClient) {
-            for (const id of prunedIds) {
-              try {
-                await deletarDados(id);
-              } catch (delErr) {
-                console.warn(`[Backup Service] Erro ao deletar backup expirado ${id} no Supabase:`, delErr);
-              }
+            const prunedUuids = prunedIds.map(id => toSupabaseFriendlyUUID(id));
+            try {
+              await supabaseClient.from('dados_app').delete().in('id', prunedUuids);
+            } catch (delErr) {
+              console.warn(`[Backup Service] Erro ao deletar backups expirados em lote no Supabase:`, delErr);
             }
           }
 
@@ -1435,7 +1534,7 @@ export default function App() {
     try {
       setBackupStatusMsg("⌛ Iniciando varredura profunda e saneamento do banco de dados na nuvem...");
       
-      // 1. Deletar do Supabase diretamente todas as permutas, chats, logs de testes e backups zumbis
+      // 1. Deletar do Supabase diretamente todas as permutas, chats, logs de testes e backups zumbis em lote (Bulk Delete)
       const supabaseClient = getSupabase();
       if (supabaseClient) {
         const { data: records, error } = await supabaseClient
@@ -1444,6 +1543,7 @@ export default function App() {
         
         if (!error && records && records.length > 0) {
           console.log(`[Saneamento Deep] Analisando ${records.length} registros no Supabase...`);
+          const idsToDelete: string[] = [];
           for (const row of records) {
             const obj = row.dados_json;
             if (!obj) continue;
@@ -1455,16 +1555,30 @@ export default function App() {
             const isNotif = obj.militarId !== undefined && obj.titulo !== undefined && obj.mensagem !== undefined && obj.dataHora !== undefined;
             
             if (isPermuta || isBackup || isChat || isNotif) {
-              console.log(`[Saneamento Deep] Deletando registro zumbi de ID: ${row.id}`);
-              await supabaseClient.from('dados_app').delete().eq('id', row.id);
+              idsToDelete.push(row.id);
+            }
+          }
+          if (idsToDelete.length > 0) {
+            console.log(`[Saneamento Deep] Deletando ${idsToDelete.length} registros zumbis em lote...`);
+            for (let i = 0; i < idsToDelete.length; i += 100) {
+              const chunk = idsToDelete.slice(i, i + 100);
+              await supabaseClient.from('dados_app').delete().in('id', chunk);
             }
           }
         }
       }
 
-      // 2. Limpar também as permutas conhecidas localmente na redundância local/nuvem
-      for (const p of permutas) {
-        await deletarDados(p.id);
+      // 2. Limpar também as permutas conhecidas localmente na redundância local/nuvem em lote
+      if (supabaseClient && permutas.length > 0) {
+        const permutaUuids = permutas.map(p => toSupabaseFriendlyUUID(p.id));
+        for (let i = 0; i < permutaUuids.length; i += 100) {
+          const chunk = permutaUuids.slice(i, i + 100);
+          await supabaseClient.from('dados_app').delete().in('id', chunk);
+        }
+      } else {
+        for (const p of permutas) {
+          await deletarDados(p.id);
+        }
       }
       
       // 3. Limpar os estados do React para zerar as visualizações imediatamente
@@ -1523,11 +1637,28 @@ export default function App() {
   const executeClearAllMilitares = async () => {
     try {
       const activeUser = loggedUser || militares.find(m => m.role === 'COMANDANTE') || militares[0];
-      for (const m of militares) {
-        if (activeUser && m.id === activeUser.id) {
-          continue; // Keep the active user to prevent lockout
+      const supabaseClient = getSupabase();
+      if (supabaseClient) {
+        const idsToDelete: string[] = [];
+        for (const m of militares) {
+          if (activeUser && m.id === activeUser.id) {
+            continue; // Keep the active user to prevent lockout
+          }
+          idsToDelete.push(toSupabaseFriendlyUUID(m.id));
         }
-        await deletarDados(m.id);
+        if (idsToDelete.length > 0) {
+          for (let i = 0; i < idsToDelete.length; i += 100) {
+            const chunk = idsToDelete.slice(i, i + 100);
+            await supabaseClient.from('dados_app').delete().in('id', chunk);
+          }
+        }
+      } else {
+        for (const m of militares) {
+          if (activeUser && m.id === activeUser.id) {
+            continue; // Keep the active user to prevent lockout
+          }
+          await deletarDados(m.id);
+        }
       }
       if (activeUser) {
         setMilitares([activeUser]);
@@ -1720,18 +1851,41 @@ export default function App() {
   };
 
   const handleImportMilitaresJSON = async (imported: Militar[]) => {
-    for (const m of imported) {
+    const supabaseClient = getSupabase();
+    if (supabaseClient && imported.length > 0) {
+      const records = imported.map(m => ({
+        id: toSupabaseFriendlyUUID(m.id),
+        user_id: SYSTEM_USER_ID,
+        titulo: `IMPORTAÇÃO: ${m.patente} ${m.nomeGuerra}`,
+        descricao: `Importação via arquivo JSON do militar ${m.nome}`,
+        dados_json: m,
+        criado_em: new Date().toISOString()
+      }));
       try {
-        // Supabase individual
-        await salvarDados(
-          SYSTEM_USER_ID,
-          `IMPORTAÇÃO: ${m.patente} ${m.nomeGuerra}`,
-          `Importação via arquivo JSON do militar ${m.nome}`,
-          m,
-          m.id
-        );
-      } catch (sbErr) {
-        console.warn(`Erro Supabase (Importar ${m.id}):`, sbErr);
+        for (let i = 0; i < records.length; i += 100) {
+          const chunk = records.slice(i, i + 100);
+          const { error } = await supabaseClient
+            .from('dados_app')
+            .upsert(chunk, { onConflict: 'id' });
+          if (error) throw error;
+        }
+      } catch (err) {
+        console.error("Erro no upsert em lote da importação:", err);
+      }
+    } else {
+      for (const m of imported) {
+        try {
+          // Supabase individual fallback
+          await salvarDados(
+            SYSTEM_USER_ID,
+            `IMPORTAÇÃO: ${m.patente} ${m.nomeGuerra}`,
+            `Importação via arquivo JSON do militar ${m.nome}`,
+            m,
+            m.id
+          );
+        } catch (sbErr) {
+          console.warn(`Erro Supabase (Importar ${m.id}):`, sbErr);
+        }
       }
     }
     setMilitares(imported.sort(sortMilitarByPatente));
@@ -2352,17 +2506,26 @@ export default function App() {
     localStorage.removeItem('permucyber_logs');
 
     try {
-      // Chunk-based deleting to remain reliable
-      const deletePromises = logsToDelete.map(async (log) => {
-        try {
-          await deletarDados(log.id);
-        } catch (sbErr) {
-          console.error(`Error deleting log ${log.id}:`, sbErr);
+      const supabaseClient = getSupabase();
+      if (supabaseClient && logsToDelete.length > 0) {
+        const logUuids = logsToDelete.map(l => toSupabaseFriendlyUUID(l.id));
+        for (let i = 0; i < logUuids.length; i += 100) {
+          const chunk = logUuids.slice(i, i + 100);
+          await supabaseClient.from('dados_app').delete().in('id', chunk);
         }
-      });
+      } else {
+        // Chunk-based deleting to remain reliable
+        const deletePromises = logsToDelete.map(async (log) => {
+          try {
+            await deletarDados(log.id);
+          } catch (sbErr) {
+            console.error(`Error deleting log ${log.id}:`, sbErr);
+          }
+        });
 
-      for (let i = 0; i < deletePromises.length; i += 10) {
-        await Promise.all(deletePromises.slice(i, i + 10));
+        for (let i = 0; i < deletePromises.length; i += 10) {
+          await Promise.all(deletePromises.slice(i, i + 10));
+        }
       }
 
       await appendAuditLog('INTEGRALIZAÇÃO', `Limpeza total do livro de auditoria realizada por ${loggedUser.nomeGuerra}.`, loggedUser.nomeGuerra, []);
