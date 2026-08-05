@@ -505,38 +505,7 @@ export default function App() {
           return time > max ? time : max;
         }, '');
 
-        if (isInitialSyncDone) {
-          try {
-            // 1. Verificar a quantidade total de registros ativos (excluindo backups)
-            const { count: dbRecordCount, error: countError } = await supabaseClient
-              .from('dados_app')
-              .select('*', { count: 'exact', head: true })
-              .not('id', 'like', '424b2d%');
-
-            if (!countError && dbRecordCount !== null) {
-              // 2. Verificar o timestamp do último registro ativo criado/modificado
-              const { data: latestRecords, error: latestError } = await supabaseClient
-                .from('dados_app')
-                .select('criado_em')
-                .not('id', 'like', '424b2d%')
-                .order('criado_em', { ascending: false })
-                .limit(1);
-
-              if (!latestError && latestRecords) {
-                const dbMaxTimestamp = latestRecords[0]?.criado_em || '';
-                
-                // Se a quantidade de registros e o último timestamp coincidem, não houve alteração.
-                // Reutiliza cache e evita qualquer processamento.
-                if (dbRecordCount === localRecordCount && dbMaxTimestamp <= localMaxTimestamp) {
-                  console.log("[App] Sincronização inteligente (Polling): nenhuma alteração detectada. Reutilizando cache local.");
-                  return;
-                }
-              }
-            }
-          } catch (checkErr) {
-            console.warn("[App] Erro na verificação incremental leve, executando fallback completo:", checkErr);
-          }
-        }
+        // Sincronização Delta robusta garantindo verificação completa de todos os registros sem abortar prematuramente por contagem.
 
         // Busca apenas os IDs e timestamps para calcular a diferença (Delta)
         // Usamos paginação (range) para buscar todos os registros e evitar o limite de 1000 linhas do Supabase/PostgREST.
