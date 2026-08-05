@@ -539,9 +539,39 @@ export default function App() {
         }
 
         // Busca apenas os IDs e timestamps para calcular a diferença (Delta)
-        const { data: dbRecords, error } = await supabaseClient
-          .from('dados_app')
-          .select('id, criado_em');
+        // Usamos paginação (range) para buscar todos os registros e evitar o limite de 1000 linhas do Supabase/PostgREST.
+        // Além disso, filtramos os registros de backup para otimizar a performance e reduzir consumo de dados.
+        let dbRecords: any[] = [];
+        let from = 0;
+        const chunkSizeLimit = 1000;
+        let hasMore = true;
+        let queryError: any = null;
+
+        while (hasMore) {
+          const { data, error } = await supabaseClient
+            .from('dados_app')
+            .select('id, criado_em')
+            .not('id', 'like', '424b2d%')
+            .range(from, from + chunkSizeLimit - 1);
+
+          if (error) {
+            queryError = error;
+            break;
+          }
+
+          if (data && data.length > 0) {
+            dbRecords.push(...data);
+            if (data.length < chunkSizeLimit) {
+              hasMore = false;
+            } else {
+              from += chunkSizeLimit;
+            }
+          } else {
+            hasMore = false;
+          }
+        }
+
+        const error = queryError;
         
         if (error) {
           if (error.code === 'PGRST116' || error.message?.includes('relation "dados_app" does not exist')) {
@@ -1365,7 +1395,8 @@ export default function App() {
           bk_quantidadeEscalas:dados_json->quantidadeEscalas,
           bk_quantidadePermutas:dados_json->quantidadePermutas
         `)
-        .in('user_id', [SYSTEM_USER_ID, BACKUP_USER_ID]);
+        .in('user_id', [SYSTEM_USER_ID, BACKUP_USER_ID])
+        .or('id.ilike.424b2d%,titulo.ilike.Cópia%');
         
       if (error) throw error;
       
