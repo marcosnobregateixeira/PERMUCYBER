@@ -73,9 +73,11 @@ export default function Dashboard({
   const prevMonthIndex = today.getMonth() - 1;
   const nextMonthIndex = today.getMonth() + 1;
 
-  const prevMonthName = (monthNames[prevMonthIndex] || 'JUNHO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO' | 'SETEMBRO';
-  const currentMonthName = (monthNames[today.getMonth()] || 'JULHO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO' | 'SETEMBRO';
-  const nextMonthName = (monthNames[nextMonthIndex] || 'SETEMBRO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO' | 'SETEMBRO';
+  const monthSequence = ['MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO'] as const;
+  const currentMonthName = (monthNames[today.getMonth()] || 'JULHO') as typeof monthSequence[number];
+  const currentIdx = monthSequence.indexOf(currentMonthName);
+  const nextMonthName = monthSequence[(currentIdx + 1) % monthSequence.length];
+  const prevMonthName = monthSequence[(currentIdx - 1 + monthSequence.length) % monthSequence.length];
 
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<number | null>(null); 
   const [dismissedWarnings, setDismissedWarnings] = useState<string[]>(() => {

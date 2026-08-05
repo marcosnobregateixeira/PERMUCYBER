@@ -666,17 +666,17 @@ export default function App() {
 
           // Processamento inteligente de remoções (Deletados no servidor)
           const dbIdSet = new Set(dbRecords.map((r: any) => r.id));
-          const hasCloudData = currentMil.length > 0 || fetchedRows.some(row => row.dados_json && row.dados_json.nomeGuerra);
+          const hasCloudData = dbRecords.length > 0;
           
           if (hasCloudData) {
-            currentMil = currentMil.filter(m => dbIdSet.has(toSupabaseFriendlyUUID(m.id)));
-            currentEsc = currentEsc.filter(e => dbIdSet.has(toSupabaseFriendlyUUID(e.id)));
-            currentPerm = currentPerm.filter(p => dbIdSet.has(toSupabaseFriendlyUUID(p.id)));
-            currentAl = currentAl.filter(a => dbIdSet.has(toSupabaseFriendlyUUID(a.id)));
-            currentLog = currentLog.filter(l => dbIdSet.has(toSupabaseFriendlyUUID(l.id)));
-            currentMsg = currentMsg.filter(m => dbIdSet.has(toSupabaseFriendlyUUID(m.id)));
-            currentNot = currentNot.filter(n => dbIdSet.has(toSupabaseFriendlyUUID(n.id)));
-            currentBkp = currentBkp.filter(b => dbIdSet.has(toSupabaseFriendlyUUID(b.id)));
+            currentMil = currentMil.filter(m => !localTimestamps[toSupabaseFriendlyUUID(m.id)] || dbIdSet.has(toSupabaseFriendlyUUID(m.id)));
+            currentEsc = currentEsc.filter(e => !localTimestamps[toSupabaseFriendlyUUID(e.id)] || dbIdSet.has(toSupabaseFriendlyUUID(e.id)));
+            currentPerm = currentPerm.filter(p => !localTimestamps[toSupabaseFriendlyUUID(p.id)] || dbIdSet.has(toSupabaseFriendlyUUID(p.id)));
+            currentAl = currentAl.filter(a => !localTimestamps[toSupabaseFriendlyUUID(a.id)] || dbIdSet.has(toSupabaseFriendlyUUID(a.id)));
+            currentLog = currentLog.filter(l => !localTimestamps[toSupabaseFriendlyUUID(l.id)] || dbIdSet.has(toSupabaseFriendlyUUID(l.id)));
+            currentMsg = currentMsg.filter(m => !localTimestamps[toSupabaseFriendlyUUID(m.id)] || dbIdSet.has(toSupabaseFriendlyUUID(m.id)));
+            currentNot = currentNot.filter(n => !localTimestamps[toSupabaseFriendlyUUID(n.id)] || dbIdSet.has(toSupabaseFriendlyUUID(n.id)));
+            currentBkp = currentBkp.filter(b => !localTimestamps[toSupabaseFriendlyUUID(b.id)] || dbIdSet.has(toSupabaseFriendlyUUID(b.id)));
           }
 
           if (hasCloudData) {
@@ -2086,8 +2086,9 @@ export default function App() {
     );
 
     if (existingConflict) {
-      alert(`CONFLITO: Já existe uma permuta ativa (${existingConflict.status}) para esta data envolvendo um dos policiais selecionados no mesmo turno/horário. Não é possível continuar.`);
-      return;
+      const msg = `CONFLITO: Já existe uma permuta ativa (${existingConflict.status}) para esta data envolvendo um dos policiais selecionados no mesmo turno/horário. Não é possível continuar.`;
+      alert(msg);
+      throw new Error(msg);
     }
 
     // Official Scale Conflict Check (Substituto already on duty)
@@ -2099,8 +2100,9 @@ export default function App() {
 
     if (scaleConflict) {
       const mil = militares.find(m => m.id === novaPermuta.militarSubstitutoId);
-      alert(`CONFLITO DE ESCALA: O militar ${mil?.nomeGuerra || ''} já está escalado oficialmente para o dia ${novaPermuta.dataRealizacao.split('-').reverse().join('.')} no turno/período ${scaleConflict.turno}. Não é possível continuar.`);
-      return;
+      const msg = `CONFLITO DE ESCALA: O militar ${mil?.nomeGuerra || ''} já está escalado oficialmente para o dia ${novaPermuta.dataRealizacao.split('-').reverse().join('.')} no turno/período ${scaleConflict.turno}. Não é possível continuar.`;
+      alert(msg);
+      throw new Error(msg);
     }
 
     try {
