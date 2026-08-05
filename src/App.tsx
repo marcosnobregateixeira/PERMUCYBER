@@ -2569,16 +2569,21 @@ export default function App() {
     }
 
     const isAdmin = loggedUser.role === 'ADMIN';
+    const isOwnerPendingSubstitute = targetPermuta.militarSubstituidoId === loggedUser.id && targetPermuta.status === 'PENDENTE_SUBSTITUTO';
 
-    if (!isAdmin) {
-      alert("ERRO: Apenas o Administrador pode excluir permutas do sistema.");
+    if (!isAdmin && !isOwnerPendingSubstitute) {
+      alert("ERRO: Apenas o Administrador ou o solicitante (enquanto pendente de aceite) podem excluir esta permuta.");
       return;
     }
 
     if (!bypassConfirm) {
+      const confirmMsg = isOwnerPendingSubstitute
+        ? "Tem certeza de que deseja excluir sua solicitação de permuta? Esta ação cancelará o pedido permanentemente."
+        : "Tem certeza de que deseja excluir este registro? Esta ação é irreversível e poderá alterar o histórico do sistema.";
+
       requestConfirmation(
         "EXCLUIR PERMUTA",
-        "Tem certeza de que deseja excluir este registro? Esta ação é irreversível e poderá alterar o histórico do sistema.",
+        confirmMsg,
         async () => {
           await executeDeletePermuta(id);
         },
@@ -3802,7 +3807,7 @@ export default function App() {
                                     >
                                       Ajustar
                                     </button>
-                                    {loggedUser?.role === 'ADMIN' && (
+                                    {(loggedUser?.role === 'ADMIN' || (p.militarSubstituidoId === loggedUser?.id && p.status === 'PENDENTE_SUBSTITUTO')) && (
                                       <button 
                                         onClick={async () => {
                                           // Removed window.confirm for better iframe compatibility
