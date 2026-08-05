@@ -65,16 +65,17 @@ export default function Dashboard({
     4: 'MAIO',
     5: 'JUNHO',
     6: 'JULHO',
-    7: 'AGOSTO'
+    7: 'AGOSTO',
+    8: 'SETEMBRO'
   };
   const realMonth = monthNames[today.getMonth()] || 'JUNHO';
 
   const prevMonthIndex = today.getMonth() - 1;
   const nextMonthIndex = today.getMonth() + 1;
 
-  const prevMonthName = (monthNames[prevMonthIndex] || 'JUNHO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO';
-  const currentMonthName = (monthNames[today.getMonth()] || 'JULHO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO';
-  const nextMonthName = (monthNames[nextMonthIndex] || 'AGOSTO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO';
+  const prevMonthName = (monthNames[prevMonthIndex] || 'JUNHO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO' | 'SETEMBRO';
+  const currentMonthName = (monthNames[today.getMonth()] || 'JULHO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO' | 'SETEMBRO';
+  const nextMonthName = (monthNames[nextMonthIndex] || 'SETEMBRO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO' | 'SETEMBRO';
 
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<number | null>(null); 
   const [dismissedWarnings, setDismissedWarnings] = useState<string[]>(() => {
@@ -177,10 +178,10 @@ export default function Dashboard({
     };
   };
 
-  const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO'>(realMonth as any);
+  const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO' | 'SETEMBRO'>(realMonth as any);
   const [selectedTurnoFilter, setSelectedTurnoFilter] = useState<'TODOS' | 'TURNO A' | 'TURNO B' | '24H' | 'EXPEDIENTE'>('TODOS');
 
-  // Full Month configuration for Maio, Junho, Julho, and Agosto 2026
+  // Full Month configuration for Maio, Junho, Julho, Agosto, and Setembro 2026
   const monthConfigs = {
     MAIO: {
       name: 'MAIO 2026',
@@ -205,6 +206,12 @@ export default function Dashboard({
       totalDays: 31,
       blanksCount: 6,
       monthCode: '08'
+    },
+    SETEMBRO: {
+      name: 'SETEMBRO 2026',
+      totalDays: 30,
+      blanksCount: 2,
+      monthCode: '09'
     }
   };
 
@@ -225,10 +232,10 @@ export default function Dashboard({
     return scale;
   };
 
-  const handleMonthChange = (month: 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO') => {
+  const handleMonthChange = (month: 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO' | 'SETEMBRO') => {
     setSelectedMonth(month);
     // If Day 31 is selected but selected month only has 30 days, clip to 30.
-    if (selectedCalendarDay === 31 && month === 'JUNHO') {
+    if (selectedCalendarDay === 31 && (month === 'JUNHO' || month === 'SETEMBRO')) {
       setSelectedCalendarDay(30);
     }
   };

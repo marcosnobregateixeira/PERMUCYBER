@@ -53,9 +53,28 @@ export default function PermutaFlow({
   const [lastProtocolId, setLastProtocolId] = useState<string>('');
   const [lastSubstituteName, setLastSubstituteName] = useState<string>('');
   
+  const today = new Date();
+  const monthNames: Record<number, string> = {
+    4: 'MAIO',
+    5: 'JUNHO',
+    6: 'JULHO',
+    7: 'AGOSTO',
+    8: 'SETEMBRO'
+  };
+
+  const prevMonthIndex = today.getMonth() - 1;
+  const nextMonthIndex = today.getMonth() + 1;
+
+  const prevMonthName = (monthNames[prevMonthIndex] || 'JUNHO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO' | 'SETEMBRO';
+  const currentMonthName = (monthNames[today.getMonth()] || 'JULHO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO' | 'SETEMBRO';
+  const nextMonthName = (monthNames[nextMonthIndex] || 'SETEMBRO') as 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO' | 'SETEMBRO';
+
   // Custom date selection & monthly schedule
-  const [selectedMonth, setSelectedMonth] = useState<'JUNHO' | 'JULHO'>(() => {
+  const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO' | 'SETEMBRO'>(() => {
+    if (escala.data.includes('-05-')) return 'MAIO';
     if (escala.data.includes('-07-')) return 'JULHO';
+    if (escala.data.includes('-08-')) return 'AGOSTO';
+    if (escala.data.includes('-09-')) return 'SETEMBRO';
     return 'JUNHO';
   });
   const [selectedDate, setSelectedDate] = useState<string>(escala.data);
@@ -70,7 +89,7 @@ export default function PermutaFlow({
   
   // Signature pad states
 
-  // Full Month configuration for Maio, Junho, and Julho 2026
+  // Full Month configuration for Maio, Junho, Julho, Agosto, and Setembro 2026
   const monthConfigs = {
     MAIO: {
       name: 'MAIO 2026',
@@ -89,6 +108,18 @@ export default function PermutaFlow({
       totalDays: 31,
       blanksCount: 3,
       monthCode: '07'
+    },
+    AGOSTO: {
+      name: 'AGOSTO 2026',
+      totalDays: 31,
+      blanksCount: 6,
+      monthCode: '08'
+    },
+    SETEMBRO: {
+      name: 'SETEMBRO 2026',
+      totalDays: 30,
+      blanksCount: 2,
+      monthCode: '09'
     }
   };
 
@@ -100,7 +131,7 @@ export default function PermutaFlow({
 
   const getDayScale = (day: number | null) => {
     if (!day) return null;
-    const mCode = selectedMonth === 'MAIO' ? '05' : selectedMonth === 'JULHO' ? '07' : '06';
+    const mCode = monthConfigs[selectedMonth].monthCode;
     const dateStr = `2026-${mCode}-${day.toString().padStart(2, '0')}`;
     return escalas.find((e) => e.militarId === userLogged?.id && e.data === dateStr);
   };
@@ -411,7 +442,7 @@ export default function PermutaFlow({
           
           {/* Month selector controls */}
           <div className="flex items-center space-x-1 bg-[#030d11] p-1 rounded-lg border border-hud-border/50 shrink-0 select-none">
-            {['JUNHO', 'JULHO'].map((m) => (
+            {[currentMonthName, nextMonthName].map((m) => (
               <button
                 key={m}
                 type="button"
@@ -448,7 +479,7 @@ export default function PermutaFlow({
               );
             }
 
-            const monthCode = selectedMonth === 'JULHO' ? '07' : '06';
+            const monthCode = monthConfigs[selectedMonth].monthCode;
             const dateStr = `2026-${monthCode}-${day.toString().padStart(2, '0')}`;
             
             // Validation: Cannot select today or past dates
