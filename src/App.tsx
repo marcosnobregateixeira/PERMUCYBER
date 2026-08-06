@@ -732,10 +732,12 @@ export default function App() {
         {
           event: '*',
           schema: 'public',
-          table: 'dados_app',
-          filter: `user_id=eq.${SYSTEM_USER_ID}`
+          table: 'dados_app'
         },
         (payload) => {
+          if (payload.new && payload.new.user_id && payload.new.user_id !== SYSTEM_USER_ID) {
+            return;
+          }
           console.log("[Realtime] Mudança detectada:", payload.eventType);
           
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
@@ -1118,7 +1120,7 @@ export default function App() {
     }
   };
 
-  const triggerBackupFailureAlert = (tipo: string, errorMsg: string) => {
+  const triggerBackupFailureAlert = async (tipo: string, errorMsg: string) => {
     const newAlerta: Alerta = {
       id: `A-FAIL-BK-${Date.now().toString().slice(-4)}`,
       prioridade: 'CRÍTICA',
@@ -1129,6 +1131,17 @@ export default function App() {
       icon: 'shield'
     };
     setAlertas(prev => [newAlerta, ...prev]);
+    try {
+      await salvarDados(
+        SYSTEM_USER_ID,
+        'ALERTA OPERACIONAL',
+        newAlerta.titulo,
+        newAlerta,
+        newAlerta.id
+      );
+    } catch (e) {
+      console.error("[App] Erro ao sincronizar alerta crítico de backup:", e);
+    }
   };
 
   const isDeepEqual = (val1: any, val2: any): boolean => {
