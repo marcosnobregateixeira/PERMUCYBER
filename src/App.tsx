@@ -867,6 +867,7 @@ export default function App() {
       const localAlertsStr = localStorage.getItem('permucyber_alertas');
       const localLogsStr = localStorage.getItem('permucyber_logs');
       const localChatStr = localStorage.getItem('permucyber_messages');
+      const localNotStr = localStorage.getItem('permucyber_notificacoes');
 
       const milToPush = localMilStr ? JSON.parse(localMilStr) as Militar[] : militares;
       const escToPush = localEscStr ? JSON.parse(localEscStr) as Escala[] : escalas;
@@ -875,6 +876,7 @@ export default function App() {
       const alertsToPush = localAlertsStr ? JSON.parse(localAlertsStr) as Alerta[] : alertas;
       const logsToPush = localLogsStr ? JSON.parse(localLogsStr) as BlockchainLog[] : logs;
       const chatToPush = localChatStr ? JSON.parse(localChatStr) as ChatMessage[] : messages;
+      const notToPush = localNotStr ? JSON.parse(localNotStr) as Notificacao[] : notificacoes;
 
       // 1. Sincronização em Lote de Produção altamente otimizada via Supabase
       const supabaseClient = getSupabase();
@@ -949,6 +951,18 @@ export default function App() {
             titulo: 'MENSAGEM',
             descricao: 'Mensagem sincronizada',
             dados_json: c,
+            criado_em: new Date().toISOString()
+          });
+        });
+
+        // Notificações / Alertas de notificação
+        notToPush.forEach(n => {
+          recordsToUpsert.push({
+            id: toSupabaseFriendlyUUID(n.id),
+            user_id: SYSTEM_USER_ID,
+            titulo: `NOTIFICACAO: ${n.militarId}`,
+            descricao: n.mensagem,
+            dados_json: n,
             criado_em: new Date().toISOString()
           });
         });
@@ -2039,7 +2053,11 @@ export default function App() {
     const updated = { ...notif, visualizada: true };
     setNotificacoes(prev => prev.map(n => n.id === id ? updated : n));
     try {
-      await atualizarDados(id, { dados_json: updated });
+      await atualizarDados(id, {
+        titulo: `NOTIFICACAO: ${updated.militarId}`,
+        descricao: updated.mensagem,
+        dados_json: updated
+      });
     } catch (e) {
       console.error("Error marking notification as read:", e);
     }
@@ -2052,8 +2070,13 @@ export default function App() {
     
     setNotificacoes(prev => prev.map(n => n.militarId === loggedUser.id ? { ...n, visualizada: true } : n));
     for (const n of userNotifs) {
+      const updated = { ...n, visualizada: true };
       try {
-        await atualizarDados(n.id, { dados_json: { ...n, visualizada: true } });
+        await atualizarDados(n.id, {
+          titulo: `NOTIFICACAO: ${updated.militarId}`,
+          descricao: updated.mensagem,
+          dados_json: updated
+        });
       } catch (e) {
         console.error("Error marking notification as read:", e);
       }
