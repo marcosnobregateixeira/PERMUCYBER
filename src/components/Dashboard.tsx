@@ -242,22 +242,44 @@ export default function Dashboard({
     }
   };
 
+  const [confirmModal, setConfirmModal] = useState<{
+    type: 'APPROVE' | 'REJECT' | 'ADJUST';
+    pId: string;
+    extraData?: string;
+  } | null>(null);
+
   const handleApprove = (pId: string) => {
-    if (!onApprovePermuta || !userLogged) return;
-    const gestorAssinatura = `COMAS-CENTRAL::${userLogged.nomeGuerra.toUpperCase()}::SECURE-CRYPTO-OK-${Math.floor(Math.random()*1000).toString(16).toUpperCase()}`;
-    onApprovePermuta(pId, userLogged.nomeGuerra, gestorAssinatura);
+    setConfirmModal({ type: 'APPROVE', pId });
   };
 
   const handleReject = (pId: string) => {
-    if (!onRejectPermuta) return;
-    onRejectPermuta(pId);
+    setConfirmModal({ type: 'REJECT', pId });
   };
 
   const handleSendAdjust = (pId: string) => {
-    if (!onAdjustPermuta || !justificativaAjuste) return;
-    onAdjustPermuta(pId, justificativaAjuste);
+    if (!justificativaAjuste) return;
+    setConfirmModal({ type: 'ADJUST', pId, extraData: justificativaAjuste });
+  };
+
+  const executeApprove = (pId: string) => {
+    if (!onApprovePermuta || !userLogged) return;
+    const gestorAssinatura = `COMAS-CENTRAL::${userLogged.nomeGuerra.toUpperCase()}::SECURE-CRYPTO-OK-${Math.floor(Math.random()*1000).toString(16).toUpperCase()}`;
+    onApprovePermuta(pId, userLogged.nomeGuerra, gestorAssinatura);
+    setConfirmModal(null);
+  };
+
+  const executeReject = (pId: string) => {
+    if (!onRejectPermuta) return;
+    onRejectPermuta(pId);
+    setConfirmModal(null);
+  };
+
+  const executeSendAdjust = (pId: string, justificativa: string) => {
+    if (!onAdjustPermuta) return;
+    onAdjustPermuta(pId, justificativa);
     setShowAjusteParaId(null);
     setJustificativaAjuste('');
+    setConfirmModal(null);
   };
 
   return (
@@ -1021,6 +1043,95 @@ export default function Dashboard({
           </div>
         </div>
       )}
+
+      {/* CONFIRMATION MODAL OVERLAY */}
+      {confirmModal && (() => {
+        const p = permutas.find(item => item.id === confirmModal.pId);
+        if (!p) return null;
+        const sub = allMilitares.find(m => m.id === p.militarSubstituidoId);
+        const repl = allMilitares.find(m => m.id === p.militarSubstitutoId);
+
+        let borderClass = 'border-cyber-cyan shadow-[0_0_30px_rgba(0,229,255,0.15)]';
+        let lineBg = 'bg-cyber-blue';
+        let title = 'CONFIRMAÇÃO DE OPERAÇÃO';
+        let text = 'Deseja realmente prosseguir com esta operação?';
+        let confirmBtnClass = 'bg-cyber-blue hover:bg-cyber-cyan text-black shadow-[0_0_10px_rgba(0,229,255,0.3)]';
+        let confirmActionFn = () => {};
+
+        if (confirmModal.type === 'APPROVE') {
+          borderClass = 'border-cyber-green shadow-[0_0_30px_rgba(0,255,102,0.15)]';
+          lineBg = 'bg-cyber-green';
+          title = 'CONFIRMAR HOMOLOGAÇÃO';
+          text = 'Tem certeza que deseja homologar esta permuta? Esta ação irá efetivar a troca e atualizar a escala oficial dos policiais envolvidos.';
+          confirmBtnClass = 'bg-cyber-green hover:bg-[#00ff66] text-black shadow-[0_0_10px_rgba(0,255,102,0.3)]';
+          confirmActionFn = () => executeApprove(confirmModal.pId);
+        } else if (confirmModal.type === 'REJECT') {
+          borderClass = 'border-cyber-red shadow-[0_0_30px_rgba(255,61,0,0.15)]';
+          lineBg = 'bg-cyber-red';
+          title = 'CONFIRMAR REJEIÇÃO';
+          text = 'Tem certeza que deseja rejeitar esta permuta? A solicitação será arquivada permanentemente com status REJEITADA.';
+          confirmBtnClass = 'bg-cyber-red hover:bg-[#ff511a] text-white shadow-[0_0_10px_rgba(255,61,0,0.3)]';
+          confirmActionFn = () => executeReject(confirmModal.pId);
+        } else if (confirmModal.type === 'ADJUST') {
+          borderClass = 'border-cyber-blue shadow-[0_0_30px_rgba(0,229,255,0.15)]';
+          lineBg = 'bg-cyber-blue';
+          title = 'CONFIRMAR SOLICITAÇÃO DE AJUSTE';
+          text = `Tem certeza que deseja solicitar ajuste para esta permuta com a seguinte observação?\n\n"${confirmModal.extraData || ''}"`;
+          confirmBtnClass = 'bg-cyber-blue hover:bg-cyber-cyan text-black shadow-[0_0_10px_rgba(0,229,255,0.3)]';
+          confirmActionFn = () => executeSendAdjust(confirmModal.pId, confirmModal.extraData || '');
+        }
+
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in" id="confirm-action-modal">
+            <div className={`max-w-md w-full bg-[#03090b] border-2 ${borderClass} rounded-2xl p-6 flex flex-col space-y-4 relative overflow-hidden text-left`}>
+              <div className={`absolute top-0 left-0 right-0 h-1 ${lineBg}`}></div>
+              
+              <div className="flex items-center space-x-2 pb-2 border-b border-hud-border/50">
+                <AlertTriangle className="w-5 h-5 text-cyber-cyan shrink-0" />
+                <span className="text-xs font-mono text-white uppercase tracking-wider font-bold">
+                  {title}
+                </span>
+              </div>
+
+              <div className="bg-[#050f12] border border-hud-border/40 p-3 rounded-lg space-y-2 text-xs font-mono">
+                <div className="flex justify-between border-b border-hud-border/20 pb-1 text-slate-400">
+                  <span>DATA DA TROCA:</span>
+                  <span className="text-white font-bold">{formatarDataBR(p.dataRealizacao)}</span>
+                </div>
+                <div className="flex justify-between border-b border-hud-border/20 pb-1 text-slate-400">
+                  <span>SUBSTITUÍDO:</span>
+                  <span className="text-white font-bold uppercase">{sub?.patente} {sub?.nomeGuerra}</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>SUBSTITUTO:</span>
+                  <span className="text-white font-bold uppercase">{repl?.patente} {repl?.nomeGuerra}</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-300 font-sans whitespace-pre-wrap leading-relaxed">
+                {text}
+              </p>
+
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmModal(null)}
+                  className="px-4 py-2 bg-hud-card border border-hud-border hover:bg-slate-800 text-slate-300 font-mono text-xs uppercase rounded transition-all font-bold cursor-pointer"
+                >
+                  CANCELAR
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmActionFn}
+                  className={`px-4 py-2 font-mono text-xs uppercase rounded transition-all font-bold cursor-pointer ${confirmBtnClass}`}
+                >
+                  CONFIRMAR
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );

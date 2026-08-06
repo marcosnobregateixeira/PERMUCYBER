@@ -117,9 +117,14 @@ export default function App() {
   const [alertas, setAlertas] = useState<Alerta[]>(() => {
     try {
       const saved = localStorage.getItem('permucyber_alertas');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return [parsed[0]];
+        }
+      }
     } catch (e) {}
-    return ALERTAS_INICIAIS;
+    return ALERTAS_INICIAIS.length > 0 ? [ALERTAS_INICIAIS[0]] : [];
   });
   const [permutas, setPermutas] = useState<Permuta[]>(() => {
     try {
@@ -682,7 +687,7 @@ export default function App() {
             setMilitares(currentMil.sort(sortMilitarByPatente));
             setEscalas(currentEsc);
             setPermutas(currentPerm);
-            setAlertas(currentAl);
+            setAlertas(currentAl.length > 0 ? [currentAl[0]] : []);
             setNotificacoes(currentNot.sort((a,b) => b.dataHora.localeCompare(a.dataHora)));
             setLogs(currentLog.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
             setMessages(currentMsg.sort((a,b) => a.timestamp.localeCompare(b.timestamp)));
@@ -875,7 +880,8 @@ export default function App() {
       const escToPush = localEscStr ? JSON.parse(localEscStr) as Escala[] : escalas;
       const permToPush = localPermStr ? JSON.parse(localPermStr) as Permuta[] : permutas;
       const configToPush = localConfigStr ? JSON.parse(localConfigStr) as AppConfig : config;
-      const alertsToPush = localAlertsStr ? JSON.parse(localAlertsStr) as Alerta[] : alertas;
+      const parsedAlerts = localAlertsStr ? JSON.parse(localAlertsStr) as Alerta[] : alertas;
+      const alertsToPush = parsedAlerts.length > 0 ? [parsedAlerts[0]] : [];
       const logsToPush = localLogsStr ? JSON.parse(localLogsStr) as BlockchainLog[] : logs;
       const chatToPush = localChatStr ? JSON.parse(localChatStr) as ChatMessage[] : messages;
       const notToPush = localNotStr ? JSON.parse(localNotStr) as Notificacao[] : notificacoes;
@@ -3341,7 +3347,7 @@ export default function App() {
 
   const handleUpdateAlerta = async (alertaId: string, conteudo: string, color: string, icon: string, velocidade?: number, tamanho?: number) => {
     const alertaData = {
-      id: alertaId,
+      id: alertaId || 'A-01',
       prioridade: 'CRÍTICA' as const,
       titulo: 'ALERTA DE SEGURANÇA',
       conteudo,
@@ -3352,39 +3358,35 @@ export default function App() {
       datahora: new Date().toISOString().replace('T', ' ').slice(0, 16)
     };
 
-    // 1. Update local state instantly (Upsert)
-    setAlertas(prev => {
-      const exists = prev.some(a => a.id === alertaId);
-      if (exists) {
-        return prev.map(a => a.id === alertaId ? alertaData : a);
+    // 1. Delete any other previous alerts from Supabase and local state
+    for (const old of alertas) {
+      if (old.id !== alertaData.id) {
+        try {
+          await deletarDados(old.id);
+        } catch (e) {
+          console.error("Error deleting old alert:", e);
+        }
       }
-      return [alertaData, ...prev];
-    });
+    }
 
-    // 2. Save to localStorage instantly (Upsert)
+    // 2. Set state to strictly ONLY this single alert
+    setAlertas([alertaData]);
+
+    // 3. Save to localStorage with strictly ONLY this single alert
     try {
-      const saved = localStorage.getItem('permucyber_alertas');
-      let currentAlertas: Alerta[] = saved ? JSON.parse(saved) : [];
-      const exists = currentAlertas.some(a => a.id === alertaId);
-      let updatedLocal: Alerta[];
-      if (exists) {
-        updatedLocal = currentAlertas.map(a => a.id === alertaId ? alertaData : a);
-      } else {
-        updatedLocal = [alertaData, ...currentAlertas];
-      }
-      localStorage.setItem('permucyber_alertas', JSON.stringify(updatedLocal));
+      localStorage.setItem('permucyber_alertas', JSON.stringify([alertaData]));
     } catch (e) {
       console.error("Local storage error:", e);
     }
 
-    // 3. Save to Supabase (Fallback DB)
+    // 4. Save to Supabase (Fallback DB)
     try {
       const res = await salvarDados(
         SYSTEM_USER_ID,
         'ALERTA OPERACIONAL',
         `Atualização de alerta: ${conteudo.slice(0, 30)}...`,
         alertaData,
-        alertaId
+        alertaData.id
       );
       if (!res.success) {
         console.warn("[App] Falha ao sincronizar alerta operacional no Supabase.");
@@ -3395,7 +3397,7 @@ export default function App() {
       console.warn("Supabase save error:", e);
     }
 
-    // 4. Append Audit Log
+    // 5. Append Audit Log
     try {
       await appendAuditLog('INTEGRALIZAÇÃO', `Alerta operacional de comando atualizado: "${conteudo.slice(0, 45)}...".`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
     } catch (e) {
