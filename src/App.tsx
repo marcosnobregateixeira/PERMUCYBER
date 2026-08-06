@@ -3352,17 +3352,26 @@ export default function App() {
       datahora: new Date().toISOString().replace('T', ' ').slice(0, 16)
     };
 
-    // 1. Update local state instantly
-    setAlertas(prev => prev.map(a => a.id === alertaId ? alertaData : a));
+    // 1. Update local state instantly (Upsert)
+    setAlertas(prev => {
+      const exists = prev.some(a => a.id === alertaId);
+      if (exists) {
+        return prev.map(a => a.id === alertaId ? alertaData : a);
+      }
+      return [alertaData, ...prev];
+    });
 
-    // 2. Save to localStorage instantly
+    // 2. Save to localStorage instantly (Upsert)
     try {
       const saved = localStorage.getItem('permucyber_alertas');
-      let currentAlertas: Alerta[] = [];
-      if (saved) {
-        currentAlertas = JSON.parse(saved);
+      let currentAlertas: Alerta[] = saved ? JSON.parse(saved) : [];
+      const exists = currentAlertas.some(a => a.id === alertaId);
+      let updatedLocal: Alerta[];
+      if (exists) {
+        updatedLocal = currentAlertas.map(a => a.id === alertaId ? alertaData : a);
+      } else {
+        updatedLocal = [alertaData, ...currentAlertas];
       }
-      const updatedLocal = currentAlertas.map(a => a.id === alertaId ? alertaData : a);
       localStorage.setItem('permucyber_alertas', JSON.stringify(updatedLocal));
     } catch (e) {
       console.error("Local storage error:", e);
@@ -3370,18 +3379,23 @@ export default function App() {
 
     // 3. Save to Supabase (Fallback DB)
     try {
-      await salvarDados(
+      const res = await salvarDados(
         SYSTEM_USER_ID,
         'ALERTA OPERACIONAL',
         `Atualização de alerta: ${conteudo.slice(0, 30)}...`,
         alertaData,
         alertaId
       );
+      if (!res.success) {
+        console.warn("[App] Falha ao sincronizar alerta operacional no Supabase.");
+      } else {
+        console.log("[App] Alerta operacional sincronizado com sucesso na nuvem para todos os dispositivos!");
+      }
     } catch (e) {
       console.warn("Supabase save error:", e);
     }
 
-    // 5. Append Audit Log
+    // 4. Append Audit Log
     try {
       await appendAuditLog('INTEGRALIZAÇÃO', `Alerta operacional de comando atualizado: "${conteudo.slice(0, 45)}...".`, loggedUser?.nomeGuerra || 'SISTEMA', logs);
     } catch (e) {
