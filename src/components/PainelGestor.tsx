@@ -729,7 +729,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
     doc.text("TURNOS:", 40, finalY + 15);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.text("A: 06H às 18H | B: 18H às 06H | 24H: 06H às 06H | EXPEDIENTE", 40, finalY + 27);
+    doc.text("A: 06H às 18H | B: 18H às 06H | 24H: 06H às 06H", 40, finalY + 27);
     
     const sigY = finalY + 80;
     doc.setDrawColor(0, 0, 0);
@@ -976,7 +976,7 @@ CREATE POLICY "Acesso individual por user_id" ON public.dados_app
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(100, 116, 139);
-    doc.text("A: 06H às 18H | B: 18H às 06H | 24H: 06H às 06H | EXPEDIENTE", 40, currentY + 27);
+    doc.text("A: 06H às 18H | B: 18H às 06H | 24H: 06H às 06H", 40, currentY + 27);
     
     const sigY = currentY + 80;
     doc.setDrawColor(148, 163, 184); 
