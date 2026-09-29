@@ -55,29 +55,57 @@ export default function PermutaFlow({
   
   const today = new Date();
   const monthNames: Record<number, string> = {
+    0: 'JANEIRO',
+    1: 'FEVEREIRO',
+    2: 'MARÇO',
+    3: 'ABRIL',
     4: 'MAIO',
     5: 'JUNHO',
     6: 'JULHO',
     7: 'AGOSTO',
-    8: 'SETEMBRO'
+    8: 'SETEMBRO',
+    9: 'OUTUBRO',
+    10: 'NOVEMBRO',
+    11: 'DEZEMBRO'
   };
 
   const prevMonthIndex = today.getMonth() - 1;
   const nextMonthIndex = today.getMonth() + 1;
 
-  const monthSequence = ['MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO'] as const;
-  const currentMonthName = (monthNames[today.getMonth()] || 'JULHO') as typeof monthSequence[number];
+  const monthSequence = [
+    'JANEIRO',
+    'FEVEREIRO',
+    'MARÇO',
+    'ABRIL',
+    'MAIO',
+    'JUNHO',
+    'JULHO',
+    'AGOSTO',
+    'SETEMBRO',
+    'OUTUBRO',
+    'NOVEMBRO',
+    'DEZEMBRO'
+  ] as const;
+  const currentMonthName = (monthNames[today.getMonth()] || 'SETEMBRO') as typeof monthSequence[number];
   const currentIdx = monthSequence.indexOf(currentMonthName);
   const nextMonthName = monthSequence[(currentIdx + 1) % monthSequence.length];
   const prevMonthName = monthSequence[(currentIdx - 1 + monthSequence.length) % monthSequence.length];
 
   // Custom date selection & monthly schedule
-  const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO' | 'SETEMBRO'>(() => {
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    if (escala.data.includes('-01-')) return 'JANEIRO';
+    if (escala.data.includes('-02-')) return 'FEVEREIRO';
+    if (escala.data.includes('-03-')) return 'MARÇO';
+    if (escala.data.includes('-04-')) return 'ABRIL';
     if (escala.data.includes('-05-')) return 'MAIO';
+    if (escala.data.includes('-06-')) return 'JUNHO';
     if (escala.data.includes('-07-')) return 'JULHO';
     if (escala.data.includes('-08-')) return 'AGOSTO';
     if (escala.data.includes('-09-')) return 'SETEMBRO';
-    return 'JUNHO';
+    if (escala.data.includes('-10-')) return 'OUTUBRO';
+    if (escala.data.includes('-11-')) return 'NOVEMBRO';
+    if (escala.data.includes('-12-')) return 'DEZEMBRO';
+    return monthNames[today.getMonth()] || 'SETEMBRO';
   });
   const [selectedDate, setSelectedDate] = useState<string>(escala.data);
   const [postoServico] = useState<string>('DIRETORIA DE SAÚDE');
@@ -91,8 +119,32 @@ export default function PermutaFlow({
   
   // Signature pad states
 
-  // Full Month configuration for Maio, Junho, Julho, Agosto, and Setembro 2026
-  const monthConfigs = {
+  // Full Month configuration for 2026
+  const monthConfigs: Record<string, { name: string; totalDays: number; blanksCount: number; monthCode: string }> = {
+    JANEIRO: {
+      name: 'JANEIRO 2026',
+      totalDays: 31,
+      blanksCount: 4,
+      monthCode: '01'
+    },
+    FEVEREIRO: {
+      name: 'FEVEREIRO 2026',
+      totalDays: 28,
+      blanksCount: 0,
+      monthCode: '02'
+    },
+    MARÇO: {
+      name: 'MARÇO 2026',
+      totalDays: 31,
+      blanksCount: 0,
+      monthCode: '03'
+    },
+    ABRIL: {
+      name: 'ABRIL 2026',
+      totalDays: 30,
+      blanksCount: 3,
+      monthCode: '04'
+    },
     MAIO: {
       name: 'MAIO 2026',
       totalDays: 31,
@@ -122,10 +174,28 @@ export default function PermutaFlow({
       totalDays: 30,
       blanksCount: 2,
       monthCode: '09'
+    },
+    OUTUBRO: {
+      name: 'OUTUBRO 2026',
+      totalDays: 31,
+      blanksCount: 4,
+      monthCode: '10'
+    },
+    NOVEMBRO: {
+      name: 'NOVEMBRO 2026',
+      totalDays: 30,
+      blanksCount: 0,
+      monthCode: '11'
+    },
+    DEZEMBRO: {
+      name: 'DEZEMBRO 2026',
+      totalDays: 31,
+      blanksCount: 2,
+      monthCode: '12'
     }
   };
 
-  const currentMonthConfig = monthConfigs[selectedMonth];
+  const currentMonthConfig = monthConfigs[selectedMonth] || monthConfigs['SETEMBRO'];
   const totalDays = currentMonthConfig.totalDays;
   const blanks = Array(currentMonthConfig.blanksCount).fill(null);
   const monthDays = Array.from({ length: totalDays }, (_, i) => i + 1);

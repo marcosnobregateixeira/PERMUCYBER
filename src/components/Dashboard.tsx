@@ -62,19 +62,39 @@ export default function Dashboard({
   const today = new Date();
   const realDay = today.getDate();
   const monthNames: Record<number, string> = {
+    0: 'JANEIRO',
+    1: 'FEVEREIRO',
+    2: 'MARÇO',
+    3: 'ABRIL',
     4: 'MAIO',
     5: 'JUNHO',
     6: 'JULHO',
     7: 'AGOSTO',
-    8: 'SETEMBRO'
+    8: 'SETEMBRO',
+    9: 'OUTUBRO',
+    10: 'NOVEMBRO',
+    11: 'DEZEMBRO'
   };
-  const realMonth = monthNames[today.getMonth()] || 'JUNHO';
+  const realMonth = monthNames[today.getMonth()] || 'SETEMBRO';
 
   const prevMonthIndex = today.getMonth() - 1;
   const nextMonthIndex = today.getMonth() + 1;
 
-  const monthSequence = ['MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO'] as const;
-  const currentMonthName = (monthNames[today.getMonth()] || 'JULHO') as typeof monthSequence[number];
+  const monthSequence = [
+    'JANEIRO',
+    'FEVEREIRO',
+    'MARÇO',
+    'ABRIL',
+    'MAIO',
+    'JUNHO',
+    'JULHO',
+    'AGOSTO',
+    'SETEMBRO',
+    'OUTUBRO',
+    'NOVEMBRO',
+    'DEZEMBRO'
+  ] as const;
+  const currentMonthName = (monthNames[today.getMonth()] || 'SETEMBRO') as typeof monthSequence[number];
   const currentIdx = monthSequence.indexOf(currentMonthName);
   const nextMonthName = monthSequence[(currentIdx + 1) % monthSequence.length];
   const prevMonthName = monthSequence[(currentIdx - 1 + monthSequence.length) % monthSequence.length];
@@ -180,11 +200,35 @@ export default function Dashboard({
     };
   };
 
-  const [selectedMonth, setSelectedMonth] = useState<'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO' | 'SETEMBRO'>(realMonth as any);
+  const [selectedMonth, setSelectedMonth] = useState<string>(realMonth);
   const [selectedTurnoFilter, setSelectedTurnoFilter] = useState<'TODOS' | 'TURNO A' | 'TURNO B' | '24H' | 'EXPEDIENTE'>('TODOS');
 
-  // Full Month configuration for Maio, Junho, Julho, Agosto, and Setembro 2026
-  const monthConfigs = {
+  // Full Month configuration for 2026
+  const monthConfigs: Record<string, { name: string; totalDays: number; blanksCount: number; monthCode: string }> = {
+    JANEIRO: {
+      name: 'JANEIRO 2026',
+      totalDays: 31,
+      blanksCount: 4,
+      monthCode: '01'
+    },
+    FEVEREIRO: {
+      name: 'FEVEREIRO 2026',
+      totalDays: 28,
+      blanksCount: 0,
+      monthCode: '02'
+    },
+    MARÇO: {
+      name: 'MARÇO 2026',
+      totalDays: 31,
+      blanksCount: 0,
+      monthCode: '03'
+    },
+    ABRIL: {
+      name: 'ABRIL 2026',
+      totalDays: 30,
+      blanksCount: 3,
+      monthCode: '04'
+    },
     MAIO: {
       name: 'MAIO 2026',
       totalDays: 31,
@@ -214,10 +258,28 @@ export default function Dashboard({
       totalDays: 30,
       blanksCount: 2,
       monthCode: '09'
+    },
+    OUTUBRO: {
+      name: 'OUTUBRO 2026',
+      totalDays: 31,
+      blanksCount: 4,
+      monthCode: '10'
+    },
+    NOVEMBRO: {
+      name: 'NOVEMBRO 2026',
+      totalDays: 30,
+      blanksCount: 0,
+      monthCode: '11'
+    },
+    DEZEMBRO: {
+      name: 'DEZEMBRO 2026',
+      totalDays: 31,
+      blanksCount: 2,
+      monthCode: '12'
     }
   };
 
-  const currentMonthConfig = monthConfigs[selectedMonth];
+  const currentMonthConfig = monthConfigs[selectedMonth] || monthConfigs['SETEMBRO'];
   const totalDays = currentMonthConfig.totalDays;
   const blanks = Array(currentMonthConfig.blanksCount).fill(null);
   const monthDays = Array.from({ length: totalDays }, (_, i) => i + 1);
@@ -234,11 +296,12 @@ export default function Dashboard({
     return scale;
   };
 
-  const handleMonthChange = (month: 'MAIO' | 'JUNHO' | 'JULHO' | 'AGOSTO' | 'SETEMBRO') => {
+  const handleMonthChange = (month: string) => {
     setSelectedMonth(month);
-    // If Day 31 is selected but selected month only has 30 days, clip to 30.
-    if (selectedCalendarDay === 31 && (month === 'JUNHO' || month === 'SETEMBRO')) {
-      setSelectedCalendarDay(30);
+    // If Day 31 is selected but selected month only has fewer days, clip to totalDays.
+    const mConfig = monthConfigs[month];
+    if (mConfig && selectedCalendarDay && selectedCalendarDay > mConfig.totalDays) {
+      setSelectedCalendarDay(mConfig.totalDays);
     }
   };
 
