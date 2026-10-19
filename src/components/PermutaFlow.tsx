@@ -610,6 +610,152 @@ export default function PermutaFlow({
 
       <form onSubmit={handleSubmit} className="space-y-4 font-sans">
         
+        {/* DYNAMIC TIME SELECTOR - CHOOSE SHIFT BEFORE PICKING CANDIDATE */}
+        <div className="bg-[#03151b] border border-cyber-blue/35 rounded-xl p-3.5 space-y-3 font-sans" id="custom-time-selector">
+          <div className="flex items-center space-x-1.5 text-cyber-cyan border-b border-cyber-blue/25 pb-2">
+            <Clock className="w-4 h-4 text-cyber-blue" />
+            <span className="text-[10px] font-bold text-cyber-cyan tracking-wider uppercase">
+              HORÁRIO REPACTUADO / DIVISÃO DO PLANTÃO
+            </span>
+          </div>
+          
+          {is24HScale ? (
+            <div className="space-y-2.5">
+              <p className="text-[10.5px] text-slate-300 leading-snug">
+                Esta é uma escala de <strong>24 Horas</strong>. Selecione a divisão do plantão para esta permuta:
+              </p>
+              <div className="grid grid-cols-1 gap-2">
+                {[
+                  {
+                    id: 'turno_a',
+                    title: 'Turno A (06:00 – 18:00)',
+                    description: 'O voluntário assumirá apenas o período diurno (12h)',
+                    turno: 'TURNO A',
+                    inicio: '06:00',
+                    fim: '18:00'
+                  },
+                  {
+                    id: 'turno_b',
+                    title: 'Turno B (18:00 – 06:00)',
+                    description: 'O voluntário assumirá apenas o período noturno (12h)',
+                    turno: 'TURNO B',
+                    inicio: '18:00',
+                    fim: '06:00'
+                  },
+                  {
+                    id: 'servico_completo',
+                    title: 'Serviço Completo (24h)',
+                    description: 'O voluntário assumirá o plantão integral de 24 horas',
+                    turno: '24H',
+                    inicio: '06:00',
+                    fim: '06:00'
+                  }
+                ].map((opt) => {
+                  const isOptSelected = customTurno === opt.turno && customHoraInicio === opt.inicio && customHoraFim === opt.fim;
+                  return (
+                    <div
+                      key={opt.id}
+                      onClick={() => {
+                        setCustomTurno(opt.turno as any);
+                        setCustomHoraInicio(opt.inicio);
+                        setCustomHoraFim(opt.fim);
+                        if (selectedSubstituteId) {
+                          const subHasConflict = escalas.some(e => e.militarId === selectedSubstituteId && e.data === selectedDate && areShiftsOverlapping(e.turno, opt.turno)) ||
+                            permutas.some(p => p.dataRealizacao === selectedDate && !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status) && areShiftsOverlapping(p.turno, opt.turno) && (p.militarSubstituidoId === selectedSubstituteId || p.militarSubstitutoId === selectedSubstituteId));
+                          if (subHasConflict) setSelectedSubstituteId('');
+                        }
+                      }}
+                      className={`border rounded-xl p-3 flex items-center justify-between transition-all cursor-pointer ${
+                        isOptSelected
+                          ? 'bg-cyber-cyan/15 border-cyber-blue shadow-[0_0_10px_rgba(0,229,255,0.15)] text-white'
+                          : 'bg-hud-card/40 border-hud-border/70 hover:border-cyber-cyan/35 text-slate-300'
+                      }`}
+                      id={`option-24h-${opt.id}`}
+                    >
+                      <div className="flex flex-col space-y-0.5">
+                        <span className="text-xs font-bold font-mono tracking-wide">{opt.title}</span>
+                        <span className="text-[9px] text-slate-400 font-sans">{opt.description}</span>
+                      </div>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                        isOptSelected ? 'border-cyber-blue bg-cyber-blue/15' : 'border-slate-600'
+                      }`}>
+                        {isOptSelected && <div className="w-2 h-2 rounded-full bg-cyber-cyan" />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-[10.5px] text-slate-300 leading-snug">
+                Confirme o regime de turno e a faixa de horário que o voluntário irá cumprir:
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[8px] text-slate-400 block uppercase font-mono">Hora de Início</label>
+                  <select
+                    value={customHoraInicio}
+                    onChange={(e) => setCustomHoraInicio(e.target.value)}
+                    className="w-full bg-[#020709] border border-hud-border hover:border-cyber-cyan/50 focus:border-cyber-blue focus:outline-none rounded-lg px-2 py-1 text-xs text-white font-mono font-bold"
+                  >
+                    {Array.from({ length: 48 }).map((_, i) => {
+                      const hour = Math.floor(i / 2).toString().padStart(2, '0');
+                      const minute = (i % 2 === 0) ? '00' : '30';
+                      const time = `${hour}:${minute}`;
+                      return <option key={time} value={time}>{time}</option>;
+                    })}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[8px] text-slate-400 block uppercase font-mono">Hora de Fim</label>
+                  <select
+                    value={customHoraFim}
+                    onChange={(e) => setCustomHoraFim(e.target.value)}
+                    className="w-full bg-[#020709] border border-hud-border hover:border-cyber-cyan/50 focus:border-cyber-blue focus:outline-none rounded-lg px-2 py-1 text-xs text-white font-mono font-bold"
+                  >
+                    {Array.from({ length: 48 }).map((_, i) => {
+                      const hour = Math.floor(i / 2).toString().padStart(2, '0');
+                      const minute = (i % 2 === 0) ? '00' : '30';
+                      const time = `${hour}:${minute}`;
+                      return <option key={time} value={time}>{time}</option>;
+                    })}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[8px] text-slate-400 block uppercase font-mono">Regime de Turno</label>
+                  <select
+                    value={customTurno}
+                    onChange={(e) => {
+                      const nextTurno = e.target.value as any;
+                      setCustomTurno(nextTurno);
+                      if (nextTurno === 'TURNO B') {
+                        setCustomHoraInicio('18:00');
+                        setCustomHoraFim('06:00');
+                      } else if (nextTurno === '24H') {
+                        setCustomHoraInicio('06:00');
+                        setCustomHoraFim('06:00');
+                      } else if (nextTurno === 'EXPEDIENTE') {
+                        setCustomHoraInicio('08:00');
+                        setCustomHoraFim('17:00');
+                      } else {
+                        setCustomHoraInicio('06:00');
+                        setCustomHoraFim('18:00');
+                      }
+                    }}
+                    className="w-full bg-[#020709] border border-hud-border hover:border-cyber-cyan/50 focus:border-cyber-blue focus:outline-none rounded-lg px-2 py-1 text-xs text-cyber-blue font-bold font-mono"
+                  >
+                    <option value="TURNO A">TURNO A</option>
+                    <option value="TURNO B">TURNO B</option>
+                    <option value="24H">24H</option>
+                    <option value="EXPEDIENTE">EXPEDIENTE</option>
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
         {/* IA SUGGESTS RECOMMENDATION SUB-PANEL */}
         <div className="space-y-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -727,148 +873,7 @@ export default function PermutaFlow({
           )}
         </div>
 
-        {/* DYNAMIC TIME SELECTOR REVEALED ON SELECTION */}
-        {selectedSubstituteId && (
-          <div className="bg-[#03151b] border border-cyber-blue/35 rounded-xl p-3.5 space-y-3 font-sans" id="custom-time-selector">
-            <div className="flex items-center space-x-1.5 text-cyber-cyan border-b border-cyber-blue/25 pb-2">
-              <Clock className="w-4 h-4 text-cyber-blue" />
-              <span className="text-[10px] font-bold text-cyber-cyan tracking-wider uppercase">
-                HORÁRIO REPACTUADO
-              </span>
-            </div>
-            
-            {is24HScale ? (
-              <div className="space-y-2.5">
-                <p className="text-[10.5px] text-slate-300 leading-snug">
-                  Esta é uma escala de <strong>24 Horas</strong>. Selecione a divisão do plantão para esta permuta:
-                </p>
-                <div className="grid grid-cols-1 gap-2">
-                  {[
-                    {
-                      id: 'turno_a',
-                      title: 'Turno A (06:00 – 18:00)',
-                      description: 'O voluntário assumirá apenas o período diurno (12h)',
-                      turno: 'TURNO A',
-                      inicio: '06:00',
-                      fim: '18:00'
-                    },
-                    {
-                      id: 'turno_b',
-                      title: 'Turno B (18:00 – 06:00)',
-                      description: 'O voluntário assumirá apenas o período noturno (12h)',
-                      turno: 'TURNO B',
-                      inicio: '18:00',
-                      fim: '06:00'
-                    },
-                    {
-                      id: 'servico_completo',
-                      title: 'Serviço Completo (24h)',
-                      description: 'O voluntário assumirá o plantão integral de 24 horas',
-                      turno: '24H',
-                      inicio: '06:00',
-                      fim: '06:00'
-                    }
-                  ].map((opt) => {
-                    const isOptSelected = customTurno === opt.turno && customHoraInicio === opt.inicio && customHoraFim === opt.fim;
-                    return (
-                      <div
-                        key={opt.id}
-                        onClick={() => {
-                          setCustomTurno(opt.turno as any);
-                          setCustomHoraInicio(opt.inicio);
-                          setCustomHoraFim(opt.fim);
-                        }}
-                        className={`border rounded-xl p-3 flex items-center justify-between transition-all cursor-pointer ${
-                          isOptSelected
-                            ? 'bg-cyber-cyan/15 border-cyber-blue shadow-[0_0_10px_rgba(0,229,255,0.15)] text-white'
-                            : 'bg-hud-card/40 border-hud-border/70 hover:border-cyber-cyan/35 text-slate-300'
-                        }`}
-                        id={`option-24h-${opt.id}`}
-                      >
-                        <div className="flex flex-col space-y-0.5">
-                          <span className="text-xs font-bold font-mono tracking-wide">{opt.title}</span>
-                          <span className="text-[9px] text-slate-400 font-sans">{opt.description}</span>
-                        </div>
-                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
-                          isOptSelected ? 'border-cyber-blue bg-cyber-blue/15' : 'border-slate-600'
-                        }`}>
-                          {isOptSelected && <div className="w-2 h-2 rounded-full bg-cyber-cyan" />}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <>
-                <p className="text-[10.5px] text-slate-300 leading-snug">
-                  Confirme o regime de turno e a faixa de horário que o voluntário irá cumprir:
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="space-y-1">
-                    <label className="text-[8px] text-slate-400 block uppercase font-mono">Hora de Início</label>
-                    <select
-                      value={customHoraInicio}
-                      onChange={(e) => setCustomHoraInicio(e.target.value)}
-                      className="w-full bg-[#020709] border border-hud-border hover:border-cyber-cyan/50 focus:border-cyber-blue focus:outline-none rounded-lg px-2 py-1 text-xs text-white font-mono font-bold"
-                    >
-                      {Array.from({ length: 48 }).map((_, i) => {
-                        const hour = Math.floor(i / 2).toString().padStart(2, '0');
-                        const minute = (i % 2 === 0) ? '00' : '30';
-                        const time = `${hour}:${minute}`;
-                        return <option key={time} value={time}>{time}</option>;
-                      })}
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[8px] text-slate-400 block uppercase font-mono">Hora de Fim</label>
-                    <select
-                      value={customHoraFim}
-                      onChange={(e) => setCustomHoraFim(e.target.value)}
-                      className="w-full bg-[#020709] border border-hud-border hover:border-cyber-cyan/50 focus:border-cyber-blue focus:outline-none rounded-lg px-2 py-1 text-xs text-white font-mono font-bold"
-                    >
-                      {Array.from({ length: 48 }).map((_, i) => {
-                        const hour = Math.floor(i / 2).toString().padStart(2, '0');
-                        const minute = (i % 2 === 0) ? '00' : '30';
-                        const time = `${hour}:${minute}`;
-                        return <option key={time} value={time}>{time}</option>;
-                      })}
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[8px] text-slate-400 block uppercase font-mono">Regime de Turno</label>
-                    <select
-                      value={customTurno}
-                      onChange={(e) => {
-                        const nextTurno = e.target.value as any;
-                        setCustomTurno(nextTurno);
-                        if (nextTurno === 'TURNO B') {
-                          setCustomHoraInicio('18:00');
-                          setCustomHoraFim('06:00');
-                        } else if (nextTurno === '24H') {
-                          setCustomHoraInicio('06:00');
-                          setCustomHoraFim('06:00');
-                        } else if (nextTurno === 'EXPEDIENTE') {
-                          setCustomHoraInicio('08:00');
-                          setCustomHoraFim('17:00');
-                        } else {
-                          setCustomHoraInicio('06:00');
-                          setCustomHoraFim('18:00');
-                        }
-                      }}
-                      className="w-full bg-[#020709] border border-hud-border hover:border-cyber-cyan/50 focus:border-cyber-blue focus:outline-none rounded-lg px-2 py-1 text-xs text-cyber-blue font-bold font-mono"
-                    >
-                      <option value="TURNO A">TURNO A</option>
-                      <option value="TURNO B">TURNO B</option>
-                      <option value="24H">24H</option>
-                      <option value="EXPEDIENTE">EXPEDIENTE</option>
-                    </select>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+
 
 
         {/* DISMISS / TRANSMIT OPERATIONAL BUTTON ACTIONS */}
