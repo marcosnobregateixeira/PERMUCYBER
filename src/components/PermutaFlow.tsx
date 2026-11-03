@@ -17,7 +17,8 @@ import {
   HelpCircle,
   Calendar,
   PlusCircle,
-  CheckCheck
+  CheckCheck,
+  Trash2
 } from 'lucide-react';
 import { Escala, Militar, Permuta } from '../types';
 import { generateSimpleHash, formatarDataBR } from '../data';
@@ -31,6 +32,7 @@ interface PermutaFlowProps {
   onCancel: () => void;
   onSubmitPermuta: (novaPermuta: Permuta) => any;
   onFinish: () => void;
+  onDeletePermuta?: () => void;
 }
 
 export default function PermutaFlow({
@@ -41,7 +43,8 @@ export default function PermutaFlow({
   escalas,
   onCancel,
   onSubmitPermuta,
-  onFinish
+  onFinish,
+  onDeletePermuta
 }: PermutaFlowProps) {
   const [selectedSubstituteId, setSelectedSubstituteId] = useState<string>('');
   const [useAIAdvice, setUseAIAdvice] = useState<boolean>(true);
@@ -900,6 +903,20 @@ export default function PermutaFlow({
             <span>{isSubmitting ? 'ENVIANDO...' : 'ENVIAR SOLICITAÇÃO'}</span>
           </button>
         </div>
+
+        {onDeletePermuta && (
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={onDeletePermuta}
+              className="w-full bg-cyber-red/10 border border-cyber-red/40 hover:bg-cyber-red/20 text-cyber-red text-xs font-bold py-2.5 rounded-lg font-mono uppercase transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-[0_0_10px_rgba(255,51,51,0.1)]"
+              id="delete-permuta-adjust-btn"
+            >
+              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+              <span>EXCLUIR PERMUTA</span>
+            </button>
+          </div>
+        )}
 
       </form>
     </div>

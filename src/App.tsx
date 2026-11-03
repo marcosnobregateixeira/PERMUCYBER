@@ -263,6 +263,7 @@ export default function App() {
 
   const [activeSwapScale, setActiveSwapScale] = useState<Escala | null>(null);
   const [activeReviewPermuta, setActiveReviewPermuta] = useState<Permuta | null>(null);
+  const [adjustingPermuta, setAdjustingPermuta] = useState<Permuta | null>(null);
   const [showApproved, setShowApproved] = useState<boolean>(false);
   const [showRejected, setShowRejected] = useState<boolean>(false);
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
@@ -1080,6 +1081,7 @@ export default function App() {
     setCurrentTab('DASHBOARD');
     setActiveSwapScale(null);
     setActiveReviewPermuta(null);
+    setAdjustingPermuta(null);
   };
 
   const handleUserChange = (userId: string) => {
@@ -1089,6 +1091,7 @@ export default function App() {
     localStorage.removeItem('permucyber_is_logged');
     setActiveSwapScale(null);
     setActiveReviewPermuta(null);
+    setAdjustingPermuta(null);
     setCurrentTab('DASHBOARD');
   };
 
@@ -2116,6 +2119,7 @@ export default function App() {
 
     // Strict duplicate and conflict check
     const existingConflict = permutas.find(p => 
+      p.id !== adjustingPermuta?.id &&
       p.dataRealizacao === novaPermuta.dataRealizacao &&
       !['REJEITADO', 'REJEITADO_SUBSTITUTO', 'SEM_EFEITO'].includes(p.status) &&
       areShiftsOverlapping(p.turno, novaPermuta.turno) &&
@@ -2145,6 +2149,12 @@ export default function App() {
       const msg = `CONFLITO DE ESCALA: O militar ${mil?.nomeGuerra || ''} já está escalado oficialmente para o dia ${novaPermuta.dataRealizacao.split('-').reverse().join('.')} no turno/período ${scaleConflict.turno}. Não é possível continuar.`;
       alert(msg);
       throw new Error(msg);
+    }
+
+    if (adjustingPermuta) {
+      const oldId = adjustingPermuta.id;
+      setAdjustingPermuta(null);
+      await executeDeletePermuta(oldId);
     }
 
     try {
@@ -2580,15 +2590,16 @@ export default function App() {
     }
 
     const isAdmin = loggedUser.role === 'ADMIN';
-    const isOwnerPendingSubstitute = targetPermuta.militarSubstituidoId === loggedUser.id && targetPermuta.status === 'PENDENTE_SUBSTITUTO';
+    const isOwnerCanDelete = targetPermuta.militarSubstituidoId === loggedUser.id && 
+      (targetPermuta.status === 'PENDENTE_SUBSTITUTO' || targetPermuta.status === 'AJUSTE_GESTOR' || targetPermuta.status === 'ALTERACAO_SOLICITADA' || targetPermuta.status === 'PENDENTE_GESTOR');
 
-    if (!isAdmin && !isOwnerPendingSubstitute) {
-      alert("ERRO: Apenas o Administrador ou o solicitante (enquanto pendente de aceite) podem excluir esta permuta.");
+    if (!isAdmin && !isOwnerCanDelete) {
+      alert("ERRO: Apenas o Administrador ou o solicitante (enquanto pendente ou em ajuste) podem excluir esta permuta.");
       return;
     }
 
     if (!bypassConfirm) {
-      const confirmMsg = isOwnerPendingSubstitute
+      const confirmMsg = isOwnerCanDelete
         ? "Tem certeza de que deseja excluir sua solicitação de permuta? Esta ação cancelará o pedido permanentemente."
         : "Tem certeza de que deseja excluir este registro? Esta ação é irreversível e poderá alterar o histórico do sistema.";
 
@@ -2597,6 +2608,11 @@ export default function App() {
         confirmMsg,
         async () => {
           await executeDeletePermuta(id);
+          if (adjustingPermuta?.id === id) {
+            setAdjustingPermuta(null);
+            setActiveSwapScale(null);
+            setCurrentTab('PERMUTAS');
+          }
         },
         undefined,
         "CONFIRMAR EXCLUSÃO",
@@ -2606,6 +2622,11 @@ export default function App() {
     }
 
     await executeDeletePermuta(id);
+    if (adjustingPermuta?.id === id) {
+      setAdjustingPermuta(null);
+      setActiveSwapScale(null);
+      setCurrentTab('PERMUTAS');
+    }
   };
 
   const handleCorrectPermuta = async (p: Permuta) => {
@@ -2622,7 +2643,7 @@ export default function App() {
         turno: p.turno as any
       };
     }
-    await handleDeletePermuta(p.id, true);
+    setAdjustingPermuta(p);
     setActiveSwapScale(esc);
     setActiveReviewPermuta(null);
   };
@@ -3622,12 +3643,19 @@ export default function App() {
                 userLogged={loggedUser}
                 permutas={permutas}
                 escalas={escalas}
-                onCancel={() => setActiveSwapScale(null)}
+                onCancel={() => {
+                  setActiveSwapScale(null);
+                  setAdjustingPermuta(null);
+                }}
                 onSubmitPermuta={handleCreatePermuta}
                 onFinish={() => {
                   setActiveSwapScale(null);
+                  setAdjustingPermuta(null);
                   setCurrentTab('PERMUTAS');
                 }}
+                onDeletePermuta={adjustingPermuta ? async () => {
+                  await handleDeletePermuta(adjustingPermuta.id);
+                } : undefined}
               />
             ) : activeReviewPermuta ? (
               <ValidadorPermuta
@@ -3828,10 +3856,9 @@ export default function App() {
                                     >
                                       Ajustar
                                     </button>
-                                    {(loggedUser?.role === 'ADMIN' || (p.militarSubstituidoId === loggedUser?.id && p.status === 'PENDENTE_SUBSTITUTO')) && (
+                                    {(loggedUser?.role === 'ADMIN' || (p.militarSubstituidoId === loggedUser?.id && (p.status === 'PENDENTE_SUBSTITUTO' || p.status === 'AJUSTE_GESTOR' || p.status === 'ALTERACAO_SOLICITADA' || p.status === 'PENDENTE_GESTOR'))) && (
                                       <button 
                                         onClick={async () => {
-                                          // Removed window.confirm for better iframe compatibility
                                           await handleDeletePermuta(p.id);
                                         }}
                                         className="w-full bg-cyber-red/10 border border-cyber-red/40 text-cyber-red text-[10px] font-bold py-2 rounded uppercase hover:bg-cyber-red/20 transition-all flex items-center justify-center cursor-pointer"
